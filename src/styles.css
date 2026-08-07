@@ -5,35 +5,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * ERP Educational Center — Visual identity
+ * Canvas: pure white / #F8FAFC · Sidebar: Deep Royal Navy #1E3A8A
+ * Typography: Arabic Bold (700-900), high contrast #0F172A
+ * Cards: 2px crisp slate borders, bold blue KPI numbers (#2563EB)
  */
 
 @theme inline {
+  --font-sans: "Cairo", system-ui, sans-serif;
+  --font-display: "Cairo", system-ui, sans-serif;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-navy-foreground: var(--navy-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -42,7 +42,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
@@ -59,77 +64,84 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-card: 0 1px 2px oklch(0.21 0.05 265 / 0.06), 0 8px 24px oklch(0.21 0.05 265 / 0.06);
+  --shadow-lift: 0 12px 40px oklch(0.21 0.05 265 / 0.14);
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
+
   --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --canvas: oklch(0.984 0.003 247.858); /* #F8FAFC */
+  --foreground: oklch(0.208 0.042 265.755); /* #0F172A-ish */
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: oklch(0.208 0.042 265.755);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+
+  --primary: oklch(0.546 0.215 262.881); /* #2563EB */
+  --primary-foreground: oklch(1 0 0);
+
+  --navy: oklch(0.379 0.146 265.522); /* #1E3A8A */
+  --navy-deep: oklch(0.279 0.115 266); /* darker navy */
+  --navy-foreground: oklch(0.985 0.005 247.858);
+
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --muted-foreground: oklch(0.446 0.043 257.281);
+  --accent: oklch(0.932 0.032 255.585);
+  --accent-foreground: oklch(0.379 0.146 265.522);
+
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.596 0.145 163.225);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.705 0.163 70.08);
+  --warning-foreground: oklch(0.208 0.042 265.755);
+
+  --border: oklch(0.869 0.02 252.894); /* #CBD5E1 */
+  --border-strong: oklch(0.788 0.03 252.894);
+  --input: oklch(0.869 0.02 252.894);
+  --ring: oklch(0.546 0.215 262.881);
+
+  --chart-1: oklch(0.546 0.215 262.881);
+  --chart-2: oklch(0.596 0.145 163.225);
+  --chart-3: oklch(0.705 0.163 70.08);
+  --chart-4: oklch(0.379 0.146 265.522);
+  --chart-5: oklch(0.637 0.208 25.331);
+
+  --sidebar: oklch(0.379 0.146 265.522);
+  --sidebar-foreground: oklch(0.985 0.005 247.858);
+  --sidebar-primary: oklch(1 0 0);
+  --sidebar-primary-foreground: oklch(0.379 0.146 265.522);
+  --sidebar-accent: oklch(0.45 0.15 265.522);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.45 0.15 265.522);
+  --sidebar-ring: oklch(0.7 0.1 262.881);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
+  --background: oklch(0.208 0.042 265.755);
+  --canvas: oklch(0.208 0.042 265.755);
   --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
+  --card: oklch(0.26 0.045 265);
   --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
+  --popover: oklch(0.26 0.045 265);
   --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.62 0.19 262.881);
+  --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.279 0.041 260.031);
   --secondary-foreground: oklch(0.984 0.003 247.858);
   --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.75 0.03 256.788);
+  --accent: oklch(0.32 0.06 262);
   --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --border: oklch(1 0 0 / 16%);
+  --border-strong: oklch(1 0 0 / 26%);
+  --input: oklch(1 0 0 / 18%);
 }
 
 @layer base {
@@ -137,8 +149,41 @@
     border-color: var(--color-border);
   }
 
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+  html {
+    font-family: var(--font-sans);
   }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-foreground);
+    font-weight: 700;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  th,
+  label,
+  button {
+    font-weight: 800;
+  }
+}
+
+@utility card-crisp {
+  border-width: 2px;
+  border-color: var(--color-border);
+  background-color: var(--color-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+@utility kpi-number {
+  color: var(--color-primary);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }

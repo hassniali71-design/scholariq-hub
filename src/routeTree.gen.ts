@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OwnerIndexRouteImport } from './routes/owner.index'
+import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
+import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
+import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
+import { Route as StaffIndexRouteImport } from './routes/staff.index'
+import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
+import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerIndexRoute = OwnerIndexRouteImport.update({
+  id: '/owner/',
+  path: '/owner/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerComplianceRoute = OwnerComplianceRouteImport.update({
+  id: '/owner/compliance',
+  path: '/owner/compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerFinanceRoute = OwnerFinanceRouteImport.update({
+  id: '/owner/finance',
+  path: '/owner/finance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerStudentsRoute = OwnerStudentsRouteImport.update({
+  id: '/owner/students',
+  path: '/owner/students',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffBookletsRoute = StaffBookletsRouteImport.update({
+  id: '/staff/booklets',
+  path: '/staff/booklets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffCashierRoute = StaffCashierRouteImport.update({
+  id: '/staff/cashier',
+  path: '/staff/cashier',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/owner/': typeof OwnerIndexRoute
+  '/staff/': typeof StaffIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/owner': typeof OwnerIndexRoute
+  '/staff': typeof StaffIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/owner/': typeof OwnerIndexRoute
+  '/staff/': typeof StaffIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/owner/'
+    | '/staff/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/owner'
+    | '/staff'
+  id:
+    | '__root__'
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/owner/'
+    | '/staff/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OwnerComplianceRoute: typeof OwnerComplianceRoute
+  OwnerFinanceRoute: typeof OwnerFinanceRoute
+  OwnerStudentsRoute: typeof OwnerStudentsRoute
+  StaffBookletsRoute: typeof StaffBookletsRoute
+  StaffCashierRoute: typeof StaffCashierRoute
+  OwnerIndexRoute: typeof OwnerIndexRoute
+  StaffIndexRoute: typeof StaffIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +143,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner/': {
+      id: '/owner/'
+      path: '/owner'
+      fullPath: '/owner/'
+      preLoaderRoute: typeof OwnerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/compliance': {
+      id: '/owner/compliance'
+      path: '/owner/compliance'
+      fullPath: '/owner/compliance'
+      preLoaderRoute: typeof OwnerComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/finance': {
+      id: '/owner/finance'
+      path: '/owner/finance'
+      fullPath: '/owner/finance'
+      preLoaderRoute: typeof OwnerFinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/students': {
+      id: '/owner/students'
+      path: '/owner/students'
+      fullPath: '/owner/students'
+      preLoaderRoute: typeof OwnerStudentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/': {
+      id: '/staff/'
+      path: '/staff'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/booklets': {
+      id: '/staff/booklets'
+      path: '/staff/booklets'
+      fullPath: '/staff/booklets'
+      preLoaderRoute: typeof StaffBookletsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/cashier': {
+      id: '/staff/cashier'
+      path: '/staff/cashier'
+      fullPath: '/staff/cashier'
+      preLoaderRoute: typeof StaffCashierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OwnerComplianceRoute: OwnerComplianceRoute,
+  OwnerFinanceRoute: OwnerFinanceRoute,
+  OwnerStudentsRoute: OwnerStudentsRoute,
+  StaffBookletsRoute: StaffBookletsRoute,
+  StaffCashierRoute: StaffCashierRoute,
+  OwnerIndexRoute: OwnerIndexRoute,
+  StaffIndexRoute: StaffIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
