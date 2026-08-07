@@ -17,6 +17,8 @@ import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
 import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
+import { Route as StaffShiftRouteImport } from './routes/staff.shift'
+import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +60,16 @@ const StaffCashierRoute = StaffCashierRouteImport.update({
   path: '/staff/cashier',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffShiftRoute = StaffShiftRouteImport.update({
+  id: '/staff/shift',
+  path: '/staff/shift',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherIndexRoute = TeacherIndexRouteImport.update({
+  id: '/teacher/',
+  path: '/teacher/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,8 +78,10 @@ export interface FileRoutesByFullPath {
   '/owner/students': typeof OwnerStudentsRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
   '/owner/': typeof OwnerIndexRoute
   '/staff/': typeof StaffIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,8 +90,10 @@ export interface FileRoutesByTo {
   '/owner/students': typeof OwnerStudentsRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
   '/owner': typeof OwnerIndexRoute
   '/staff': typeof StaffIndexRoute
+  '/teacher': typeof TeacherIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,8 +103,10 @@ export interface FileRoutesById {
   '/owner/students': typeof OwnerStudentsRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
   '/owner/': typeof OwnerIndexRoute
   '/staff/': typeof StaffIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,8 +117,10 @@ export interface FileRouteTypes {
     | '/owner/students'
     | '/staff/booklets'
     | '/staff/cashier'
+    | '/staff/shift'
     | '/owner/'
     | '/staff/'
+    | '/teacher/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -109,8 +129,10 @@ export interface FileRouteTypes {
     | '/owner/students'
     | '/staff/booklets'
     | '/staff/cashier'
+    | '/staff/shift'
     | '/owner'
     | '/staff'
+    | '/teacher'
   id:
     | '__root__'
     | '/'
@@ -119,8 +141,10 @@ export interface FileRouteTypes {
     | '/owner/students'
     | '/staff/booklets'
     | '/staff/cashier'
+    | '/staff/shift'
     | '/owner/'
     | '/staff/'
+    | '/teacher/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -130,8 +154,10 @@ export interface RootRouteChildren {
   OwnerStudentsRoute: typeof OwnerStudentsRoute
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
+  StaffShiftRoute: typeof StaffShiftRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   StaffIndexRoute: typeof StaffIndexRoute
+  TeacherIndexRoute: typeof TeacherIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +218,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffCashierRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff/shift': {
+      id: '/staff/shift'
+      path: '/staff/shift'
+      fullPath: '/staff/shift'
+      preLoaderRoute: typeof StaffShiftRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher/': {
+      id: '/teacher/'
+      path: '/teacher'
+      fullPath: '/teacher/'
+      preLoaderRoute: typeof TeacherIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -202,9 +242,21 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerStudentsRoute: OwnerStudentsRoute,
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,
+  StaffShiftRoute: StaffShiftRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   StaffIndexRoute: StaffIndexRoute,
+  TeacherIndexRoute: TeacherIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
