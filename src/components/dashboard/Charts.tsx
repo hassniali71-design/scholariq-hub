@@ -86,19 +86,12 @@ export function AttendanceChart({ data }: { data: AttendancePoint[] }) {
 export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" horizontal={false} />
-        <XAxis type="number" domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} />
-        <YAxis
-          type="category"
-          dataKey="subject"
-          tick={axisStyle}
-          axisLine={false}
-          tickLine={false}
-          width={80}
-        />
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis dataKey="subject" tick={axisStyle} axisLine={false} tickLine={false} interval={0} />
+        <YAxis domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} width={40} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
-        <Bar dataKey="avg" name="متوسط الدرجات" radius={[0, 8, 8, 0]}>
+        <Bar dataKey="avg" name="متوسط الدرجات" radius={[8, 8, 0, 0]}>
           {data.map((entry) => (
             <Cell
               key={entry.subject}
@@ -110,6 +103,7 @@ export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
     </ResponsiveContainer>
   );
 }
+
 
 export function ScoreTrendChart({ data }: { data: { label: string; score: number }[] }) {
   return (
