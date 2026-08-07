@@ -19,6 +19,7 @@ import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
 import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
 import { Route as StaffShiftRouteImport } from './routes/staff.shift'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
+import { Route as TeacherSessionRouteImport } from './routes/teacher.session'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const TeacherIndexRoute = TeacherIndexRouteImport.update({
   path: '/teacher/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeacherSessionRoute = TeacherSessionRouteImport.update({
+  id: '/teacher/session',
+  path: '/teacher/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/teacher/': typeof TeacherIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/teacher/session': typeof TeacherSessionRoute
   '/owner': typeof OwnerIndexRoute
   '/staff': typeof StaffIndexRoute
   '/teacher': typeof TeacherIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/teacher/': typeof TeacherIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/teacher/session'
     | '/owner/'
     | '/staff/'
     | '/teacher/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/teacher/session'
     | '/owner'
     | '/staff'
     | '/teacher'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/teacher/session'
     | '/owner/'
     | '/staff/'
     | '/teacher/'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
+  TeacherSessionRoute: typeof TeacherSessionRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   StaffIndexRoute: typeof StaffIndexRoute
   TeacherIndexRoute: typeof TeacherIndexRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teacher/session': {
+      id: '/teacher/session'
+      path: '/teacher/session'
+      fullPath: '/teacher/session'
+      preLoaderRoute: typeof TeacherSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,
+  TeacherSessionRoute: TeacherSessionRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   StaffIndexRoute: StaffIndexRoute,
   TeacherIndexRoute: TeacherIndexRoute,
