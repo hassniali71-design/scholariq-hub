@@ -10,33 +10,219 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OwnerIndexRouteImport } from './routes/owner.index'
+import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
+import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
+import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
+import { Route as ParentIndexRouteImport } from './routes/parent.index'
+import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
+import { Route as StaffIndexRouteImport } from './routes/staff.index'
+import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
+import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
+import { Route as StaffShiftRouteImport } from './routes/staff.shift'
+import { Route as StudentIndexRouteImport } from './routes/student.index'
+import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
+import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
+import { Route as TeacherSessionRouteImport } from './routes/teacher.session'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerIndexRoute = OwnerIndexRouteImport.update({
+  id: '/owner/',
+  path: '/owner/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerComplianceRoute = OwnerComplianceRouteImport.update({
+  id: '/owner/compliance',
+  path: '/owner/compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerFinanceRoute = OwnerFinanceRouteImport.update({
+  id: '/owner/finance',
+  path: '/owner/finance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerStudentsRoute = OwnerStudentsRouteImport.update({
+  id: '/owner/students',
+  path: '/owner/students',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentIndexRoute = ParentIndexRouteImport.update({
+  id: '/parent/',
+  path: '/parent/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentMessagesRoute = ParentMessagesRouteImport.update({
+  id: '/parent/messages',
+  path: '/parent/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffBookletsRoute = StaffBookletsRouteImport.update({
+  id: '/staff/booklets',
+  path: '/staff/booklets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffCashierRoute = StaffCashierRouteImport.update({
+  id: '/staff/cashier',
+  path: '/staff/cashier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffShiftRoute = StaffShiftRouteImport.update({
+  id: '/staff/shift',
+  path: '/staff/shift',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/student/',
+  path: '/student/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
+  id: '/student/leaderboard',
+  path: '/student/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherIndexRoute = TeacherIndexRouteImport.update({
+  id: '/teacher/',
+  path: '/teacher/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherSessionRoute = TeacherSessionRouteImport.update({
+  id: '/teacher/session',
+  path: '/teacher/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/parent/messages': typeof ParentMessagesRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/session': typeof TeacherSessionRoute
+  '/owner/': typeof OwnerIndexRoute
+  '/parent/': typeof ParentIndexRoute
+  '/staff/': typeof StaffIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/parent/messages': typeof ParentMessagesRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/session': typeof TeacherSessionRoute
+  '/owner': typeof OwnerIndexRoute
+  '/parent': typeof ParentIndexRoute
+  '/staff': typeof StaffIndexRoute
+  '/student': typeof StudentIndexRoute
+  '/teacher': typeof TeacherIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
+  '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/students': typeof OwnerStudentsRoute
+  '/parent/messages': typeof ParentMessagesRoute
+  '/staff/booklets': typeof StaffBookletsRoute
+  '/staff/cashier': typeof StaffCashierRoute
+  '/staff/shift': typeof StaffShiftRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/session': typeof TeacherSessionRoute
+  '/owner/': typeof OwnerIndexRoute
+  '/parent/': typeof ParentIndexRoute
+  '/staff/': typeof StaffIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/parent/messages'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/staff/shift'
+    | '/student/leaderboard'
+    | '/teacher/session'
+    | '/owner/'
+    | '/parent/'
+    | '/staff/'
+    | '/student/'
+    | '/teacher/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/parent/messages'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/staff/shift'
+    | '/student/leaderboard'
+    | '/teacher/session'
+    | '/owner'
+    | '/parent'
+    | '/staff'
+    | '/student'
+    | '/teacher'
+  id:
+    | '__root__'
+    | '/'
+    | '/owner/compliance'
+    | '/owner/finance'
+    | '/owner/students'
+    | '/parent/messages'
+    | '/staff/booklets'
+    | '/staff/cashier'
+    | '/staff/shift'
+    | '/student/leaderboard'
+    | '/teacher/session'
+    | '/owner/'
+    | '/parent/'
+    | '/staff/'
+    | '/student/'
+    | '/teacher/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OwnerComplianceRoute: typeof OwnerComplianceRoute
+  OwnerFinanceRoute: typeof OwnerFinanceRoute
+  OwnerStudentsRoute: typeof OwnerStudentsRoute
+  ParentMessagesRoute: typeof ParentMessagesRoute
+  StaffBookletsRoute: typeof StaffBookletsRoute
+  StaffCashierRoute: typeof StaffCashierRoute
+  StaffShiftRoute: typeof StaffShiftRoute
+  StudentLeaderboardRoute: typeof StudentLeaderboardRoute
+  TeacherSessionRoute: typeof TeacherSessionRoute
+  OwnerIndexRoute: typeof OwnerIndexRoute
+  ParentIndexRoute: typeof ParentIndexRoute
+  StaffIndexRoute: typeof StaffIndexRoute
+  StudentIndexRoute: typeof StudentIndexRoute
+  TeacherIndexRoute: typeof TeacherIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +234,124 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner/': {
+      id: '/owner/'
+      path: '/owner'
+      fullPath: '/owner/'
+      preLoaderRoute: typeof OwnerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/compliance': {
+      id: '/owner/compliance'
+      path: '/owner/compliance'
+      fullPath: '/owner/compliance'
+      preLoaderRoute: typeof OwnerComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/finance': {
+      id: '/owner/finance'
+      path: '/owner/finance'
+      fullPath: '/owner/finance'
+      preLoaderRoute: typeof OwnerFinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/students': {
+      id: '/owner/students'
+      path: '/owner/students'
+      fullPath: '/owner/students'
+      preLoaderRoute: typeof OwnerStudentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/': {
+      id: '/parent/'
+      path: '/parent'
+      fullPath: '/parent/'
+      preLoaderRoute: typeof ParentIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/messages': {
+      id: '/parent/messages'
+      path: '/parent/messages'
+      fullPath: '/parent/messages'
+      preLoaderRoute: typeof ParentMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/': {
+      id: '/staff/'
+      path: '/staff'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/booklets': {
+      id: '/staff/booklets'
+      path: '/staff/booklets'
+      fullPath: '/staff/booklets'
+      preLoaderRoute: typeof StaffBookletsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/cashier': {
+      id: '/staff/cashier'
+      path: '/staff/cashier'
+      fullPath: '/staff/cashier'
+      preLoaderRoute: typeof StaffCashierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/shift': {
+      id: '/staff/shift'
+      path: '/staff/shift'
+      fullPath: '/staff/shift'
+      preLoaderRoute: typeof StaffShiftRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/': {
+      id: '/student/'
+      path: '/student'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/leaderboard': {
+      id: '/student/leaderboard'
+      path: '/student/leaderboard'
+      fullPath: '/student/leaderboard'
+      preLoaderRoute: typeof StudentLeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher/': {
+      id: '/teacher/'
+      path: '/teacher'
+      fullPath: '/teacher/'
+      preLoaderRoute: typeof TeacherIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher/session': {
+      id: '/teacher/session'
+      path: '/teacher/session'
+      fullPath: '/teacher/session'
+      preLoaderRoute: typeof TeacherSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OwnerComplianceRoute: OwnerComplianceRoute,
+  OwnerFinanceRoute: OwnerFinanceRoute,
+  OwnerStudentsRoute: OwnerStudentsRoute,
+  ParentMessagesRoute: ParentMessagesRoute,
+  StaffBookletsRoute: StaffBookletsRoute,
+  StaffCashierRoute: StaffCashierRoute,
+  StaffShiftRoute: StaffShiftRoute,
+  StudentLeaderboardRoute: StudentLeaderboardRoute,
+  TeacherSessionRoute: TeacherSessionRoute,
+  OwnerIndexRoute: OwnerIndexRoute,
+  ParentIndexRoute: ParentIndexRoute,
+  StaffIndexRoute: StaffIndexRoute,
+  StudentIndexRoute: StudentIndexRoute,
+  TeacherIndexRoute: TeacherIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
