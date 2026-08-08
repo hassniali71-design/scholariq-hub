@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OwnerIndexRouteImport } from './routes/owner.index'
+import { Route as OwnerAccessRouteImport } from './routes/owner.access'
 import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
 import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const OwnerIndexRoute = OwnerIndexRouteImport.update({
   id: '/owner/',
   path: '/owner/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerAccessRoute = OwnerAccessRouteImport.update({
+  id: '/owner/access',
+  path: '/owner/access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerComplianceRoute = OwnerComplianceRouteImport.update({
@@ -103,6 +109,7 @@ const TeacherSessionRoute = TeacherSessionRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OwnerAccessRoute: typeof OwnerAccessRoute
   OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/owner'
       fullPath: '/owner/'
       preLoaderRoute: typeof OwnerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/access': {
+      id: '/owner/access'
+      path: '/owner/access'
+      fullPath: '/owner/access'
+      preLoaderRoute: typeof OwnerAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/compliance': {
@@ -337,6 +357,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OwnerAccessRoute: OwnerAccessRoute,
   OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,

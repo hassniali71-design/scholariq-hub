@@ -43,7 +43,9 @@ function emit() {
 
 export function subscribeAuth(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 function readAccounts(): Account[] {
