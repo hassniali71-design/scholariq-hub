@@ -45,6 +45,7 @@ export const ROLES: Record<UserRole, RoleConfig> = {
       { label: "التدفق المالي", to: "/owner/finance", icon: BarChart3 },
       { label: "التزام المدرسين", to: "/owner/compliance", icon: CalendarCheck },
       { label: "الطلاب والمجموعات", to: "/owner/students", icon: Users },
+      { label: "إدارة وصلاحيات الوصول", to: "/owner/access", icon: KeyRound },
     ],
   },
   staff: {
