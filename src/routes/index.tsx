@@ -1,128 +1,193 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  GraduationCap,
-  MonitorPlay,
-  ShieldCheck,
-  Sparkles,
-  Timer,
-  Users,
-} from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { GraduationCap, Info, LogIn, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { ROLES, ROLE_ORDER } from "@/config/roles";
+import { DEMO_OWNER, signIn } from "@/lib/auth";
 import { CURRENT_TENANT } from "@/lib/mock-data";
+import type { UserRole } from "@/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "بوابة الدخول — منصة إدارة السناتر التعليمية" },
+      { title: "تسجيل الدخول — منصة إدارة السناتر التعليمية" },
       {
         name: "description",
         content:
-          "بوابة موحدة لدخول المالك والسكرتارية والمدرسين والطلاب وأولياء الأمور إلى نظام إدارة السنتر.",
+          "بوابة دخول موحدة وآمنة للمالك والسكرتارية والمدرسين والطلاب وأولياء الأمور والزوار.",
       },
-      { property: "og:title", content: "بوابة الدخول — منصة إدارة السناتر التعليمية" },
+      { property: "og:title", content: "تسجيل الدخول — منصة إدارة السناتر التعليمية" },
       {
         property: "og:description",
-        content: "نظام ERP و LMS متكامل للسناتر التعليمية مع تايمرات الحصص والمتابعة اللحظية.",
+        content: "بوابة دخول موحدة وآمنة لجميع أدوار السنتر التعليمي بدون تسجيل ذاتي.",
       },
     ],
   }),
-  component: PortalGate,
+  component: LoginGate,
 });
 
-const highlights = [
-  { icon: Timer, title: "محرك حصة بالتايمر", text: "٤ مراحل موزونة بالثانية داخل الفصل" },
-  { icon: Users, title: "متابعة بدون أعذار", text: "إشعارات واتساب لحظية لولي الأمر" },
-  { icon: ShieldCheck, title: "عزل بيانات كل سنتر", text: "حماية صفية عبر center_id" },
-];
+const identifierLabel: Record<UserRole, string> = {
+  owner: "البريد الإلكتروني",
+  teacher: "كود المدرس",
+  staff: "كود الموظف",
+  student: "كود الطالب (Student ID)",
+  parent: "كود الطالب الخاص بابنك",
+  visitor: "كود دعوة الزائر",
+};
 
-function PortalGate() {
+const identifierPlaceholder: Record<UserRole, string> = {
+  owner: "owner@center.com",
+  teacher: "TCH-2001",
+  staff: "STF-3001",
+  student: "STD-10234",
+  parent: "STD-10234",
+  visitor: "VIS-ABC123",
+};
+
+function needsPassword(role: UserRole) {
+  return role === "owner" || role === "teacher" || role === "staff";
+}
+
+function LoginGate() {
+  const navigate = useNavigate();
+  const [role, setRole] = useState<UserRole>("owner");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const result = signIn({ role, identifier, password });
+    if (!result.ok) {
+      setError(result.error);
+      toast.error(result.error);
+      return;
+    }
+    setError(null);
+    toast.success(`مرحباً ${result.session.full_name}`);
+    navigate({ to: ROLES[role].home });
+  }
+
+  function useDemoOwner() {
+    setRole("owner");
+    setIdentifier(DEMO_OWNER.email);
+    setPassword(DEMO_OWNER.password);
+    toast.info("تم تعبئة بيانات المالك التجريبية");
+  }
+
   return (
-    <div dir="rtl" className="min-h-screen bg-canvas">
-      <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
-        <aside className="relative flex flex-col justify-between bg-navy px-8 py-10 text-navy-foreground md:px-12">
-          <div className="flex items-center gap-3">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15">
-              <GraduationCap className="size-7" />
+    <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="card-crisp overflow-hidden">
+          <div className="flex flex-col items-center gap-3 bg-navy px-6 py-8 text-navy-foreground">
+            <span className="flex size-16 items-center justify-center rounded-2xl bg-white/15">
+              <GraduationCap className="size-9" />
             </span>
-            <div>
-              <p className="text-lg font-black">{CURRENT_TENANT.name}</p>
+            <div className="text-center">
+              <p className="text-xl font-black">{CURRENT_TENANT.name}</p>
               <p className="text-xs font-bold text-white/70">{CURRENT_TENANT.branch}</p>
             </div>
+            <p className="rounded-xl bg-white/10 px-3 py-1.5 text-[11px] font-black text-white/80">
+              نظام ERP و LMS متكامل — دخول آمن بدون تسجيل ذاتي
+            </p>
           </div>
 
-          <div className="my-12 max-w-lg">
-            <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-black">
-              <Sparkles className="size-4" /> نظام ERP و LMS متكامل
-            </span>
-            <h1 className="mt-5 text-4xl leading-tight font-black md:text-5xl">
-              منصة إدارة والتحكم بالسناتر التعليمية
-            </h1>
-            <p className="mt-4 text-base font-bold text-white/80">
-              أتمتة كاملة للحضور والتحصيل والحصص التفاعلية، مع تقارير لحظية للمالك ومتابعة صارمة
-              لأولياء الأمور.
-            </p>
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
+            <h1 className="text-2xl font-black text-foreground">تسجيل الدخول</h1>
 
-            <div className="mt-8 space-y-3">
-              {highlights.map((h) => (
-                <div key={h.title} className="flex items-start gap-3 rounded-2xl bg-white/10 p-4">
-                  <h.icon className="mt-0.5 size-5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-black">{h.title}</p>
-                    <p className="text-xs font-bold text-white/70">{h.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs font-bold text-white/50">
-            © 2026 جميع الحقوق محفوظة — منصة إدارة السناتر التعليمية
-          </p>
-        </aside>
-
-        <main className="flex items-center px-6 py-12 md:px-12">
-          <div className="mx-auto w-full max-w-2xl">
-            <h2 className="text-3xl font-black text-foreground">اختر بوابة الدخول</h2>
-            <p className="mt-2 text-sm font-bold text-muted-foreground">
-              كل دور له لوحة تحكم وصلاحيات مستقلة داخل نفس السنتر.
-            </p>
-
-            <div className="mt-8 space-y-4">
-              {ROLE_ORDER.map((role) => {
-                const config = ROLES[role];
-                return (
-                  <Link
-                    key={role}
-                    to={config.home}
-                    className="card-crisp group flex items-center gap-4 p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lift"
-                  >
-                    <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-navy text-navy-foreground">
-                      <config.icon className="size-7" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-lg font-black text-foreground">{config.title}</p>
-                      <p className="text-sm font-bold text-muted-foreground">{config.subtitle}</p>
-                      <p className="mt-1 text-xs font-extrabold text-primary">
-                        {config.loginHint}
-                      </p>
-                    </div>
-                    <ArrowLeft className="size-6 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-primary" />
-                  </Link>
-                );
-              })}
+            <div className="space-y-1.5">
+              <label htmlFor="role" className="block text-sm font-extrabold text-foreground">
+                نوع الحساب
+              </label>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => {
+                  setRole(e.target.value as UserRole);
+                  setIdentifier("");
+                  setPassword("");
+                  setError(null);
+                }}
+                className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base font-extrabold text-foreground outline-none focus:border-primary"
+              >
+                {ROLE_ORDER.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLES[r].title}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <Link
-              to="/teacher/session"
-              className="mt-6 flex items-center justify-center gap-2 rounded-xl border-2 border-navy bg-navy px-5 py-4 text-base font-black text-navy-foreground transition-opacity hover:opacity-90"
+            <div className="space-y-1.5">
+              <label htmlFor="identifier" className="block text-sm font-extrabold text-foreground">
+                {identifierLabel[role]}
+              </label>
+              <input
+                id="identifier"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder={identifierPlaceholder[role]}
+                autoComplete="off"
+                className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+              />
+            </div>
+
+            {needsPassword(role) ? (
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="block text-sm font-extrabold text-foreground">
+                  كلمة السر
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base font-extrabold text-foreground outline-none focus:border-primary"
+                />
+              </div>
+            ) : null}
+
+            {error ? (
+              <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-extrabold text-destructive">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3.5 text-base font-black text-navy-foreground transition-opacity hover:opacity-90"
             >
-              <MonitorPlay className="size-5" />
-              فتح وضع الحصة على الشاشة الذكية مباشرة
-            </Link>
-          </div>
-        </main>
+              <LogIn className="size-5" />
+              دخول
+            </button>
+
+            <div className="rounded-xl border-2 border-dashed border-border bg-muted/60 p-4">
+              <p className="flex items-center gap-2 text-xs font-black text-foreground">
+                <Info className="size-4 text-primary" />
+                حساب المالك التجريبي
+              </p>
+              <p className="mt-1.5 font-mono text-sm font-black text-foreground">
+                {DEMO_OWNER.email}
+              </p>
+              <p className="font-mono text-sm font-black text-foreground">{DEMO_OWNER.password}</p>
+              <button
+                type="button"
+                onClick={useDemoOwner}
+                className="mt-3 w-full rounded-lg border-2 border-navy px-3 py-2 text-xs font-black text-navy transition-colors hover:bg-navy hover:text-navy-foreground"
+              >
+                تعبئة البيانات تلقائياً
+              </button>
+            </div>
+
+            <p className="flex items-center justify-center gap-1.5 text-center text-xs font-bold text-muted-foreground">
+              <ShieldCheck className="size-4" />
+              الحسابات تُنشأ من لوحة المالك فقط — لا يوجد تسجيل ذاتي
+            </p>
+          </form>
+        </div>
       </div>
     </div>
   );

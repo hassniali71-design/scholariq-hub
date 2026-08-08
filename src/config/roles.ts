@@ -3,7 +3,9 @@ import {
   BookOpen,
   CalendarCheck,
   CreditCard,
+  Eye,
   GraduationCap,
+  KeyRound,
   LayoutDashboard,
   MessageSquareText,
   MonitorPlay,
@@ -45,6 +47,7 @@ export const ROLES: Record<UserRole, RoleConfig> = {
       { label: "التدفق المالي", to: "/owner/finance", icon: BarChart3 },
       { label: "التزام المدرسين", to: "/owner/compliance", icon: CalendarCheck },
       { label: "الطلاب والمجموعات", to: "/owner/students", icon: Users },
+      { label: "إدارة وصلاحيات الوصول", to: "/owner/access", icon: KeyRound },
     ],
   },
   staff: {
@@ -97,6 +100,22 @@ export const ROLES: Record<UserRole, RoleConfig> = {
       { label: "سجل الواتساب", to: "/parent/messages", icon: MessageSquareText },
     ],
   },
+  visitor: {
+    role: "visitor",
+    title: "الزائر",
+    subtitle: "استعراض عام عن السنتر",
+    loginHint: "كود دعوة الزائر",
+    home: "/visitor",
+    icon: Eye,
+    nav: [{ label: "نظرة عامة", to: "/visitor", icon: LayoutDashboard }],
+  },
 };
 
-export const ROLE_ORDER: UserRole[] = ["owner", "staff", "teacher", "student", "parent"];
+export const ROLE_ORDER: UserRole[] = [
+  "owner",
+  "staff",
+  "teacher",
+  "student",
+  "parent",
+  "visitor",
+];
