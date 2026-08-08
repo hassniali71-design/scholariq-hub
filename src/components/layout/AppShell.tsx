@@ -1,6 +1,8 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { GraduationCap, LogOut } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+
+import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { ROLES } from "@/config/roles";
 import { CURRENT_TENANT } from "@/lib/mock-data";
@@ -19,6 +21,35 @@ interface AppShellProps {
 export function AppShell({ role, title, description, actions, children }: AppShellProps) {
   const config = ROLES[role];
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      const current = getSession();
+      setSession(current);
+      setChecked(true);
+      if (!current || current.role !== role) {
+        void navigate({ to: "/" });
+      }
+    };
+    sync();
+    return subscribeAuth(sync);
+  }, [role, navigate]);
+
+  const handleSignOut = () => {
+    signOut();
+    void navigate({ to: "/" });
+  };
+
+  if (!checked || !session) {
+    return (
+      <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">
+        <p className="text-base font-black text-muted-foreground">جارٍ التحقق من الصلاحيات…</p>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="flex min-h-screen bg-canvas">
@@ -63,13 +94,20 @@ export function AppShell({ role, title, description, actions, children }: AppShe
             <p className="text-[11px] font-bold text-white/60">معرّف السنتر (RLS)</p>
             <p className="font-mono text-sm font-black">{CURRENT_TENANT.center_id}</p>
           </div>
-          <Link
-            to="/"
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-extrabold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          <div className="mb-2 px-1">
+            <p className="truncate text-sm font-black text-white">{session.full_name}</p>
+            <p className="truncate font-mono text-[11px] font-bold text-white/60">
+              {session.identifier}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-extrabold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
           >
             <LogOut className="size-5" />
             تسجيل الخروج
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -82,7 +120,17 @@ export function AppShell({ role, title, description, actions, children }: AppShe
                 <p className="mt-1 text-sm font-bold text-muted-foreground">{description}</p>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">{actions}</div>
+            <div className="flex items-center gap-2">
+              {actions}
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex items-center gap-2 rounded-xl border-2 border-border px-3 py-2 text-xs font-black text-foreground transition-colors hover:bg-muted md:hidden"
+              >
+                <LogOut className="size-4" />
+                خروج
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-2 overflow-x-auto border-t-2 border-border px-5 py-2 md:hidden">
