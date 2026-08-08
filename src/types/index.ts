@@ -5,7 +5,7 @@
 
 export type UUID = string;
 
-export type UserRole = "owner" | "staff" | "teacher" | "student" | "parent";
+export type UserRole = "owner" | "staff" | "teacher" | "student" | "parent" | "visitor";
 
 export interface Tenant {
   center_id: UUID;
