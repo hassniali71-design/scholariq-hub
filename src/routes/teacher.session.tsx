@@ -14,12 +14,16 @@ import { SessionTimer } from "@/components/session/SessionTimer";
 import { useCountdown } from "@/hooks/use-countdown";
 import { formatNumber } from "@/lib/format";
 import {
+  recordQuestionAnswer,
+  releaseSessionTasks,
+  scoreHomework as persistHomeworkScore,
+  useDataStore,
+} from "@/lib/data-store";
+import {
   QUESTION_SECONDS,
   SESSION_STEPS,
-  groups,
   lessonSlides,
   sessionQuestions,
-  students,
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { LiveScore } from "@/types";
@@ -44,6 +48,7 @@ export const Route = createFileRoute("/teacher/session")({
 });
 
 function SessionMode() {
+  const { groups, students, liveScores } = useDataStore();
   const group = groups[0]!;
   const [stepIndex, setStepIndex] = useState(0);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -53,14 +58,23 @@ function SessionMode() {
   const [askedCount, setAskedCount] = useState(0);
   const [released, setReleased] = useState(false);
 
-  const [scores, setScores] = useState<LiveScore[]>(() =>
-    students.slice(0, 6).map((s) => ({
-      student_id: s.id,
-      student_name: s.full_name,
-      homework_score: null,
-      question_score: null,
-      points: 0,
-    })),
+  /** Live scoreboard is derived from the central store, so every rating
+   *  persists beyond this page (student / parent / owner dashboards). */
+  const scores: LiveScore[] = useMemo(
+    () =>
+      students.slice(0, 6).map((s) => {
+        const live = liveScores.find((l) => l.student_id === s.id);
+        return (
+          live ?? {
+            student_id: s.id,
+            student_name: s.full_name,
+            homework_score: null,
+            question_score: null,
+            points: 0,
+          }
+        );
+      }),
+    [students, liveScores],
   );
 
   const step = SESSION_STEPS[stepIndex]!;
@@ -82,17 +96,7 @@ function SessionMode() {
   const question = isQuestions ? (sessionQuestions[questionIndex % sessionQuestions.length] ?? null) : null;
 
   const scoreHomework = useCallback((studentId: string, value: number) => {
-    setScores((prev) =>
-      prev.map((s) =>
-        s.student_id === studentId
-          ? {
-              ...s,
-              homework_score: value,
-              points: s.points - (s.homework_score ?? 0) * 5 + value * 5,
-            }
-          : s,
-      ),
-    );
+    persistHomeworkScore(studentId, value);
   }, []);
 
   const pickRandom = useCallback(() => {
@@ -111,17 +115,7 @@ function SessionMode() {
       setAnswered(true);
       questionTimer.pause();
       setAskedCount((c) => c + 1);
-      setScores((prev) =>
-        prev.map((s) =>
-          s.student_id === pickedId
-            ? {
-                ...s,
-                question_score: correct ? 10 : 0,
-                points: s.points + (correct ? 50 : 0),
-              }
-            : s,
-        ),
-      );
+      if (pickedId) recordQuestionAnswer(pickedId, correct);
       toast[correct ? "success" : "error"](
         correct ? "إجابة صحيحة — +٥٠ نقطة" : "إجابة خاطئة — تم الرصد",
       );
@@ -130,6 +124,7 @@ function SessionMode() {
   );
 
   const releaseTasks = () => {
+    releaseSessionTasks(group.id);
     setReleased(true);
     toast.success("تم إطلاق الواجب والشيت الأسبوعي", {
       description: "أُرسلت الإشعارات لحسابات الطلاب وأولياء الأمور عبر واتساب.",
