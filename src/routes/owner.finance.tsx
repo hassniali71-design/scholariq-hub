@@ -5,7 +5,8 @@ import { RevenueChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { payments, revenueSeries, teachers } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { revenueSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/owner/finance")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/owner/finance")({
 });
 
 function FinancePage() {
+  const { payments, teachers } = useDataStore();
   const last = revenueSeries[revenueSeries.length - 1]!;
   const totalRevenue = revenueSeries.reduce((s, r) => s + r.revenue, 0);
   const totalExpenses = revenueSeries.reduce((s, r) => s + r.expenses, 0);

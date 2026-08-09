@@ -4,7 +4,8 @@ import { Crown, Medal, Sparkles, Trophy } from "lucide-react";
 import { Panel, StatCard } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber } from "@/lib/format";
-import { leaderboard } from "@/lib/mock-data";
+import { useCurrentStudent } from "@/hooks/use-current-student";
+import { useDataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/student/leaderboard")({
   head: () => ({
@@ -32,8 +33,15 @@ const badges = [
 ];
 
 function LeaderboardPage() {
+  const { leaderboard } = useDataStore();
+  const student = useCurrentStudent();
   const top = leaderboard[0]!;
-  const me = leaderboard.find((e) => e.is_me)!;
+  const me = leaderboard.find((e) => e.student_id === student.id) ?? {
+    rank: leaderboard.length + 1,
+    student_id: student.id,
+    student_name: student.full_name,
+    points: student.points,
+  };
 
   return (
     <AppShell role="student" title="لوحة الشرف" description="نظام النقاط والتحفيز داخل السنتر">
@@ -63,11 +71,7 @@ function LeaderboardPage() {
             >
               <span className="text-3xl">{e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : "🥉"}</span>
               <p className="mt-3 text-lg font-black">{e.student_name}</p>
-              <p
-                className={
-                  e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"
-                }
-              >
+              <p className={e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"}>
                 {formatNumber(e.points)}
               </p>
             </div>
@@ -81,7 +85,7 @@ function LeaderboardPage() {
             <div
               key={e.rank}
               className={
-                e.is_me
+                e.student_id === student.id
                   ? "flex items-center justify-between gap-3 rounded-xl border-2 border-primary bg-primary/5 p-4"
                   : "flex items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
               }

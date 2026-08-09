@@ -5,7 +5,8 @@ import { PerformanceChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { SESSION_STEPS, groups, performanceSeries, students, teachers } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { SESSION_STEPS, performanceSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/teacher/")({
   head: () => ({
@@ -26,7 +27,11 @@ export const Route = createFileRoute("/teacher/")({
 });
 
 function TeacherHome() {
+  const { groups, students, teachers } = useDataStore();
   const me = teachers[0]!;
+  const avgScore = Math.round(
+    students.reduce((sum, s) => sum + s.avg_score, 0) / Math.max(1, students.length),
+  );
 
   return (
     <AppShell
@@ -50,8 +55,13 @@ function TeacherHome() {
           icon={Timer}
           tone="success"
         />
-        <StatCard label="حصص هذا الأسبوع" value={formatNumber(9)} icon={CalendarDays} />
-        <StatCard label="متوسط درجات طلابي" value={formatNumber(88)} icon={TrendingUp} tone="success" />
+        <StatCard label="حصص هذا الأسبوع" value={formatNumber(groups.length)} icon={CalendarDays} />
+        <StatCard
+          label="متوسط درجات طلابي"
+          value={formatNumber(avgScore)}
+          icon={TrendingUp}
+          tone="success"
+        />
       </div>
 
       <Panel title="مراحل الحصة المعتمدة" description="محرك التايمر الرباعي المطبق داخل الفصل">

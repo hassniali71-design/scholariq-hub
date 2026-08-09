@@ -444,6 +444,7 @@ export const quizResults: QuizResult[] = [
   {
     id: "qr-1",
     center_id: c,
+    student_id: "st-1",
     subject: "الفيزياء",
     title: "تقييم الباب الثالث",
     date: "٥ أغسطس",
@@ -453,6 +454,7 @@ export const quizResults: QuizResult[] = [
   {
     id: "qr-2",
     center_id: c,
+    student_id: "st-1",
     subject: "الكيمياء",
     title: "اختبار سريع - الاتزان",
     date: "٣ أغسطس",
@@ -462,6 +464,7 @@ export const quizResults: QuizResult[] = [
   {
     id: "qr-3",
     center_id: c,
+    student_id: "st-1",
     subject: "الرياضيات",
     title: "التفاضل - ورقة (2)",
     date: "١ أغسطس",
@@ -474,6 +477,7 @@ export const homeworkTasks: HomeworkTask[] = [
   {
     id: "hw-1",
     center_id: c,
+    student_id: "st-1",
     subject: "الفيزياء",
     title: "مسائل صفحة 84 : 89",
     due_date: "٩ أغسطس",
@@ -482,6 +486,7 @@ export const homeworkTasks: HomeworkTask[] = [
   {
     id: "hw-2",
     center_id: c,
+    student_id: "st-1",
     subject: "الكيمياء",
     title: "شيت الاتزان الكيميائي",
     due_date: "٨ أغسطس",
@@ -490,6 +495,7 @@ export const homeworkTasks: HomeworkTask[] = [
   {
     id: "hw-3",
     center_id: c,
+    student_id: "st-1",
     subject: "الرياضيات",
     title: "تمارين التفاضل (3)",
     due_date: "٦ أغسطس",
@@ -502,6 +508,7 @@ export const whatsappLogs: WhatsAppLog[] = [
   {
     id: "wa-1",
     center_id: c,
+    student_id: "st-1",
     sent_at: "اليوم 03:53 م",
     template: "attendance",
     message: "تم تسجيل حضور الطالب أحمد محمود في حصة الفيزياء الساعة 3:52 م.",
@@ -510,6 +517,7 @@ export const whatsappLogs: WhatsAppLog[] = [
   {
     id: "wa-2",
     center_id: c,
+    student_id: "st-1",
     sent_at: "اليوم 05:40 م",
     template: "grade",
     message: "نتيجة تقييم اليوم: 18 من 20 — تقدير ممتاز.",
@@ -518,6 +526,7 @@ export const whatsappLogs: WhatsAppLog[] = [
   {
     id: "wa-3",
     center_id: c,
+    student_id: "st-1",
     sent_at: "أمس 08:10 م",
     template: "homework",
     message: "تم إطلاق واجب جديد: مسائل صفحة 84 : 89، آخر موعد 9 أغسطس.",
@@ -526,6 +535,7 @@ export const whatsappLogs: WhatsAppLog[] = [
   {
     id: "wa-4",
     center_id: c,
+    student_id: "st-1",
     sent_at: "أمس 06:02 م",
     template: "payment",
     message: "تم سداد مبلغ 450 جنيه — اشتراك شهر أغسطس.",
@@ -537,6 +547,7 @@ export const teacherNotes: TeacherNote[] = [
   {
     id: "tn-1",
     center_id: c,
+    student_id: "st-1",
     teacher_name: "أ. مصطفى الجندي",
     subject: "الفيزياء",
     date: "اليوم",
@@ -546,6 +557,7 @@ export const teacherNotes: TeacherNote[] = [
   {
     id: "tn-2",
     center_id: c,
+    student_id: "st-1",
     teacher_name: "أ. هبة عبد الرحمن",
     subject: "الكيمياء",
     date: "٣ أغسطس",
@@ -555,11 +567,11 @@ export const teacherNotes: TeacherNote[] = [
 ];
 
 export const leaderboard: LeaderboardEntry[] = [
-  { rank: 1, student_name: "سارة عادل إبراهيم", points: 2110 },
-  { rank: 2, student_name: "ملك أشرف زكي", points: 1990 },
-  { rank: 3, student_name: "أحمد محمود السيد", points: 1840, is_me: true },
-  { rank: 4, student_name: "منة الله طارق", points: 1620 },
-  { rank: 5, student_name: "عمر حسام الدين", points: 1275 },
+  { rank: 1, student_id: "st-2", student_name: "سارة عادل إبراهيم", points: 2110 },
+  { rank: 2, student_id: "st-6", student_name: "ملك أشرف زكي", points: 1990 },
+  { rank: 3, student_id: "st-1", student_name: "أحمد محمود السيد", points: 1840 },
+  { rank: 4, student_id: "st-4", student_name: "منة الله طارق", points: 1620 },
+  { rank: 5, student_id: "st-5", student_name: "عمر حسام الدين", points: 1275 },
 ];
 
 /* ---------------- Analytics ---------------- */

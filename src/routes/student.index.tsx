@@ -5,13 +5,9 @@ import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts"
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
-import {
-  homeworkTasks,
-  leaderboard,
-  quizResults,
-  studentAttendanceSeries,
-  students,
-} from "@/lib/mock-data";
+import { useCurrentStudent } from "@/hooks/use-current-student";
+import { useDataStore } from "@/lib/data-store";
+import { studentAttendanceSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/student/")({
   head: () => ({
@@ -32,8 +28,12 @@ export const Route = createFileRoute("/student/")({
 });
 
 function StudentPortal() {
-  const me = students[0]!;
-  const trend = quizResults
+  const { quizResults, homeworkTasks, leaderboard } = useDataStore();
+  const me = useCurrentStudent();
+  const myQuizzes = quizResults.filter((q) => q.student_id === me.id);
+  const myHomework = homeworkTasks.filter((h) => h.student_id === me.id);
+  const myRank = leaderboard.find((e) => e.student_id === me.id)?.rank;
+  const trend = myQuizzes
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
 
@@ -44,10 +44,25 @@ function StudentPortal() {
       description={`${me.grade} · ${me.group_name} · كود ${me.code}`}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(me.attendance_rate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(me.attendance_rate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(me.avg_score)} icon={Target} />
-        <StatCard label="نقاط التحفيز" value={formatNumber(me.points)} icon={Award} tone="warning" />
-        <StatCard label="ترتيبي" value="٣" icon={Flame} trend="+١ عن الأسبوع الماضي" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(me.points)}
+          icon={Award}
+          tone="warning"
+        />
+        <StatCard
+          label="ترتيبي"
+          value={myRank ? formatNumber(myRank) : "—"}
+          icon={Flame}
+          trend="+١ عن الأسبوع الماضي"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -62,13 +77,15 @@ function StudentPortal() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="نتائج التقييمات" description="لحظياً بعد كل حصة">
           <div className="space-y-3">
-            {quizResults.map((q) => {
+            {myQuizzes.map((q) => {
               const pct = Math.round((q.score / q.max_score) * 100);
               return (
                 <div key={q.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-black text-foreground">{q.title}</p>
-                    <StatusBadge tone={pct >= 85 ? "success" : pct >= 70 ? "warning" : "destructive"}>
+                    <StatusBadge
+                      tone={pct >= 85 ? "success" : pct >= 70 ? "warning" : "destructive"}
+                    >
                       {formatNumber(q.score)} / {formatNumber(q.max_score)}
                     </StatusBadge>
                   </div>
@@ -86,7 +103,7 @@ function StudentPortal() {
 
         <Panel title="واجباتي" description="المهام المطلوبة ومواعيد التسليم">
           <div className="space-y-3">
-            {homeworkTasks.map((h) => (
+            {myHomework.map((h) => (
               <div
                 key={h.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
@@ -129,7 +146,7 @@ function StudentPortal() {
             <div
               key={e.rank}
               className={
-                e.is_me
+                e.student_id === me.id
                   ? "flex items-center justify-between gap-3 rounded-xl border-2 border-primary bg-primary/5 p-4"
                   : "flex items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
               }
@@ -139,7 +156,7 @@ function StudentPortal() {
                   {formatNumber(e.rank)}
                 </span>
                 <p className="font-black text-foreground">
-                  {e.student_name} {e.is_me ? "(أنت)" : ""}
+                  {e.student_name} {e.student_id === me.id ? "(أنت)" : ""}
                 </p>
               </div>
               <span className="kpi-number text-lg">{formatNumber(e.points)}</span>

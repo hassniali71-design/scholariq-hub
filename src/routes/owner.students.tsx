@@ -5,7 +5,7 @@ import { Search, Users } from "lucide-react";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import { groups, students } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
 import type { PaymentStatus } from "@/types";
 
 export const Route = createFileRoute("/owner/students")({
@@ -26,14 +26,17 @@ export const Route = createFileRoute("/owner/students")({
   component: StudentsPage,
 });
 
-const paymentLabel: Record<PaymentStatus, { text: string; tone: "success" | "warning" | "destructive" }> =
-  {
-    paid: { text: "مسدد", tone: "success" },
-    pending: { text: "قيد السداد", tone: "warning" },
-    overdue: { text: "متأخر", tone: "destructive" },
-  };
+const paymentLabel: Record<
+  PaymentStatus,
+  { text: string; tone: "success" | "warning" | "destructive" }
+> = {
+  paid: { text: "مسدد", tone: "success" },
+  pending: { text: "قيد السداد", tone: "warning" },
+  overdue: { text: "متأخر", tone: "destructive" },
+};
 
 function StudentsPage() {
+  const { students, groups } = useDataStore();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | PaymentStatus>("all");
 
@@ -44,10 +47,13 @@ function StudentsPage() {
           (filter === "all" || s.payment_status === filter) &&
           (s.full_name.includes(query) || s.code.toLowerCase().includes(query.toLowerCase())),
       ),
-    [query, filter],
+    [students, query, filter],
   );
 
   const due = students.reduce((sum, s) => sum + s.balance_due, 0);
+  const avgAttendance = Math.round(
+    students.reduce((sum, s) => sum + s.attendance_rate, 0) / Math.max(1, students.length),
+  );
 
   return (
     <AppShell
@@ -56,15 +62,25 @@ function StudentsPage() {
       description="قاعدة بيانات موحدة معزولة بمعرّف السنتر"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="عدد الطلاب" value={formatNumber(764)} icon={Users} />
+        <StatCard label="عدد الطلاب" value={formatNumber(students.length)} icon={Users} />
         <StatCard
           label="مستحقات غير محصلة"
-          value={formatCurrency(due * 12)}
+          value={formatCurrency(due)}
           icon={Users}
           tone="destructive"
         />
-        <StatCard label="عدد المجموعات" value={formatNumber(22)} icon={Users} tone="success" />
-        <StatCard label="متوسط الحضور" value={formatPercent(91)} icon={Users} tone="success" />
+        <StatCard
+          label="عدد المجموعات"
+          value={formatNumber(groups.length)}
+          icon={Users}
+          tone="success"
+        />
+        <StatCard
+          label="متوسط الحضور"
+          value={formatPercent(avgAttendance)}
+          icon={Users}
+          tone="success"
+        />
       </div>
 
       <Panel

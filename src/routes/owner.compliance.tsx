@@ -4,7 +4,8 @@ import { CheckCircle2, Clock, ShieldAlert, Timer } from "lucide-react";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { SESSION_STEPS, teachers } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { SESSION_STEPS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/owner/compliance")({
   head: () => ({
@@ -33,6 +34,7 @@ const stepCompliance = [
 ] as const;
 
 function CompliancePage() {
+  const { teachers } = useDataStore();
   const avg = Math.round(teachers.reduce((s, t) => s + t.timer_compliance, 0) / teachers.length);
   const breaches = teachers.reduce((s, t) => s + t.sla_breaches, 0);
 
@@ -57,7 +59,12 @@ function CompliancePage() {
           trendDirection="down"
           trend="خلال آخر ٣٠ يوم"
         />
-        <StatCard label="حصص مكتملة المراحل" value={formatNumber(412)} icon={CheckCircle2} tone="success" />
+        <StatCard
+          label="حصص مكتملة المراحل"
+          value={formatNumber(412)}
+          icon={CheckCircle2}
+          tone="success"
+        />
         <StatCard label="متوسط تأخير البدء" value="٤:١٢ دقيقة" icon={Clock} tone="warning" />
       </div>
 
@@ -71,7 +78,9 @@ function CompliancePage() {
                   <span className="flex size-8 items-center justify-center rounded-lg bg-navy text-sm font-black text-navy-foreground">
                     {i + 1}
                   </span>
-                  <StatusBadge tone={value >= 90 ? "success" : value >= 80 ? "warning" : "destructive"}>
+                  <StatusBadge
+                    tone={value >= 90 ? "success" : value >= 80 ? "warning" : "destructive"}
+                  >
                     {formatPercent(value)}
                   </StatusBadge>
                 </div>
@@ -98,7 +107,8 @@ function CompliancePage() {
                   <div>
                     <p className="font-black text-foreground">{t.full_name}</p>
                     <p className="text-xs font-bold text-muted-foreground">
-                      {t.subject} · {formatNumber(t.groups)} مجموعات · {formatNumber(t.students)} طالب
+                      {t.subject} · {formatNumber(t.groups)} مجموعات · {formatNumber(t.students)}{" "}
+                      طالب
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

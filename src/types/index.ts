@@ -143,6 +143,7 @@ export interface LessonSlide {
 export interface QuizResult {
   id: UUID;
   center_id: UUID;
+  student_id: UUID;
   subject: string;
   title: string;
   date: string;
@@ -153,6 +154,7 @@ export interface QuizResult {
 export interface HomeworkTask {
   id: UUID;
   center_id: UUID;
+  student_id: UUID;
   subject: string;
   title: string;
   due_date: string;
@@ -163,6 +165,7 @@ export interface HomeworkTask {
 export interface WhatsAppLog {
   id: UUID;
   center_id: UUID;
+  student_id: UUID;
   sent_at: string;
   template: "attendance" | "payment" | "grade" | "homework" | "absence";
   message: string;
@@ -172,6 +175,7 @@ export interface WhatsAppLog {
 export interface TeacherNote {
   id: UUID;
   center_id: UUID;
+  student_id: UUID;
   teacher_name: string;
   subject: string;
   date: string;
@@ -179,11 +183,15 @@ export interface TeacherNote {
   tone: "positive" | "neutral" | "warning";
 }
 
+/**
+ * `is_me` is intentionally NOT stored: the "current student" highlight is
+ * derived at render time by comparing `student_id` with the active session.
+ */
 export interface LeaderboardEntry {
   rank: number;
+  student_id: UUID;
   student_name: string;
   points: number;
-  is_me?: boolean;
 }
 
 /* ---------------- Analytics ---------------- */

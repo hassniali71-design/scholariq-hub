@@ -5,14 +5,9 @@ import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts"
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import {
-  homeworkTasks,
-  quizResults,
-  studentAttendanceSeries,
-  students,
-  teacherNotes,
-  whatsappLogs,
-} from "@/lib/mock-data";
+import { useCurrentStudent } from "@/hooks/use-current-student";
+import { useDataStore } from "@/lib/data-store";
+import { studentAttendanceSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/parent/")({
   head: () => ({
@@ -33,8 +28,14 @@ export const Route = createFileRoute("/parent/")({
 });
 
 function ParentPortal() {
-  const child = students[0]!;
-  const trend = quizResults
+  const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores } = useDataStore();
+  const child = useCurrentStudent();
+  const childQuizzes = quizResults.filter((q) => q.student_id === child.id);
+  const childHomework = homeworkTasks.filter((h) => h.student_id === child.id);
+  const childNotes = teacherNotes.filter((n) => n.student_id === child.id);
+  const childLogs = whatsappLogs.filter((w) => w.student_id === child.id);
+  const live = liveScores.find((s) => s.student_id === child.id);
+  const trend = childQuizzes
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
 
@@ -53,7 +54,12 @@ function ParentPortal() {
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(child.attendance_rate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(child.attendance_rate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(child.avg_score)} icon={Target} />
         <StatCard
           label="حالة السداد"
@@ -61,7 +67,12 @@ function ParentPortal() {
           icon={Wallet}
           tone={child.payment_status === "paid" ? "success" : "destructive"}
         />
-        <StatCard label="نقاط التحفيز" value={formatNumber(child.points)} icon={ShieldCheck} tone="warning" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(child.points)}
+          icon={ShieldCheck}
+          tone="warning"
+        />
       </div>
 
       <Panel title="حالة اليوم" description="آخر تسجيل حضور وتقييم">
@@ -75,14 +86,18 @@ function ParentPortal() {
           </div>
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-black text-muted-foreground">تقييم الواجب</p>
-            <p className="kpi-number mt-2 text-3xl">٨ / ١٠</p>
+            <p className="kpi-number mt-2 text-3xl">
+              {formatNumber(live?.homework_score ?? 8)} / ١٠
+            </p>
             <StatusBadge tone="primary" className="mt-3">
               أعلى من متوسط المجموعة
             </StatusBadge>
           </div>
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-black text-muted-foreground">سؤال الحصة</p>
-            <p className="kpi-number mt-2 text-3xl">١٠ / ١٠</p>
+            <p className="kpi-number mt-2 text-3xl">
+              {formatNumber(live?.question_score ?? 10)} / ١٠
+            </p>
             <StatusBadge tone="success" className="mt-3">
               إجابة صحيحة خلال ٤٢ ثانية
             </StatusBadge>
@@ -102,11 +117,19 @@ function ParentPortal() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="ملاحظات المدرسين" description="توصيات المتابعة المنزلية">
           <div className="space-y-3">
-            {teacherNotes.map((n) => (
+            {childNotes.map((n) => (
               <div key={n.id} className="rounded-xl border-2 border-border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-black text-foreground">{n.teacher_name}</p>
-                  <StatusBadge tone={n.tone === "positive" ? "success" : n.tone === "warning" ? "warning" : "neutral"}>
+                  <StatusBadge
+                    tone={
+                      n.tone === "positive"
+                        ? "success"
+                        : n.tone === "warning"
+                          ? "warning"
+                          : "neutral"
+                    }
+                  >
                     {n.subject} · {n.date}
                   </StatusBadge>
                 </div>
@@ -118,7 +141,7 @@ function ParentPortal() {
 
         <Panel title="الواجبات المطلوبة" description="تابع التسليم في موعده">
           <div className="space-y-3">
-            {homeworkTasks.map((h) => (
+            {childHomework.map((h) => (
               <div
                 key={h.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
@@ -130,9 +153,19 @@ function ParentPortal() {
                   </p>
                 </div>
                 <StatusBadge
-                  tone={h.status === "graded" ? "success" : h.status === "submitted" ? "primary" : "warning"}
+                  tone={
+                    h.status === "graded"
+                      ? "success"
+                      : h.status === "submitted"
+                        ? "primary"
+                        : "warning"
+                  }
                 >
-                  {h.status === "graded" ? "مصحح" : h.status === "submitted" ? "تم التسليم" : "لم يُسلَّم"}
+                  {h.status === "graded"
+                    ? "مصحح"
+                    : h.status === "submitted"
+                      ? "تم التسليم"
+                      : "لم يُسلَّم"}
                 </StatusBadge>
               </div>
             ))}
@@ -150,7 +183,7 @@ function ParentPortal() {
         }
       >
         <div className="space-y-3">
-          {whatsappLogs.slice(0, 3).map((w) => (
+          {childLogs.slice(0, 3).map((w) => (
             <div key={w.id} className="rounded-xl border-2 border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-black text-muted-foreground">{w.sent_at}</p>

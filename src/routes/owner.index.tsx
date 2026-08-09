@@ -5,14 +5,8 @@ import { AttendanceChart, PerformanceChart, RevenueChart } from "@/components/da
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import {
-  attendanceSeries,
-  groups,
-  performanceSeries,
-  revenueSeries,
-  students,
-  teachers,
-} from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { attendanceSeries, performanceSeries, revenueSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/owner/")({
   head: () => ({
@@ -33,7 +27,8 @@ export const Route = createFileRoute("/owner/")({
 });
 
 function OwnerDashboard() {
-  const totalStudents = 764;
+  const { students, teachers, groups } = useDataStore();
+  const totalStudents = students.length;
   const avgCompliance = Math.round(
     teachers.reduce((sum, t) => sum + t.timer_compliance, 0) / teachers.length,
   );
@@ -175,7 +170,9 @@ function OwnerDashboard() {
                 <div key={g.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-black text-foreground">{g.name}</p>
-                    <StatusBadge tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}>
+                    <StatusBadge
+                      tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}
+                    >
                       {formatNumber(g.enrolled)} / {formatNumber(g.capacity)}
                     </StatusBadge>
                   </div>
@@ -235,7 +232,9 @@ function AlertRow({
   return (
     <div className="flex items-start gap-3 rounded-xl border-2 border-border p-3">
       <AlertTriangle
-        className={tone === "destructive" ? "mt-0.5 size-5 text-destructive" : "mt-0.5 size-5 text-warning"}
+        className={
+          tone === "destructive" ? "mt-0.5 size-5 text-destructive" : "mt-0.5 size-5 text-warning"
+        }
       />
       <div>
         <p className="text-sm font-black text-foreground">{title}</p>

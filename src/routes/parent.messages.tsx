@@ -5,7 +5,8 @@ import { CheckCheck, MessageSquareText, XCircle } from "lucide-react";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber } from "@/lib/format";
-import { whatsappLogs } from "@/lib/mock-data";
+import { useCurrentStudent } from "@/hooks/use-current-student";
+import { useDataStore } from "@/lib/data-store";
 import type { WhatsAppLog } from "@/types";
 
 export const Route = createFileRoute("/parent/messages")({
@@ -35,6 +36,9 @@ const templateLabel: Record<WhatsAppLog["template"], string> = {
 };
 
 function MessagesPage() {
+  const data = useDataStore();
+  const child = useCurrentStudent();
+  const whatsappLogs = data.whatsappLogs.filter((w) => w.student_id === child.id);
   const [filter, setFilter] = useState<"all" | WhatsAppLog["template"]>("all");
   const list = whatsappLogs.filter((w) => filter === "all" || w.template === filter);
   const delivered = whatsappLogs.filter((w) => w.delivered).length;
@@ -46,8 +50,17 @@ function MessagesPage() {
       description="كل إشعار أُرسل من السنتر موثق هنا — بدون أعذار"
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="إجمالي الرسائل" value={formatNumber(whatsappLogs.length)} icon={MessageSquareText} />
-        <StatCard label="تم تسليمها" value={formatNumber(delivered)} icon={CheckCheck} tone="success" />
+        <StatCard
+          label="إجمالي الرسائل"
+          value={formatNumber(whatsappLogs.length)}
+          icon={MessageSquareText}
+        />
+        <StatCard
+          label="تم تسليمها"
+          value={formatNumber(delivered)}
+          icon={CheckCheck}
+          tone="success"
+        />
         <StatCard
           label="فشل التسليم"
           value={formatNumber(whatsappLogs.length - delivered)}
@@ -93,7 +106,9 @@ function MessagesPage() {
             </div>
           ))}
           {list.length === 0 ? (
-            <p className="py-8 text-center font-black text-muted-foreground">لا توجد رسائل بهذا النوع</p>
+            <p className="py-8 text-center font-black text-muted-foreground">
+              لا توجد رسائل بهذا النوع
+            </p>
           ) : null}
         </div>
       </Panel>

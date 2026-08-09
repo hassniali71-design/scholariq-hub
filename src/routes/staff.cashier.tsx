@@ -6,8 +6,9 @@ import { toast } from "sonner";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { booklets, payments as seedPayments, students } from "@/lib/mock-data";
-import type { PaymentMethod, PaymentRecord } from "@/types";
+import { recordPayment, useDataStore } from "@/lib/data-store";
+import { booklets } from "@/lib/mock-data";
+import type { PaymentMethod } from "@/types";
 
 export const Route = createFileRoute("/staff/cashier")({
   head: () => ({
@@ -41,11 +42,11 @@ const quickItems = [
 ];
 
 function CashierPage() {
+  const { students, payments: records } = useDataStore();
   const [studentCode, setStudentCode] = useState(students[1]!.code);
   const [item, setItem] = useState(quickItems[0]!.label);
   const [amount, setAmount] = useState(quickItems[0]!.amount);
   const [method, setMethod] = useState<PaymentMethod>("cash");
-  const [records, setRecords] = useState<PaymentRecord[]>(seedPayments);
 
   const student = students.find((s) => s.code === studentCode);
   const total = records.reduce((sum, r) => sum + r.amount, 0);
@@ -56,28 +57,25 @@ function CashierPage() {
       toast.error("كود الطالب غير صحيح");
       return;
     }
-    setRecords((prev) => [
-      {
-        id: `pm-${Date.now()}`,
-        center_id: student.center_id,
-        student_name: student.full_name,
-        student_code: student.code,
-        amount,
-        method,
-        item,
-        created_at: new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
-      },
-      ...prev,
-    ]);
+    recordPayment(student.code, amount, method, item);
     toast.success("تم التحصيل وطباعة الإيصال", {
       description: `${student.full_name} · ${formatCurrency(amount)}`,
     });
   };
 
   return (
-    <AppShell role="staff" title="شباك الكاشير" description="تحصيل سريع مع إيصال فوري وإشعار واتساب">
+    <AppShell
+      role="staff"
+      title="شباك الكاشير"
+      description="تحصيل سريع مع إيصال فوري وإشعار واتساب"
+    >
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="تحصيل الوردية" value={formatCurrency(total)} icon={Banknote} tone="success" />
+        <StatCard
+          label="تحصيل الوردية"
+          value={formatCurrency(total)}
+          icon={Banknote}
+          tone="success"
+        />
         <StatCard label="عدد العمليات" value={formatNumber(records.length)} icon={Receipt} />
         <StatCard
           label="طلاب متأخرون"
