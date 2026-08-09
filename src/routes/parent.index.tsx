@@ -54,7 +54,12 @@ function ParentPortal() {
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(child.attendance_rate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(child.attendance_rate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(child.avg_score)} icon={Target} />
         <StatCard
           label="حالة السداد"
@@ -62,7 +67,12 @@ function ParentPortal() {
           icon={Wallet}
           tone={child.payment_status === "paid" ? "success" : "destructive"}
         />
-        <StatCard label="نقاط التحفيز" value={formatNumber(child.points)} icon={ShieldCheck} tone="warning" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(child.points)}
+          icon={ShieldCheck}
+          tone="warning"
+        />
       </div>
 
       <Panel title="حالة اليوم" description="آخر تسجيل حضور وتقييم">
@@ -111,7 +121,15 @@ function ParentPortal() {
               <div key={n.id} className="rounded-xl border-2 border-border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-black text-foreground">{n.teacher_name}</p>
-                  <StatusBadge tone={n.tone === "positive" ? "success" : n.tone === "warning" ? "warning" : "neutral"}>
+                  <StatusBadge
+                    tone={
+                      n.tone === "positive"
+                        ? "success"
+                        : n.tone === "warning"
+                          ? "warning"
+                          : "neutral"
+                    }
+                  >
                     {n.subject} · {n.date}
                   </StatusBadge>
                 </div>
@@ -135,9 +153,19 @@ function ParentPortal() {
                   </p>
                 </div>
                 <StatusBadge
-                  tone={h.status === "graded" ? "success" : h.status === "submitted" ? "primary" : "warning"}
+                  tone={
+                    h.status === "graded"
+                      ? "success"
+                      : h.status === "submitted"
+                        ? "primary"
+                        : "warning"
+                  }
                 >
-                  {h.status === "graded" ? "مصحح" : h.status === "submitted" ? "تم التسليم" : "لم يُسلَّم"}
+                  {h.status === "graded"
+                    ? "مصحح"
+                    : h.status === "submitted"
+                      ? "تم التسليم"
+                      : "لم يُسلَّم"}
                 </StatusBadge>
               </div>
             ))}

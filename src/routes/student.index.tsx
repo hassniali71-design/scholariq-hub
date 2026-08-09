@@ -44,10 +44,25 @@ function StudentPortal() {
       description={`${me.grade} · ${me.group_name} · كود ${me.code}`}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(me.attendance_rate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(me.attendance_rate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(me.avg_score)} icon={Target} />
-        <StatCard label="نقاط التحفيز" value={formatNumber(me.points)} icon={Award} tone="warning" />
-        <StatCard label="ترتيبي" value={myRank ? formatNumber(myRank) : "—"} icon={Flame} trend="+١ عن الأسبوع الماضي" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(me.points)}
+          icon={Award}
+          tone="warning"
+        />
+        <StatCard
+          label="ترتيبي"
+          value={myRank ? formatNumber(myRank) : "—"}
+          icon={Flame}
+          trend="+١ عن الأسبوع الماضي"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -68,7 +83,9 @@ function StudentPortal() {
                 <div key={q.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-black text-foreground">{q.title}</p>
-                    <StatusBadge tone={pct >= 85 ? "success" : pct >= 70 ? "warning" : "destructive"}>
+                    <StatusBadge
+                      tone={pct >= 85 ? "success" : pct >= 70 ? "warning" : "destructive"}
+                    >
                       {formatNumber(q.score)} / {formatNumber(q.max_score)}
                     </StatusBadge>
                   </div>

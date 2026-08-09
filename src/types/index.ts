@@ -194,7 +194,6 @@ export interface LeaderboardEntry {
   points: number;
 }
 
-
 /* ---------------- Analytics ---------------- */
 
 export interface RevenuePoint {

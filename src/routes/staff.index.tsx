@@ -71,7 +71,12 @@ function StaffGate() {
       description="امسح كود الطالب أو أدخله يدوياً لتسجيل الحضور فوراً"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="حضور اليوم" value={formatNumber(present)} icon={CheckCircle2} tone="success" />
+        <StatCard
+          label="حضور اليوم"
+          value={formatNumber(present)}
+          icon={CheckCircle2}
+          tone="success"
+        />
         <StatCard label="متأخرون" value={formatNumber(late)} icon={Clock} tone="warning" />
         <StatCard label="غياب" value={formatNumber(absent)} icon={UserX} tone="destructive" />
         <StatCard label="مسحات اليوم" value={formatNumber(log.length)} icon={ScanLine} />
@@ -141,9 +146,7 @@ function StaffGate() {
                     : `مستحق ${formatCurrency(lastScan.balance_due)}`}
                 </StatusBadge>
                 <StatusBadge tone="primary">{lastScan.group_name}</StatusBadge>
-                <StatusBadge tone="neutral">
-                  ولي الأمر: {lastScan.guardian_phone}
-                </StatusBadge>
+                <StatusBadge tone="neutral">ولي الأمر: {lastScan.guardian_phone}</StatusBadge>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-3 text-center">
                 <MiniStat label="الحضور" value={`${lastScan.attendance_rate}٪`} />

@@ -37,7 +37,11 @@ function ShiftPage() {
     <AppShell role="staff" title="تقفيل الوردية" description="مطابقة النقدية وتسليم تقرير اليوم">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="إجمالي التحصيل" value={formatCurrency(expected)} icon={Banknote} />
-        <StatCard label="عدد الإيصالات" value={formatNumber(payments.length)} icon={ClipboardCheck} />
+        <StatCard
+          label="عدد الإيصالات"
+          value={formatNumber(payments.length)}
+          icon={ClipboardCheck}
+        />
         <StatCard
           label="حضور مسجل"
           value={formatNumber(attendanceRecords.filter((a) => a.status !== "absent").length)}

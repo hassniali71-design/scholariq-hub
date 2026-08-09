@@ -41,8 +41,18 @@ function BookletsPage() {
     <AppShell role="staff" title="مخزون الملازم" description="متابعة النسخ المتاحة والمسلّمة">
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="نسخ متاحة" value={formatNumber(totalStock)} icon={BookOpen} />
-        <StatCard label="نسخ مسلّمة" value={formatNumber(totalDelivered)} icon={PackageCheck} tone="success" />
-        <StatCard label="أصناف قاربت النفاد" value={formatNumber(lowStock)} icon={PackageX} tone="destructive" />
+        <StatCard
+          label="نسخ مسلّمة"
+          value={formatNumber(totalDelivered)}
+          icon={PackageCheck}
+          tone="success"
+        />
+        <StatCard
+          label="أصناف قاربت النفاد"
+          value={formatNumber(lowStock)}
+          icon={PackageX}
+          tone="destructive"
+        />
       </div>
 
       <Panel title="الأصناف" description="اضغط تسليم لخصم نسخة من المخزون">

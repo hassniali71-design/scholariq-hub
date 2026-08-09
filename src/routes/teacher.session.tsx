@@ -19,12 +19,7 @@ import {
   scoreHomework as persistHomeworkScore,
   useDataStore,
 } from "@/lib/data-store";
-import {
-  QUESTION_SECONDS,
-  SESSION_STEPS,
-  lessonSlides,
-  sessionQuestions,
-} from "@/lib/mock-data";
+import { QUESTION_SECONDS, SESSION_STEPS, lessonSlides, sessionQuestions } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { LiveScore } from "@/types";
 
@@ -93,7 +88,9 @@ function SessionMode() {
     () => scores.find((s) => s.student_id === pickedId) ?? null,
     [scores, pickedId],
   );
-  const question = isQuestions ? (sessionQuestions[questionIndex % sessionQuestions.length] ?? null) : null;
+  const question = isQuestions
+    ? (sessionQuestions[questionIndex % sessionQuestions.length] ?? null)
+    : null;
 
   const scoreHomework = useCallback((studentId: string, value: number) => {
     persistHomeworkScore(studentId, value);

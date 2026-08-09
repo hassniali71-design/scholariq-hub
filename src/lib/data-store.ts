@@ -266,7 +266,11 @@ export function recordPayment(
     const remaining = Math.max(0, student.balance_due - amount);
     const students = state.students.map((s) =>
       s.id === student.id
-        ? { ...s, balance_due: remaining, payment_status: remaining === 0 ? "paid" : s.payment_status }
+        ? {
+            ...s,
+            balance_due: remaining,
+            payment_status: remaining === 0 ? "paid" : s.payment_status,
+          }
         : s,
     ) as Student[];
     const log: WhatsAppLog = {

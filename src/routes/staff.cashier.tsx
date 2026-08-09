@@ -64,9 +64,18 @@ function CashierPage() {
   };
 
   return (
-    <AppShell role="staff" title="شباك الكاشير" description="تحصيل سريع مع إيصال فوري وإشعار واتساب">
+    <AppShell
+      role="staff"
+      title="شباك الكاشير"
+      description="تحصيل سريع مع إيصال فوري وإشعار واتساب"
+    >
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="تحصيل الوردية" value={formatCurrency(total)} icon={Banknote} tone="success" />
+        <StatCard
+          label="تحصيل الوردية"
+          value={formatCurrency(total)}
+          icon={Banknote}
+          tone="success"
+        />
         <StatCard label="عدد العمليات" value={formatNumber(records.length)} icon={Receipt} />
         <StatCard
           label="طلاب متأخرون"

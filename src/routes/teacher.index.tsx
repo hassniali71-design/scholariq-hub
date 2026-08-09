@@ -56,7 +56,12 @@ function TeacherHome() {
           tone="success"
         />
         <StatCard label="حصص هذا الأسبوع" value={formatNumber(groups.length)} icon={CalendarDays} />
-        <StatCard label="متوسط درجات طلابي" value={formatNumber(avgScore)} icon={TrendingUp} tone="success" />
+        <StatCard
+          label="متوسط درجات طلابي"
+          value={formatNumber(avgScore)}
+          icon={TrendingUp}
+          tone="success"
+        />
       </div>
 
       <Panel title="مراحل الحصة المعتمدة" description="محرك التايمر الرباعي المطبق داخل الفصل">

@@ -71,11 +71,7 @@ function LeaderboardPage() {
             >
               <span className="text-3xl">{e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : "🥉"}</span>
               <p className="mt-3 text-lg font-black">{e.student_name}</p>
-              <p
-                className={
-                  e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"
-                }
-              >
+              <p className={e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"}>
                 {formatNumber(e.points)}
               </p>
             </div>

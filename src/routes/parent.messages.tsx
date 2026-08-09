@@ -50,8 +50,17 @@ function MessagesPage() {
       description="كل إشعار أُرسل من السنتر موثق هنا — بدون أعذار"
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="إجمالي الرسائل" value={formatNumber(whatsappLogs.length)} icon={MessageSquareText} />
-        <StatCard label="تم تسليمها" value={formatNumber(delivered)} icon={CheckCheck} tone="success" />
+        <StatCard
+          label="إجمالي الرسائل"
+          value={formatNumber(whatsappLogs.length)}
+          icon={MessageSquareText}
+        />
+        <StatCard
+          label="تم تسليمها"
+          value={formatNumber(delivered)}
+          icon={CheckCheck}
+          tone="success"
+        />
         <StatCard
           label="فشل التسليم"
           value={formatNumber(whatsappLogs.length - delivered)}
@@ -97,7 +106,9 @@ function MessagesPage() {
             </div>
           ))}
           {list.length === 0 ? (
-            <p className="py-8 text-center font-black text-muted-foreground">لا توجد رسائل بهذا النوع</p>
+            <p className="py-8 text-center font-black text-muted-foreground">
+              لا توجد رسائل بهذا النوع
+            </p>
           ) : null}
         </div>
       </Panel>

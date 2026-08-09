@@ -26,12 +26,14 @@ export const Route = createFileRoute("/owner/students")({
   component: StudentsPage,
 });
 
-const paymentLabel: Record<PaymentStatus, { text: string; tone: "success" | "warning" | "destructive" }> =
-  {
-    paid: { text: "مسدد", tone: "success" },
-    pending: { text: "قيد السداد", tone: "warning" },
-    overdue: { text: "متأخر", tone: "destructive" },
-  };
+const paymentLabel: Record<
+  PaymentStatus,
+  { text: string; tone: "success" | "warning" | "destructive" }
+> = {
+  paid: { text: "مسدد", tone: "success" },
+  pending: { text: "قيد السداد", tone: "warning" },
+  overdue: { text: "متأخر", tone: "destructive" },
+};
 
 function StudentsPage() {
   const { students, groups } = useDataStore();
@@ -67,8 +69,18 @@ function StudentsPage() {
           icon={Users}
           tone="destructive"
         />
-        <StatCard label="عدد المجموعات" value={formatNumber(groups.length)} icon={Users} tone="success" />
-        <StatCard label="متوسط الحضور" value={formatPercent(avgAttendance)} icon={Users} tone="success" />
+        <StatCard
+          label="عدد المجموعات"
+          value={formatNumber(groups.length)}
+          icon={Users}
+          tone="success"
+        />
+        <StatCard
+          label="متوسط الحضور"
+          value={formatPercent(avgAttendance)}
+          icon={Users}
+          tone="success"
+        />
       </div>
 
       <Panel
