@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { attendanceToday, payments } from "@/lib/mock-data";
+import { closeShift, useDataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/staff/shift")({
   head: () => ({
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/staff/shift")({
 });
 
 function ShiftPage() {
+  const { payments, attendanceRecords } = useDataStore();
   const expected = payments.reduce((s, p) => s + p.amount, 0);
   const [counted, setCounted] = useState(expected);
   const [closed, setClosed] = useState(false);
@@ -39,7 +40,7 @@ function ShiftPage() {
         <StatCard label="عدد الإيصالات" value={formatNumber(payments.length)} icon={ClipboardCheck} />
         <StatCard
           label="حضور مسجل"
-          value={formatNumber(attendanceToday.filter((a) => a.status !== "absent").length)}
+          value={formatNumber(attendanceRecords.filter((a) => a.status !== "absent").length)}
           icon={Users}
           tone="success"
         />
@@ -74,6 +75,7 @@ function ShiftPage() {
 
             <button
               onClick={() => {
+                closeShift(counted);
                 setClosed(true);
                 toast.success("تم تقفيل الوردية وإرسال التقرير للمالك");
               }}

@@ -5,14 +5,8 @@ import { AttendanceChart, PerformanceChart, RevenueChart } from "@/components/da
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import {
-  attendanceSeries,
-  groups,
-  performanceSeries,
-  revenueSeries,
-  students,
-  teachers,
-} from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { attendanceSeries, performanceSeries, revenueSeries } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/owner/")({
   head: () => ({
@@ -33,7 +27,8 @@ export const Route = createFileRoute("/owner/")({
 });
 
 function OwnerDashboard() {
-  const totalStudents = 764;
+  const { students, teachers, groups } = useDataStore();
+  const totalStudents = students.length;
   const avgCompliance = Math.round(
     teachers.reduce((sum, t) => sum + t.timer_compliance, 0) / teachers.length,
   );

@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { BookOpen, PackageCheck, PackageX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { booklets as seed } from "@/lib/mock-data";
+import { deliverBooklet, useDataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/staff/booklets")({
   head: () => ({
@@ -27,16 +26,10 @@ export const Route = createFileRoute("/staff/booklets")({
 });
 
 function BookletsPage() {
-  const [items, setItems] = useState(seed);
+  const { booklets: items } = useDataStore();
 
   const deliver = (id: string) => {
-    setItems((prev) =>
-      prev.map((b) =>
-        b.id === id && b.in_stock > 0
-          ? { ...b, in_stock: b.in_stock - 1, delivered: b.delivered + 1 }
-          : b,
-      ),
-    );
+    deliverBooklet(id);
     toast.success("تم تسليم نسخة وخصمها من المخزون");
   };
 

@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { attendanceToday, students } from "@/lib/mock-data";
-import type { AttendanceRecord, AttendanceStatus } from "@/types";
+import { recordAttendance, useDataStore } from "@/lib/data-store";
+import type { AttendanceStatus, Student } from "@/types";
 
 export const Route = createFileRoute("/staff/")({
   head: () => ({
@@ -37,9 +37,10 @@ const statusMeta: Record<
 };
 
 function StaffGate() {
+  const { students, attendanceRecords: log } = useDataStore();
   const [code, setCode] = useState("");
-  const [log, setLog] = useState<AttendanceRecord[]>(attendanceToday);
-  const [lastScan, setLastScan] = useState(students[0]!);
+  const [lastScanId, setLastScanId] = useState<string | null>(null);
+  const lastScan: Student = students.find((s) => s.id === lastScanId) ?? students[0]!;
 
   const handleScan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,23 +49,8 @@ function StaffGate() {
       toast.error("كود غير معروف", { description: "تأكد من كود الطالب ثم أعد المحاولة." });
       return;
     }
-    setLastScan(found);
-    setLog((prev) => [
-      {
-        id: `at-${Date.now()}`,
-        center_id: found.center_id,
-        student_id: found.id,
-        student_name: found.full_name,
-        group_name: found.group_name,
-        status: "present",
-        checked_in_at: new Date().toLocaleTimeString("ar-EG", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        method: "qr",
-      },
-      ...prev,
-    ]);
+    setLastScanId(found.id);
+    recordAttendance(found.id, "present", "qr");
     setCode("");
     toast.success(`تم تسجيل حضور ${found.full_name}`, {
       description:
