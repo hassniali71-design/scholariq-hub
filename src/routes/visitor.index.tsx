@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Award, BookOpen, Info, Trophy, Users } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { CURRENT_TENANT, groups, leaderboard, teachers } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { CURRENT_TENANT } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/visitor/")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/visitor/")({
 });
 
 function VisitorDashboard() {
+  const { groups, leaderboard, teachers } = useDataStore();
   const subjects = Array.from(new Set(groups.map((g) => g.subject)));
 
   return (

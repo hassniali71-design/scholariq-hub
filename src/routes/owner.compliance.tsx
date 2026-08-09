@@ -4,7 +4,8 @@ import { CheckCircle2, Clock, ShieldAlert, Timer } from "lucide-react";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { SESSION_STEPS, teachers } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
+import { SESSION_STEPS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/owner/compliance")({
   head: () => ({
@@ -33,6 +34,7 @@ const stepCompliance = [
 ] as const;
 
 function CompliancePage() {
+  const { teachers } = useDataStore();
   const avg = Math.round(teachers.reduce((s, t) => s + t.timer_compliance, 0) / teachers.length);
   const breaches = teachers.reduce((s, t) => s + t.sla_breaches, 0);
 
