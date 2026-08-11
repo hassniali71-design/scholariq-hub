@@ -7,7 +7,6 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { recordPayment, useDataStore } from "@/lib/data-store";
-import { booklets } from "@/lib/mock-data";
 import type { PaymentMethod } from "@/types";
 
 export const Route = createFileRoute("/staff/cashier")({
@@ -34,15 +33,15 @@ const methods: { key: PaymentMethod; label: string; icon: typeof Banknote }[] = 
   { key: "instapay", label: "إنستاباي", icon: CreditCard },
 ];
 
-const quickItems = [
+const fixedItems = [
   { label: "اشتراك شهري - فيزياء", amount: 450 },
   { label: "اشتراك شهري - كيمياء", amount: 400 },
   { label: "حصة تعويضية", amount: 120 },
-  ...booklets.map((b) => ({ label: b.title, amount: b.price })),
 ];
 
 function CashierPage() {
-  const { students, payments: records } = useDataStore();
+  const { students, payments: records, booklets } = useDataStore();
+  const quickItems = [...fixedItems, ...booklets.map((b) => ({ label: b.title, amount: b.price }))];
   const [studentCode, setStudentCode] = useState(students[1]!.code);
   const [item, setItem] = useState(quickItems[0]!.label);
   const [amount, setAmount] = useState(quickItems[0]!.amount);
