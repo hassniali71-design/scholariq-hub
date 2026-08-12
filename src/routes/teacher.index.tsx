@@ -1,12 +1,30 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, MonitorPlay, Timer, TrendingUp, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Award,
+  CalendarDays,
+  CheckCircle2,
+  Layers,
+  MonitorPlay,
+  Timer,
+  UserX,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { PerformanceChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
+import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { useDataStore } from "@/lib/data-store";
-import { SESSION_STEPS, performanceSeries } from "@/lib/mock-data";
+import {
+  addTeacherNote,
+  classifyStudent,
+  classificationReason,
+  getGroupsForTeacher,
+  getStudentsForTeacher,
+  useDataStore,
+} from "@/lib/data-store";
 
 export const Route = createFileRoute("/teacher/")({
   head: () => ({
@@ -27,17 +45,31 @@ export const Route = createFileRoute("/teacher/")({
 });
 
 function TeacherHome() {
-  const { groups, students, teachers } = useDataStore();
-  const me = teachers[0]!;
-  const avgScore = Math.round(
-    students.reduce((sum, s) => sum + s.avg_score, 0) / Math.max(1, students.length),
-  );
+  const state = useDataStore();
+  const { attendanceRecords, subjects } = state;
+  const teacher = useCurrentTeacher();
+  const myGroups = getGroupsForTeacher(state, teacher.id);
+  const myStudents = getStudentsForTeacher(state, teacher.id);
+  const subjectName = subjects.find((s) => s.id === teacher.subject_id)?.name ?? teacher.subject;
+
+  const myGroupNames = new Set(myGroups.map((g) => g.name));
+  const absentLastSession = attendanceRecords.filter(
+    (a) => myGroupNames.has(a.group_name) && a.status === "absent",
+  ).length;
+  const committed = myStudents.filter((s) => s.attendance_rate >= 90).length;
+  const excellent = myStudents.filter((s) => classifyStudent(s) === "excellent").length;
+  const needsAttention = myStudents.filter((s) => classifyStudent(s) === "needs_attention");
+
+  const handleAddNote = (studentId: string, note: string) => {
+    addTeacherNote(studentId, teacher.id, note);
+    toast.success("تم حفظ الملاحظة");
+  };
 
   return (
     <AppShell
       role="teacher"
-      title={`أهلاً، ${me.full_name}`}
-      description={`${me.subject} · ${formatNumber(me.groups)} مجموعات · ${formatNumber(me.students)} طالب`}
+      title={teacher.full_name}
+      description={subjectName}
       actions={
         <Link
           to="/teacher/session"
@@ -48,41 +80,49 @@ function TeacherHome() {
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="طلابي" value={formatNumber(me.students)} icon={Users} />
+        <StatCard label="عدد الطلاب" value={formatNumber(myStudents.length)} icon={Users} />
         <StatCard
-          label="التزامي بالتايمر"
-          value={formatPercent(me.timer_compliance)}
+          label="الالتزام بالتايمر"
+          value={formatPercent(teacher.timer_compliance)}
           icon={Timer}
           tone="success"
         />
-        <StatCard label="حصص هذا الأسبوع" value={formatNumber(groups.length)} icon={CalendarDays} />
         <StatCard
-          label="متوسط درجات طلابي"
-          value={formatNumber(avgScore)}
-          icon={TrendingUp}
+          label="حصص هذا الأسبوع"
+          value={formatNumber(myGroups.length)}
+          icon={CalendarDays}
+        />
+        <StatCard label="المجموعات" value={formatNumber(myGroups.length)} icon={Layers} />
+        <StatCard
+          label="الطلاب الملتزمون"
+          value={formatNumber(committed)}
+          icon={CheckCircle2}
           tone="success"
         />
+        <StatCard
+          label="الطلاب الغائبون (آخر حصة)"
+          value={formatNumber(absentLastSession)}
+          icon={UserX}
+          tone="destructive"
+        />
+        <StatCard
+          label="الطلاب المتفوقون"
+          value={formatNumber(excellent)}
+          icon={Award}
+          tone="success"
+        />
+        <StatCard
+          label="يحتاجون متابعة"
+          value={formatNumber(needsAttention.length)}
+          icon={AlertTriangle}
+          tone="warning"
+        />
       </div>
-
-      <Panel title="مراحل الحصة المعتمدة" description="محرك التايمر الرباعي المطبق داخل الفصل">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {SESSION_STEPS.map((s, i) => (
-            <div key={s.key} className="rounded-xl border-2 border-border p-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-navy font-black text-navy-foreground">
-                {i + 1}
-              </span>
-              <p className="mt-3 font-black text-foreground">{s.title}</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">{s.hint}</p>
-              <p className="kpi-number mt-3 text-2xl">{Math.round(s.duration / 60)} دقيقة</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="جدول مجموعاتي" description="المواعيد والقاعات">
           <div className="space-y-3">
-            {groups.map((g) => (
+            {myGroups.map((g) => (
               <div
                 key={g.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
@@ -106,32 +146,50 @@ function TeacherHome() {
                 </div>
               </div>
             ))}
+            {myGroups.length === 0 ? (
+              <p className="py-6 text-center font-black text-muted-foreground">
+                لا توجد مجموعات مرتبطة بك بعد
+              </p>
+            ) : null}
           </div>
         </Panel>
 
-        <Panel title="مستوى الطلاب" description="متوسط الدرجات حسب المادة">
-          <PerformanceChart data={performanceSeries} />
+        <Panel title={`مستوى الطلاب في ${subjectName}`} description="المتوسط والتصنيف لكل طالب">
+          <div className="grid gap-4">
+            {myStudents
+              .slice()
+              .sort((a, b) => b.avg_score - a.avg_score)
+              .map((s) => (
+                <StudentClassificationCard key={s.id} student={s} classification={classifyStudent(s)} />
+              ))}
+            {myStudents.length === 0 ? (
+              <p className="py-6 text-center font-black text-muted-foreground">
+                لا يوجد طلاب مرتبطون بك بعد
+              </p>
+            ) : null}
+          </div>
         </Panel>
       </div>
 
-      <Panel title="طلاب يحتاجون متابعة" description="أقل من ٨٠٪ حضور أو درجات">
+      <Panel
+        title="طلاب يحتاجون متابعة"
+        description="حسب التصنيف: متوسط أقل من ٦٠ أو حضور أقل من ٧٥٪"
+      >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {students
-            .filter((s) => s.attendance_rate < 90 || s.avg_score < 80)
-            .map((s) => (
-              <div key={s.id} className="rounded-xl border-2 border-border p-4">
-                <p className="font-black text-foreground">{s.full_name}</p>
-                <p className="text-xs font-bold text-muted-foreground">{s.group_name}</p>
-                <div className="mt-3 flex gap-2">
-                  <StatusBadge tone={s.attendance_rate < 80 ? "destructive" : "warning"}>
-                    حضور {formatPercent(s.attendance_rate)}
-                  </StatusBadge>
-                  <StatusBadge tone={s.avg_score < 70 ? "destructive" : "warning"}>
-                    متوسط {formatNumber(s.avg_score)}
-                  </StatusBadge>
-                </div>
-              </div>
-            ))}
+          {needsAttention.map((s) => (
+            <StudentClassificationCard
+              key={s.id}
+              student={s}
+              classification="needs_attention"
+              reason={classificationReason(s)}
+              onAddNote={(note) => handleAddNote(s.id, note)}
+            />
+          ))}
+          {needsAttention.length === 0 ? (
+            <p className="col-span-full py-6 text-center font-black text-muted-foreground">
+              لا يوجد طلاب في هذا التصنيف حالياً
+            </p>
+          ) : null}
         </div>
       </Panel>
     </AppShell>
