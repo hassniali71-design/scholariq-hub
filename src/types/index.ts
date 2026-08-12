@@ -141,6 +141,9 @@ export type QuestionKind = "mcq" | "truefalse";
 
 export interface QuizQuestion {
   id: UUID;
+  /** Null for the pre-Phase-2 static question bank — no `Lesson` record exists yet. */
+  lesson_id: UUID | null;
+  source: "ai_generated" | "manual";
   kind: QuestionKind;
   text: string;
   options: string[];
@@ -157,9 +160,120 @@ export interface LiveScore {
 
 export interface LessonSlide {
   id: UUID;
+  /** Null for the pre-Phase-2 static slide deck — no `Lesson` record exists yet. */
+  lesson_id: UUID | null;
   index: number;
   title: string;
   bullets: string[];
+}
+
+/* ---------------- Session mode rebuild (TEACHER_MODULE_SPEC.md §4-b) ----------------
+ * Types only for now — no data-store.ts state, mutations, or UI consume these yet.
+ * Each gets wired in starting the phase that actually implements it (spec §17):
+ * Lesson/AI pipeline + slide viewer = Phase 2, fair-pick questions + session log = Phase 3,
+ * AssessmentScore = Phase 4, CurriculumUnit/Lesson = Phase 5.
+ */
+
+export interface Lesson {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  subject_id: UUID;
+  title: string;
+  source_file_name: string | null;
+  extracted_text: string | null;
+  content_hash: string | null;
+  ai_status: "idle" | "processing" | "ready" | "failed";
+  ai_error: string | null;
+  taught_status: "not_started" | "in_progress" | "done";
+  taught_at: string | null;
+  actual_duration_seconds: number | null;
+  created_by_teacher_id: UUID;
+}
+
+export interface CurriculumUnit {
+  id: UUID;
+  center_id: UUID;
+  subject_id: UUID;
+  grade_id: UUID;
+  name: string;
+  order: number;
+  planned_duration_days: number;
+}
+
+export interface CurriculumLesson {
+  id: UUID;
+  unit_id: UUID;
+  order: number;
+  title: string;
+  status: "not_started" | "in_progress" | "done";
+  linked_lesson_id: UUID | null;
+}
+
+export interface SessionRecord {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  lesson_id: UUID | null;
+  teacher_id: UUID;
+  date: string;
+  attendees_count: number;
+  absentees_count: number;
+  questions_asked_count: number;
+  participants_count: number;
+  homework_launch_status: "not_sent" | "sent";
+  duration_seconds: number;
+  explanation_duration_seconds: number;
+  extension_seconds: number;
+  general_notes: string | null;
+}
+
+export interface SessionEvent {
+  id: UUID;
+  session_id: UUID;
+  student_id: UUID;
+  at: string;
+  kind: "homework_score" | "question_answer" | "activity_score" | "attendance" | "note";
+  payload: Record<string, unknown>;
+}
+
+export interface TimerExtension {
+  id: UUID;
+  session_id: UUID;
+  step_key: SessionStepKey;
+  added_seconds: number;
+  reason: string | null;
+  at: string;
+}
+
+export interface AssessmentScore {
+  id: UUID;
+  center_id: UUID;
+  student_id: UUID;
+  session_id: UUID | null;
+  lesson_id: UUID | null;
+  category: "homework" | "activity" | "behavior" | "question" | "e_homework";
+  source: "auto" | "manual";
+  value: number;
+  max_value: number;
+  recorded_by_teacher_id: UUID;
+  recorded_at: string;
+}
+
+export interface RandomPickLog {
+  id: UUID;
+  group_id: UUID;
+  student_id: UUID;
+  session_id: UUID;
+  picked_at: string;
+}
+
+export interface ElectronicHomework {
+  id: UUID;
+  lesson_id: UUID;
+  group_id: UUID;
+  questions: QuizQuestion[];
+  due_at: string;
 }
 
 /* ---------------- Portals ---------------- */

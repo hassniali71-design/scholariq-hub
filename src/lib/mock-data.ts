@@ -122,8 +122,7 @@ export const students: Student[] = [
     full_name: "عمر حسام الدين",
     grade: "الأول الثانوي",
     group_name: "لغة إنجليزية - أربعاء 7م",
-    // No matching Group record exists for this group_name yet (pre-existing seed gap, predates Phase 1).
-    group_id: null,
+    group_id: "gr-5",
     guardian_name: "حسام الدين علي",
     guardian_phone: "01145678901",
     payment_status: "pending",
@@ -271,6 +270,23 @@ export const groups: Group[] = [
     enrolled: 27,
     capacity: 35,
   },
+  {
+    // Pre-existing gap fixed: st-5's group_name had no matching Group record.
+    id: "gr-5",
+    center_id: c,
+    name: "لغة إنجليزية - أربعاء 7م",
+    subject: "اللغة الإنجليزية",
+    subject_id: "sub-4",
+    teacher_name: "أ. نورهان سعيد",
+    teacher_id: "tc-4",
+    grade: "الأول الثانوي",
+    grade_id: "gd-1",
+    weekday: "الأربعاء",
+    time: "07:00 م",
+    room: "قاعة B1",
+    enrolled: 26,
+    capacity: 30,
+  },
 ];
 
 export const attendanceToday: AttendanceRecord[] = [
@@ -413,6 +429,7 @@ export const QUESTION_SECONDS = 60;
 export const lessonSlides: LessonSlide[] = [
   {
     id: "sl-1",
+    lesson_id: null,
     index: 1,
     title: "الباب الثالث — التأثير المغناطيسي للتيار",
     bullets: [
@@ -423,6 +440,7 @@ export const lessonSlides: LessonSlide[] = [
   },
   {
     id: "sl-2",
+    lesson_id: null,
     index: 2,
     title: "قانون بيو-سافار",
     bullets: [
@@ -433,6 +451,7 @@ export const lessonSlides: LessonSlide[] = [
   },
   {
     id: "sl-3",
+    lesson_id: null,
     index: 3,
     title: "الملف اللولبي والوشيعة الدائرية",
     bullets: [
@@ -443,6 +462,7 @@ export const lessonSlides: LessonSlide[] = [
   },
   {
     id: "sl-4",
+    lesson_id: null,
     index: 4,
     title: "ملخص وتطبيقات الامتحان",
     bullets: [
@@ -456,6 +476,8 @@ export const lessonSlides: LessonSlide[] = [
 export const sessionQuestions: QuizQuestion[] = [
   {
     id: "q-1",
+    lesson_id: null,
+    source: "manual",
     kind: "mcq",
     text: "ما وحدة قياس شدة المجال المغناطيسي في النظام الدولي؟",
     options: ["تسلا", "أمبير", "فولت", "هنري"],
@@ -463,6 +485,8 @@ export const sessionQuestions: QuizQuestion[] = [
   },
   {
     id: "q-2",
+    lesson_id: null,
+    source: "manual",
     kind: "truefalse",
     text: "خطوط الفيض المغناطيسي تتقاطع داخل الملف اللولبي.",
     options: ["صح", "خطأ"],
@@ -470,6 +494,8 @@ export const sessionQuestions: QuizQuestion[] = [
   },
   {
     id: "q-3",
+    lesson_id: null,
+    source: "manual",
     kind: "mcq",
     text: "شدة المجال حول سلك مستقيم تتناسب عكسياً مع:",
     options: ["شدة التيار", "البعد العمودي", "طول السلك", "المقاومة"],
@@ -477,6 +503,8 @@ export const sessionQuestions: QuizQuestion[] = [
   },
   {
     id: "q-4",
+    lesson_id: null,
+    source: "manual",
     kind: "truefalse",
     text: "قاعدة اليد اليمنى تحدد اتجاه المجال المغناطيسي حول السلك.",
     options: ["صح", "خطأ"],
