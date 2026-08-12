@@ -3,49 +3,82 @@ import { Check, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { LessonSlide, LiveScore, QuizQuestion } from "@/types";
+import type { AttendanceStatus, LessonSlide, LiveScore, QuizQuestion } from "@/types";
 
-/* -------- Step 1: homework evaluation -------- */
+/* -------- Step 1: homework evaluation + quick attendance -------- */
 
 export function HomeworkStep({
   scores,
   onScore,
+  attendanceStatus,
+  onAttendance,
 }: {
   scores: LiveScore[];
   onScore: (studentId: string, value: number) => void;
+  attendanceStatus: (studentId: string) => AttendanceStatus | null;
+  onAttendance: (studentId: string, status: AttendanceStatus) => void;
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {scores.map((s) => (
-        <div key={s.student_id} className="rounded-xl border-2 border-border p-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-black text-foreground">{s.student_name}</p>
-            {s.homework_score !== null ? (
-              <StatusBadge tone={s.homework_score >= 7 ? "success" : "warning"}>
-                {formatNumber(s.homework_score)} / ١٠
-              </StatusBadge>
-            ) : (
-              <StatusBadge tone="neutral">لم يُقيَّم</StatusBadge>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {[0, 2, 4, 6, 8, 10].map((v) => (
+      {scores.map((s) => {
+        const status = attendanceStatus(s.student_id);
+        return (
+          <div key={s.student_id} className="rounded-xl border-2 border-border p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-black text-foreground">{s.student_name}</p>
+              {s.homework_score !== null ? (
+                <StatusBadge tone={s.homework_score >= 7 ? "success" : "warning"}>
+                  {formatNumber(s.homework_score)} / ١٠
+                </StatusBadge>
+              ) : (
+                <StatusBadge tone="neutral">لم يُقيَّم</StatusBadge>
+              )}
+            </div>
+
+            <div className="mt-3 flex gap-1.5">
               <button
-                key={v}
-                onClick={() => onScore(s.student_id, v)}
+                onClick={() => onAttendance(s.student_id, "present")}
                 className={cn(
-                  "size-11 rounded-lg border-2 text-base font-black transition-colors",
-                  s.homework_score === v
-                    ? "border-navy bg-navy text-navy-foreground"
-                    : "border-border hover:border-primary",
+                  "flex-1 rounded-lg border-2 py-2 text-xs font-black transition-colors",
+                  status === "present"
+                    ? "border-success bg-success/10 text-success"
+                    : "border-border hover:border-success",
                 )}
               >
-                {v}
+                حاضر
               </button>
-            ))}
+              <button
+                onClick={() => onAttendance(s.student_id, "absent")}
+                className={cn(
+                  "flex-1 rounded-lg border-2 py-2 text-xs font-black transition-colors",
+                  status === "absent"
+                    ? "border-destructive bg-destructive/10 text-destructive"
+                    : "border-border hover:border-destructive",
+                )}
+              >
+                غائب
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {[0, 2, 4, 6, 8, 10].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => onScore(s.student_id, v)}
+                  className={cn(
+                    "size-11 rounded-lg border-2 text-base font-black transition-colors",
+                    s.homework_score === v
+                      ? "border-navy bg-navy text-navy-foreground"
+                      : "border-border hover:border-primary",
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

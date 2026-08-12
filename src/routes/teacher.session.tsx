@@ -14,14 +14,23 @@ import { SessionTimer } from "@/components/session/SessionTimer";
 import { useCountdown } from "@/hooks/use-countdown";
 import { formatNumber } from "@/lib/format";
 import {
+  recordAttendance,
   recordQuestionAnswer,
   releaseSessionTasks,
   scoreHomework as persistHomeworkScore,
   useDataStore,
 } from "@/lib/data-store";
-import { QUESTION_SECONDS, SESSION_STEPS, lessonSlides, sessionQuestions } from "@/lib/mock-data";
+import { QUESTION_SECONDS, SESSION_STEPS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import type { LiveScore } from "@/types";
+import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
+
+/**
+ * On-screen presentation order (spec §7-ب: شرح ← واجب/غياب ← أنشطة ← إطلاق).
+ * `SESSION_STEPS`' own declaration order stays untouched — owner.compliance.tsx
+ * maps a separate array to it positionally, and reordering there would
+ * silently misalign that page.
+ */
+const SESSION_FLOW: SessionStepKey[] = ["lesson", "homework", "questions", "release"];
 
 export const Route = createFileRoute("/teacher/session")({
   head: () => ({
@@ -43,8 +52,13 @@ export const Route = createFileRoute("/teacher/session")({
 });
 
 function SessionMode() {
-  const { groups, students, liveScores } = useDataStore();
+  const { groups, students, liveScores, attendanceRecords, lessonSlides, sessionQuestions } =
+    useDataStore();
   const group = groups[0]!;
+  const orderedSteps = useMemo(
+    () => SESSION_FLOW.map((key) => SESSION_STEPS.find((s) => s.key === key)!),
+    [],
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [slideIndex, setSlideIndex] = useState(0);
   const [answered, setAnswered] = useState(false);
@@ -72,8 +86,17 @@ function SessionMode() {
     [students, liveScores],
   );
 
-  const step = SESSION_STEPS[stepIndex]!;
+  const step = orderedSteps[stepIndex]!;
   const isQuestions = step.key === "questions";
+
+  const attendanceStatus = useCallback(
+    (studentId: string): AttendanceStatus | null =>
+      attendanceRecords.find((a) => a.student_id === studentId)?.status ?? null,
+    [attendanceRecords],
+  );
+  const markAttendance = useCallback((studentId: string, status: AttendanceStatus) => {
+    recordAttendance(studentId, status, "manual");
+  }, []);
 
   const stepTimer = useCountdown(step.duration, () =>
     toast.warning(`انتهى وقت مرحلة: ${step.title}`),
@@ -144,7 +167,7 @@ function SessionMode() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-xl bg-white/15 px-4 py-2 text-sm font-black md:block">
-              المرحلة {formatNumber(stepIndex + 1)} من {formatNumber(SESSION_STEPS.length)}
+              المرحلة {formatNumber(stepIndex + 1)} من {formatNumber(orderedSteps.length)}
             </span>
             <Link
               to="/teacher"
@@ -157,7 +180,7 @@ function SessionMode() {
 
         {/* Stepper */}
         <div className="mx-auto grid max-w-[1600px] gap-2 px-5 pb-4 md:grid-cols-4 md:px-8">
-          {SESSION_STEPS.map((s, i) => (
+          {orderedSteps.map((s, i) => (
             <button
               key={s.key}
               onClick={() => setStepIndex(i)}
@@ -223,7 +246,12 @@ function SessionMode() {
                       {formatNumber(evaluated)} / {formatNumber(scores.length)} تم تقييمهم
                     </StatusBadge>
                   </div>
-                  <HomeworkStep scores={scores} onScore={scoreHomework} />
+                  <HomeworkStep
+                    scores={scores}
+                    onScore={scoreHomework}
+                    attendanceStatus={attendanceStatus}
+                    onAttendance={markAttendance}
+                  />
                 </>
               ) : null}
 
@@ -315,8 +343,8 @@ function SessionMode() {
                 المرحلة السابقة
               </button>
               <button
-                onClick={() => setStepIndex((i) => Math.min(SESSION_STEPS.length - 1, i + 1))}
-                disabled={stepIndex === SESSION_STEPS.length - 1}
+                onClick={() => setStepIndex((i) => Math.min(orderedSteps.length - 1, i + 1))}
+                disabled={stepIndex === orderedSteps.length - 1}
                 className="rounded-xl bg-navy px-6 py-3 text-sm font-black text-navy-foreground disabled:opacity-40"
               >
                 المرحلة التالية

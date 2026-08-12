@@ -397,30 +397,36 @@ export const booklets: BookletItem[] = [
 
 /* ---------------- Session engine ---------------- */
 
+/**
+ * Declaration order is NOT the on-screen flow order — owner.compliance.tsx maps a
+ * separate `stepCompliance` array to this one positionally, so reordering here
+ * would silently misalign that page. `SESSION_FLOW` in teacher.session.tsx
+ * controls the actual presentation order (lesson → homework → questions → release).
+ */
 export const SESSION_STEPS: SessionStep[] = [
   {
     key: "homework",
-    title: "تقييم الواجب المنزلي",
-    hint: "رصد تقييم واجب كل طالب قبل بدء الشرح",
+    title: "تقييم الواجب المنزلي ورصد الغياب",
+    hint: "رصد سريع لتقييم الواجب وتسجيل حضور/غياب كل طالب بلمسة واحدة",
     duration: 10 * 60,
   },
   {
     key: "lesson",
     title: "الشرح التفاعلي للدرس",
     hint: "عرض الدرس بقالب موحد عالي التباين على الشاشة الذكية",
-    duration: 35 * 60,
+    duration: 30 * 60,
   },
   {
     key: "questions",
-    title: "الأسئلة السريعة والاختيار العشوائي",
-    hint: "سحب اسم طالب عشوائياً مع تايمر 60 ثانية لكل سؤال",
+    title: "الأنشطة التفاعلية — الأسئلة العشوائية",
+    hint: "سحب اسم طالب عشوائياً مع تايمر لكل سؤال",
     duration: 10 * 60,
   },
   {
     key: "release",
     title: "إطلاق المهام والأنشطة",
     hint: "إرسال الواجب والشيت الأسبوعي للطلاب وأولياء الأمور",
-    duration: 5 * 60,
+    duration: 10 * 60,
   },
 ];
 
