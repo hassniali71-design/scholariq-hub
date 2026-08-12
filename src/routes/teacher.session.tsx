@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,11 +11,13 @@ import {
   QuestionCard,
 } from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
+import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
 import { useCountdown } from "@/hooks/use-countdown";
 import { formatNumber } from "@/lib/format";
 import {
   recordAttendance,
   recordQuestionAnswer,
+  recordTimerExtension,
   releaseSessionTasks,
   scoreHomework as persistHomeworkScore,
   useDataStore,
@@ -23,6 +25,9 @@ import {
 import { QUESTION_SECONDS, SESSION_STEPS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
+
+/** Documented default (spec §7-ج doesn't give an exact %) — extension budget before compliance visibly degrades. */
+const REASONABLE_EXTENSION_RATIO = 0.2;
 
 /**
  * On-screen presentation order (spec §7-ب: شرح ← واجب/غياب ← أنشطة ← إطلاق).
@@ -66,6 +71,9 @@ function SessionMode() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [askedCount, setAskedCount] = useState(0);
   const [released, setReleased] = useState(false);
+  const [extendedByStep, setExtendedByStep] = useState<Record<string, number>>({});
+  /** Anchors TimerExtension rows for this run — no SessionRecord to link to yet (Phase 3). */
+  const sessionIdRef = useRef(`sess-${Date.now()}`);
 
   /** Live scoreboard is derived from the central store, so every rating
    *  persists beyond this page (student / parent / owner dashboards). */
@@ -100,6 +108,20 @@ function SessionMode() {
 
   const stepTimer = useCountdown(step.duration, () =>
     toast.warning(`انتهى وقت مرحلة: ${step.title}`),
+  );
+
+  const extendedSeconds = extendedByStep[step.key] ?? 0;
+  const reasonableExtension = step.duration * REASONABLE_EXTENSION_RATIO;
+  const withinReasonableExtension = extendedSeconds <= reasonableExtension;
+
+  const handleExtend = useCallback(
+    (seconds: number, reason: string | null) => {
+      stepTimer.setRemaining((r) => r + seconds);
+      recordTimerExtension(sessionIdRef.current, step.key, seconds, reason);
+      setExtendedByStep((prev) => ({ ...prev, [step.key]: (prev[step.key] ?? 0) + seconds }));
+      toast.success(`تم تمديد المرحلة ${Math.round(seconds / 60)} دقيقة`);
+    },
+    [step.key, stepTimer],
   );
 
   const questionTimer = useCountdown(QUESTION_SECONDS, () => {
@@ -235,6 +257,16 @@ function SessionMode() {
                 onReset={() => stepTimer.reset()}
                 size={step.key === "homework" ? "xl" : "lg"}
               />
+
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <TimerExtendDialog onExtend={handleExtend} />
+                {extendedSeconds > 0 ? (
+                  <StatusBadge tone={withinReasonableExtension ? "success" : "warning"}>
+                    تمديد {Math.round(extendedSeconds / 60)} دقيقة —{" "}
+                    {withinReasonableExtension ? "ضمن الحد المعقول" : "تجاوز الحد المعقول"}
+                  </StatusBadge>
+                ) : null}
+              </div>
             </div>
 
             <div className="card-crisp p-6">
