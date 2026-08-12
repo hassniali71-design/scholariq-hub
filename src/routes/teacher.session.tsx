@@ -11,6 +11,7 @@ import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
 import { useContentHash } from "@/hooks/use-content-hash";
 import { useCountdown } from "@/hooks/use-countdown";
 import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
+import { formatNumber } from "@/lib/format";
 import {
   getLatestReadyLesson,
   getLessonsForGroup,
