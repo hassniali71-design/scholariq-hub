@@ -31,6 +31,8 @@ export interface Student {
   full_name: string;
   grade: string;
   group_name: string;
+  /** Null when the student's `group_name` has no matching `Group` record yet (pre-existing seed gap). */
+  group_id: UUID | null;
   guardian_name: string;
   guardian_phone: string;
   payment_status: PaymentStatus;
@@ -43,8 +45,11 @@ export interface Student {
 export interface Teacher {
   id: UUID;
   center_id: UUID;
+  /** Links this teacher record to their auth.ts account. Phase 1 default: unset — see resolveCurrentTeacher. */
+  user_id: UUID | null;
   full_name: string;
   subject: string;
+  subject_id: UUID;
   groups: number;
   students: number;
   /** % of sessions where the 4 timer steps were fully respected */
@@ -58,13 +63,32 @@ export interface Group {
   center_id: UUID;
   name: string;
   subject: string;
+  subject_id: UUID;
   teacher_name: string;
+  teacher_id: UUID;
   grade: string;
+  grade_id: UUID;
   weekday: string;
   time: string;
   room: string;
   enrolled: number;
   capacity: number;
+}
+
+/** Reference table — replaces free-text `subject`/`subject_id` pairs with a real lookup. */
+export interface Subject {
+  id: UUID;
+  center_id: UUID;
+  name: string;
+  theme_key: string;
+}
+
+/** Reference table — replaces free-text `grade`/`grade_id` pairs with a real lookup. */
+export interface Grade {
+  id: UUID;
+  center_id: UUID;
+  name: string;
+  order: number;
 }
 
 export interface AttendanceRecord {
@@ -176,6 +200,7 @@ export interface TeacherNote {
   id: UUID;
   center_id: UUID;
   student_id: UUID;
+  teacher_id: UUID;
   teacher_name: string;
   subject: string;
   date: string;

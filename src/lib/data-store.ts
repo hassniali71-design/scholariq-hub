@@ -4,11 +4,13 @@ import {
   CURRENT_TENANT,
   attendanceToday as seedAttendance,
   booklets as seedBooklets,
+  grades as seedGrades,
   groups as seedGroups,
   homeworkTasks as seedHomework,
   payments as seedPayments,
   quizResults as seedQuizResults,
   students as seedStudents,
+  subjects as seedSubjects,
   teacherNotes as seedTeacherNotes,
   teachers as seedTeachers,
   whatsappLogs as seedWhatsapp,
@@ -17,6 +19,7 @@ import type {
   AttendanceRecord,
   AttendanceStatus,
   BookletItem,
+  Grade,
   Group,
   HomeworkTask,
   LeaderboardEntry,
@@ -25,6 +28,7 @@ import type {
   PaymentRecord,
   QuizResult,
   Student,
+  Subject,
   Teacher,
   TeacherNote,
   WhatsAppLog,
@@ -58,6 +62,8 @@ export interface DataState {
   students: Student[];
   teachers: Teacher[];
   groups: Group[];
+  subjects: Subject[];
+  grades: Grade[];
   attendanceRecords: AttendanceRecord[];
   payments: PaymentRecord[];
   booklets: BookletItem[];
@@ -100,6 +106,8 @@ function seedState(): DataState {
     students,
     teachers: seedTeachers.map((t) => ({ ...t })),
     groups: seedGroups.map((g) => ({ ...g })),
+    subjects: seedSubjects.map((s) => ({ ...s })),
+    grades: seedGrades.map((g) => ({ ...g })),
     attendanceRecords: seedAttendance.map((a) => ({ ...a })),
     payments: seedPayments.map((p) => ({ ...p })),
     booklets: seedBooklets.map((b) => ({ ...b })),
@@ -202,6 +210,46 @@ export function findStudentById(state: DataState, id: string): Student | undefin
 export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student {
   const match = identifier ? findStudentByCode(state, identifier) : undefined;
   return match ?? state.students[0]!;
+}
+
+/**
+ * Teacher-scoped reads — the logical equivalent of Supabase RLS on `teacher_id`
+ * until a real backend exists (see CLAUDE.md §4-د / TEACHER_MODULE_SPEC.md §4-د).
+ * Always filter internally; never return another teacher's rows, even for a
+ * bad/missing id (empty array, not an error that would leak existence).
+ */
+export function getGroupsForTeacher(state: DataState, teacherId: string): Group[] {
+  return state.groups.filter((g) => g.teacher_id === teacherId);
+}
+
+export function getStudentsForTeacher(state: DataState, teacherId: string): Student[] {
+  const groupIds = new Set(getGroupsForTeacher(state, teacherId).map((g) => g.id));
+  return state.students.filter((s) => s.group_id !== null && groupIds.has(s.group_id));
+}
+
+export function getStudentsForGroup(state: DataState, groupId: string): Student[] {
+  return state.students.filter((s) => s.group_id === groupId);
+}
+
+export type StudentClassification = "excellent" | "needs_attention" | "average";
+
+/**
+ * Default 3-tier thresholds proposed in TEACHER_MODULE_SPEC.md §6-د.
+ * Pending explicit owner confirmation (spec §15 decision #3) — same
+ * treat-the-documented-default-as-current-truth approach used for decision #7.
+ */
+export function classifyStudent(student: Student): StudentClassification {
+  if (student.avg_score >= 85 && student.attendance_rate >= 90) return "excellent";
+  if (student.avg_score < 60 || student.attendance_rate < 75) return "needs_attention";
+  return "average";
+}
+
+/** Deterministic reason text for §6-هـ — no AI involved. */
+export function classificationReason(student: Student): string {
+  const reasons: string[] = [];
+  if (student.attendance_rate < 75) reasons.push("ضعف الحضور");
+  if (student.avg_score < 60) reasons.push("انخفاض متوسط الدرجات");
+  return reasons.length > 0 ? reasons.join(" + ") : "متابعة عامة";
 }
 
 /* ---------------- Mutations ---------------- */
@@ -427,6 +475,27 @@ export function releaseSessionTasks(groupId: string) {
       homeworkTasks: [...tasks, ...state.homeworkTasks],
       whatsappLogs: [...logs, ...state.whatsappLogs],
     };
+  });
+}
+
+/** Teacher dashboard "أضف ملاحظتك" quick note (§6-هـ) — persists to the student's record. */
+export function addTeacherNote(studentId: string, teacherId: string, note: string) {
+  update((state) => {
+    const student = findStudentById(state, studentId);
+    const teacher = state.teachers.find((t) => t.id === teacherId);
+    if (!student || !teacher || !note.trim()) return state;
+    const entry: TeacherNote = {
+      id: `tn-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      teacher_id: teacher.id,
+      teacher_name: teacher.full_name,
+      subject: teacher.subject,
+      date: todayLabel(),
+      note: note.trim(),
+      tone: "neutral",
+    };
+    return { ...state, teacherNotes: [entry, ...state.teacherNotes] };
   });
 }
 
