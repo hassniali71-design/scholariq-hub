@@ -24,6 +24,7 @@ import {
   useDataStore,
 } from "@/lib/data-store";
 import { QUESTION_SECONDS, SESSION_STEPS } from "@/lib/mock-data";
+import { getSubjectTheme } from "@/lib/subject-themes";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
 
@@ -59,8 +60,10 @@ export const Route = createFileRoute("/teacher/session")({
 
 function SessionMode() {
   const state = useDataStore();
-  const { groups, students, liveScores, attendanceRecords } = state;
+  const { groups, students, liveScores, attendanceRecords, subjects } = state;
   const group = groups[0]!;
+  /** §7-و: session mode only — never applied to AppShell (shared by every role). */
+  const theme = getSubjectTheme(subjects.find((s) => s.id === group.subject_id)?.theme_key);
   const { computeHash } = useContentHash();
   const [uploading, setUploading] = useState(false);
 
@@ -231,8 +234,11 @@ function SessionMode() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-canvas">
-      {/* Presenter header */}
-      <header className="sticky top-0 z-20 border-b-2 border-border bg-navy text-navy-foreground">
+      {/* Presenter header — themed by the group's subject (§7-و) */}
+      <header
+        className="sticky top-0 z-20 border-b-2 border-border text-navy-foreground"
+        style={{ backgroundColor: theme.primary }}
+      >
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8">
           <div>
             <p className="text-xs font-black text-white/70">وضع الحصة — شاشة العرض</p>
