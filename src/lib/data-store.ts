@@ -7,8 +7,10 @@ import {
   grades as seedGrades,
   groups as seedGroups,
   homeworkTasks as seedHomework,
+  lessonSlides as seedLessonSlides,
   payments as seedPayments,
   quizResults as seedQuizResults,
+  sessionQuestions as seedSessionQuestions,
   students as seedStudents,
   subjects as seedSubjects,
   teacherNotes as seedTeacherNotes,
@@ -23,14 +25,19 @@ import type {
   Group,
   HomeworkTask,
   LeaderboardEntry,
+  Lesson,
+  LessonSlide,
   LiveScore,
   PaymentMethod,
   PaymentRecord,
+  QuizQuestion,
   QuizResult,
+  SessionStepKey,
   Student,
   Subject,
   Teacher,
   TeacherNote,
+  TimerExtension,
   WhatsAppLog,
 } from "@/types";
 
@@ -74,6 +81,10 @@ export interface DataState {
   leaderboard: LeaderboardEntry[];
   liveScores: LiveScore[];
   shiftClosures: ShiftClosure[];
+  lessons: Lesson[];
+  lessonSlides: LessonSlide[];
+  sessionQuestions: QuizQuestion[];
+  timerExtensions: TimerExtension[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -118,6 +129,10 @@ function seedState(): DataState {
     leaderboard: buildLeaderboard(students),
     liveScores: [],
     shiftClosures: [],
+    lessons: [],
+    lessonSlides: seedLessonSlides.map((s) => ({ ...s })),
+    sessionQuestions: seedSessionQuestions.map((q) => ({ ...q })),
+    timerExtensions: [],
   };
 }
 
@@ -496,6 +511,137 @@ export function addTeacherNote(studentId: string, teacherId: string, note: strin
       tone: "neutral",
     };
     return { ...state, teacherNotes: [entry, ...state.teacherNotes] };
+  });
+}
+
+/* ---------------- Session mode: lessons (PDF → AI pipeline, §7-د/10) ---------------- */
+
+export function findLessonByHash(state: DataState, contentHash: string): Lesson | undefined {
+  return state.lessons.find((l) => l.content_hash === contentHash);
+}
+
+export function getLessonsForGroup(state: DataState, groupId: string): Lesson[] {
+  return state.lessons.filter((l) => l.group_id === groupId);
+}
+
+/** Most recently uploaded lesson that finished generating — what session mode presents. */
+export function getLatestReadyLesson(state: DataState, groupId: string): Lesson | undefined {
+  // `state.lessons` is newest-first (createLesson prepends), so the first match is the latest.
+  return getLessonsForGroup(state, groupId).find((l) => l.ai_status === "ready");
+}
+
+export function getSlidesForLesson(state: DataState, lessonId: string): LessonSlide[] {
+  return state.lessonSlides
+    .filter((s) => s.lesson_id === lessonId)
+    .sort((a, b) => a.index - b.index);
+}
+
+export function getQuestionsForLesson(state: DataState, lessonId: string): QuizQuestion[] {
+  return state.sessionQuestions.filter((q) => q.lesson_id === lessonId);
+}
+
+/** Starts the pipeline: inserts a `processing` Lesson row. Returns its id. */
+export function createLesson(
+  groupId: string,
+  subjectId: string,
+  teacherId: string,
+  sourceFileName: string,
+  contentHash: string,
+): string {
+  const id = `lsn-${Date.now()}`;
+  update((state) => {
+    const lesson: Lesson = {
+      id,
+      center_id: CENTER_ID,
+      group_id: groupId,
+      subject_id: subjectId,
+      title: sourceFileName.replace(/\.pdf$/i, ""),
+      source_file_name: sourceFileName,
+      extracted_text: null,
+      content_hash: contentHash,
+      ai_status: "processing",
+      ai_error: null,
+      taught_status: "not_started",
+      taught_at: null,
+      actual_duration_seconds: null,
+      created_by_teacher_id: teacherId,
+    };
+    return { ...state, lessons: [lesson, ...state.lessons] };
+  });
+  return id;
+}
+
+export function setLessonExtractedText(lessonId: string, text: string) {
+  update((state) => ({
+    ...state,
+    lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, extracted_text: text } : l)),
+  }));
+}
+
+/** Pipeline success — stores the generated slides + questions and flips the lesson to "ready". */
+export function completeLessonGeneration(
+  lessonId: string,
+  slides: Array<Omit<LessonSlide, "id" | "lesson_id">>,
+  questions: Array<Omit<QuizQuestion, "id" | "lesson_id" | "source">>,
+) {
+  update((state) => {
+    const newSlides: LessonSlide[] = slides.map((s, i) => ({
+      ...s,
+      id: `sl-${lessonId}-${i}`,
+      lesson_id: lessonId,
+    }));
+    const newQuestions: QuizQuestion[] = questions.map((q, i) => ({
+      ...q,
+      id: `q-${lessonId}-${i}`,
+      lesson_id: lessonId,
+      source: "ai_generated",
+    }));
+    return {
+      ...state,
+      lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, ai_status: "ready" } : l)),
+      lessonSlides: [...state.lessonSlides, ...newSlides],
+      sessionQuestions: [...state.sessionQuestions, ...newQuestions],
+    };
+  });
+}
+
+/** Pipeline failure — session mode keeps working; teacher can retry or teach manually. */
+export function markLessonFailed(lessonId: string, error: string) {
+  update((state) => ({
+    ...state,
+    lessons: state.lessons.map((l) =>
+      l.id === lessonId ? { ...l, ai_status: "failed", ai_error: error } : l,
+    ),
+  }));
+}
+
+/** "إعادة المحاولة" — reuses the stored extracted_text, no re-upload needed. */
+export function retryLessonGeneration(lessonId: string) {
+  update((state) => ({
+    ...state,
+    lessons: state.lessons.map((l) =>
+      l.id === lessonId ? { ...l, ai_status: "processing", ai_error: null } : l,
+    ),
+  }));
+}
+
+/** Logs a timer extension inside session mode (§7-ج). */
+export function recordTimerExtension(
+  sessionId: string,
+  stepKey: SessionStepKey,
+  addedSeconds: number,
+  reason: string | null,
+) {
+  update((state) => {
+    const entry: TimerExtension = {
+      id: `tx-${Date.now()}`,
+      session_id: sessionId,
+      step_key: stepKey,
+      added_seconds: addedSeconds,
+      reason,
+      at: todayLabel(),
+    };
+    return { ...state, timerExtensions: [entry, ...state.timerExtensions] };
   });
 }
 
