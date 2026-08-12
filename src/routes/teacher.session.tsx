@@ -4,17 +4,18 @@ import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import {
-  HomeworkStep,
-  LessonStep,
-  LiveScoreboard,
-  QuestionCard,
-} from "@/components/session/SessionSteps";
+import { InteractiveSlideViewer } from "@/components/session/InteractiveSlideViewer";
+import { HomeworkStep, LiveScoreboard, QuestionCard } from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
 import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
+import { useContentHash } from "@/hooks/use-content-hash";
 import { useCountdown } from "@/hooks/use-countdown";
-import { formatNumber } from "@/lib/format";
+import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
 import {
+  getLatestReadyLesson,
+  getLessonsForGroup,
+  getQuestionsForLesson,
+  getSlidesForLesson,
   recordAttendance,
   recordQuestionAnswer,
   recordTimerExtension,
@@ -57,9 +58,61 @@ export const Route = createFileRoute("/teacher/session")({
 });
 
 function SessionMode() {
-  const { groups, students, liveScores, attendanceRecords, lessonSlides, sessionQuestions } =
-    useDataStore();
+  const state = useDataStore();
+  const { groups, students, liveScores, attendanceRecords } = state;
   const group = groups[0]!;
+  const { computeHash } = useContentHash();
+  const [uploading, setUploading] = useState(false);
+
+  /* Lesson pipeline: latest upload attempt drives the upload box's state;
+   * the latest *ready* lesson (which may be an older one) drives what's on
+   * screen, so a failed re-upload doesn't blank out a lesson that already
+   * worked (§7-د: "فشل AI لا يعطّل الحصة"). */
+  const groupLessons = getLessonsForGroup(state, group.id);
+  const activeLesson = groupLessons[0] ?? null;
+  const latestReadyLesson = getLatestReadyLesson(state, group.id);
+  const activeSlides = latestReadyLesson
+    ? getSlidesForLesson(state, latestReadyLesson.id)
+    : state.lessonSlides.filter((s) => s.lesson_id === null);
+  const activeQuestionPool = latestReadyLesson
+    ? getQuestionsForLesson(state, latestReadyLesson.id)
+    : state.sessionQuestions.filter((q) => q.lesson_id === null);
+
+  const handleUploadFile = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      try {
+        const contentHash = await computeHash(file);
+        const result = await runLessonPipeline({
+          file,
+          contentHash,
+          groupId: group.id,
+          subjectId: group.subject_id,
+          teacherId: group.teacher_id,
+          subjectName: group.subject,
+        });
+        toast.success(
+          result.reusedFromCache
+            ? "نفس الملف اتعالج قبل كده — استخدمنا النتيجة المحفوظة فوراً"
+            : "تم توليد عرض الدرس بنجاح",
+        );
+      } finally {
+        setUploading(false);
+      }
+    },
+    [computeHash, group.id, group.subject, group.subject_id, group.teacher_id],
+  );
+
+  const handleRetryLesson = useCallback(async () => {
+    if (!activeLesson) return;
+    setUploading(true);
+    try {
+      await retryLessonPipeline(activeLesson.id, group.subject);
+      toast.success("تم توليد عرض الدرس بنجاح");
+    } finally {
+      setUploading(false);
+    }
+  }, [activeLesson, group.subject]);
   const orderedSteps = useMemo(
     () => SESSION_FLOW.map((key) => SESSION_STEPS.find((s) => s.key === key)!),
     [],
@@ -133,9 +186,10 @@ function SessionMode() {
     () => scores.find((s) => s.student_id === pickedId) ?? null,
     [scores, pickedId],
   );
-  const question = isQuestions
-    ? (sessionQuestions[questionIndex % sessionQuestions.length] ?? null)
-    : null;
+  const question =
+    isQuestions && activeQuestionPool.length > 0
+      ? (activeQuestionPool[questionIndex % activeQuestionPool.length] ?? null)
+      : null;
 
   const scoreHomework = useCallback((studentId: string, value: number) => {
     persistHomeworkScore(studentId, value);
@@ -288,11 +342,15 @@ function SessionMode() {
               ) : null}
 
               {step.key === "lesson" ? (
-                <LessonStep
-                  slides={lessonSlides}
+                <InteractiveSlideViewer
+                  activeLesson={activeLesson}
+                  busy={uploading}
+                  slides={activeSlides}
                   index={slideIndex}
                   onPrev={() => setSlideIndex((i) => Math.max(0, i - 1))}
-                  onNext={() => setSlideIndex((i) => Math.min(lessonSlides.length - 1, i + 1))}
+                  onNext={() => setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))}
+                  onFile={(file) => void handleUploadFile(file)}
+                  onRetry={() => void handleRetryLesson()}
                 />
               ) : null}
 
