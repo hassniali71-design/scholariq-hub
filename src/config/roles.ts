@@ -1,7 +1,9 @@
 import {
   BarChart3,
+  BookMarked,
   BookOpen,
   CalendarCheck,
+  ClipboardCheck,
   CreditCard,
   Eye,
   GraduationCap,
@@ -74,6 +76,8 @@ export const ROLES: Record<UserRole, RoleConfig> = {
     nav: [
       { label: "لوحة المدرس", to: "/teacher", icon: LayoutDashboard },
       { label: "وضع الحصة", to: "/teacher/session", icon: MonitorPlay },
+      { label: "التقييمات والغياب", to: "/teacher/assessments", icon: ClipboardCheck },
+      { label: "الخطة والمنهج", to: "/teacher/curriculum", icon: BookMarked },
     ],
   },
   student: {

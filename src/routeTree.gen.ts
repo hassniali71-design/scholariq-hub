@@ -24,6 +24,8 @@ import { Route as StaffShiftRouteImport } from './routes/staff.shift'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
+import { Route as TeacherAssessmentsRouteImport } from './routes/teacher.assessments'
+import { Route as TeacherCurriculumRouteImport } from './routes/teacher.curriculum'
 import { Route as TeacherSessionRouteImport } from './routes/teacher.session'
 import { Route as VisitorIndexRouteImport } from './routes/visitor.index'
 
@@ -102,6 +104,16 @@ const TeacherIndexRoute = TeacherIndexRouteImport.update({
   path: '/teacher/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeacherAssessmentsRoute = TeacherAssessmentsRouteImport.update({
+  id: '/teacher/assessments',
+  path: '/teacher/assessments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherCurriculumRoute = TeacherCurriculumRouteImport.update({
+  id: '/teacher/curriculum',
+  path: '/teacher/curriculum',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherSessionRoute = TeacherSessionRouteImport.update({
   id: '/teacher/session',
   path: '/teacher/session',
@@ -124,6 +136,8 @@ export interface FileRoutesByFullPath {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/assessments': typeof TeacherAssessmentsRoute
+  '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
@@ -143,6 +157,8 @@ export interface FileRoutesByTo {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/assessments': typeof TeacherAssessmentsRoute
+  '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/session': typeof TeacherSessionRoute
   '/owner': typeof OwnerIndexRoute
   '/parent': typeof ParentIndexRoute
@@ -163,6 +179,8 @@ export interface FileRoutesById {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/teacher/assessments': typeof TeacherAssessmentsRoute
+  '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
@@ -184,6 +202,8 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/student/leaderboard'
+    | '/teacher/assessments'
+    | '/teacher/curriculum'
     | '/teacher/session'
     | '/owner/'
     | '/parent/'
@@ -203,6 +223,8 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/student/leaderboard'
+    | '/teacher/assessments'
+    | '/teacher/curriculum'
     | '/teacher/session'
     | '/owner'
     | '/parent'
@@ -222,6 +244,8 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/student/leaderboard'
+    | '/teacher/assessments'
+    | '/teacher/curriculum'
     | '/teacher/session'
     | '/owner/'
     | '/parent/'
@@ -242,6 +266,8 @@ export interface RootRouteChildren {
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
+  TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
+  TeacherCurriculumRoute: typeof TeacherCurriculumRoute
   TeacherSessionRoute: typeof TeacherSessionRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   ParentIndexRoute: typeof ParentIndexRoute
@@ -358,6 +384,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teacher/assessments': {
+      id: '/teacher/assessments'
+      path: '/teacher/assessments'
+      fullPath: '/teacher/assessments'
+      preLoaderRoute: typeof TeacherAssessmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher/curriculum': {
+      id: '/teacher/curriculum'
+      path: '/teacher/curriculum'
+      fullPath: '/teacher/curriculum'
+      preLoaderRoute: typeof TeacherCurriculumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher/session': {
       id: '/teacher/session'
       path: '/teacher/session'
@@ -386,6 +426,8 @@ const rootRouteChildren: RootRouteChildren = {
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,
   StudentLeaderboardRoute: StudentLeaderboardRoute,
+  TeacherAssessmentsRoute: TeacherAssessmentsRoute,
+  TeacherCurriculumRoute: TeacherCurriculumRoute,
   TeacherSessionRoute: TeacherSessionRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   ParentIndexRoute: ParentIndexRoute,
