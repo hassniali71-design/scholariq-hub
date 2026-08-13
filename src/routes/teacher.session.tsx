@@ -1,9 +1,10 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
+import { pickFairly } from "@/components/session/FairRandomPicker";
 import { InteractiveSlideViewer } from "@/components/session/InteractiveSlideViewer";
 import { HomeworkStep, LiveScoreboard, QuestionCard } from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
@@ -19,18 +20,23 @@ import {
   getSlidesForLesson,
   recordAttendance,
   recordQuestionAnswer,
+  recordRandomPick,
+  recordSessionSummary,
   recordTimerExtension,
   releaseSessionTasks,
   scoreHomework as persistHomeworkScore,
   useDataStore,
 } from "@/lib/data-store";
-import { QUESTION_SECONDS, SESSION_STEPS } from "@/lib/mock-data";
+import { SESSION_STEPS } from "@/lib/mock-data";
 import { getSubjectTheme } from "@/lib/subject-themes";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
 
 /** Documented default (spec §7-ج doesn't give an exact %) — extension budget before compliance visibly degrades. */
 const REASONABLE_EXTENSION_RATIO = 0.2;
+
+/** §7-هـ: teacher picks the question's timer duration when drawing, based on difficulty. */
+const QUESTION_DURATIONS = [10, 15, 30] as const;
 
 /**
  * On-screen presentation order (spec §7-ب: شرح ← واجب/غياب ← أنشطة ← إطلاق).
@@ -47,7 +53,7 @@ export const Route = createFileRoute("/teacher/session")({
       {
         name: "description",
         content:
-          "شاشة عرض الحصة بالتايمرات: تقييم الواجب ١٠ دقائق، عرض الدرس، سحب طالب عشوائي بتايمر ٦٠ ثانية، وإطلاق الواجب.",
+          "شاشة عرض الحصة بالتايمرات: الشرح، تقييم الواجب ورصد الغياب، سحب طالب عشوائي بتوزيع عادل وتايمر قابل للاختيار، وإطلاق الواجب.",
       },
       { property: "og:title", content: "وضع الحصة — محرك التايمر الرباعي" },
       {
@@ -63,6 +69,9 @@ function SessionMode() {
   const state = useDataStore();
   const { groups, students, liveScores, attendanceRecords, subjects } = state;
   const group = groups[0]!;
+  const navigate = useNavigate();
+  /** "Today's" 6 students standing in for the group's real roster (demo data). */
+  const sessionStudents = useMemo(() => students.slice(0, 6), [students]);
   /** §7-و: session mode only — never applied to AppShell (shared by every role). */
   const theme = getSubjectTheme(subjects.find((s) => s.id === group.subject_id)?.theme_key);
   const { computeHash } = useContentHash();
@@ -136,7 +145,7 @@ function SessionMode() {
    *  persists beyond this page (student / parent / owner dashboards). */
   const scores: LiveScore[] = useMemo(
     () =>
-      students.slice(0, 6).map((s) => {
+      sessionStudents.map((s) => {
         const live = liveScores.find((l) => l.student_id === s.id);
         return (
           live ?? {
@@ -148,7 +157,7 @@ function SessionMode() {
           }
         );
       }),
-    [students, liveScores],
+    [sessionStudents, liveScores],
   );
 
   const step = orderedSteps[stepIndex]!;
@@ -160,8 +169,13 @@ function SessionMode() {
     [attendanceRecords],
   );
   const markAttendance = useCallback((studentId: string, status: AttendanceStatus) => {
-    recordAttendance(studentId, status, "manual");
+    recordAttendance(studentId, status, "manual", sessionIdRef.current);
   }, []);
+  /** Present/late/unmarked count as "attended" for fair-pick eligibility — only explicit absence excludes. */
+  const attendedStudentIds = useMemo(
+    () => new Set(sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").map((s) => s.id)),
+    [sessionStudents, attendanceStatus],
+  );
 
   const stepTimer = useCountdown(step.duration, () =>
     toast.warning(`انتهى وقت مرحلة: ${step.title}`),
@@ -181,7 +195,8 @@ function SessionMode() {
     [step.key, stepTimer],
   );
 
-  const questionTimer = useCountdown(QUESTION_SECONDS, () => {
+  const [questionDuration, setQuestionDuration] = useState<number>(QUESTION_DURATIONS[1]);
+  const questionTimer = useCountdown(questionDuration, () => {
     setAnswered(true);
     toast.error("انتهى وقت السؤال — لم يتم الرد");
   });
@@ -196,26 +211,30 @@ function SessionMode() {
       : null;
 
   const scoreHomework = useCallback((studentId: string, value: number) => {
-    persistHomeworkScore(studentId, value);
+    persistHomeworkScore(studentId, value, sessionIdRef.current);
   }, []);
 
+  /** §7-هـ: weighted fair pick — excludes anyone absent or already drawn this session. */
   const pickRandom = useCallback(() => {
-    const pool = scores.filter((s) => s.student_id !== pickedId);
-    const next = pool[Math.floor(Math.random() * pool.length)];
-    if (!next) return;
-    setPickedId(next.student_id);
+    const next = pickFairly(sessionStudents, state.randomPickLogs, sessionIdRef.current, attendedStudentIds);
+    if (!next) {
+      toast.warning("كل الطلاب الحاضرين اتسحبوا في الحصة دي بالفعل");
+      return;
+    }
+    recordRandomPick(group.id, next.id, sessionIdRef.current);
+    setPickedId(next.id);
     setAnswered(false);
     setQuestionIndex((i) => i + 1);
-    questionTimer.reset(QUESTION_SECONDS);
+    questionTimer.reset(questionDuration);
     questionTimer.start();
-  }, [scores, pickedId, questionTimer]);
+  }, [sessionStudents, state.randomPickLogs, attendedStudentIds, group.id, questionTimer, questionDuration]);
 
   const answer = useCallback(
     (correct: boolean) => {
       setAnswered(true);
       questionTimer.pause();
       setAskedCount((c) => c + 1);
-      if (pickedId) recordQuestionAnswer(pickedId, correct);
+      if (pickedId) recordQuestionAnswer(pickedId, correct, sessionIdRef.current);
       toast[correct ? "success" : "error"](
         correct ? "إجابة صحيحة — +٥٠ نقطة" : "إجابة خاطئة — تم الرصد",
       );
@@ -232,6 +251,52 @@ function SessionMode() {
   };
 
   const evaluated = scores.filter((s) => s.homework_score !== null).length;
+
+  /** §7-ط: persists the actual SessionRecord once, when the teacher deliberately ends the session. */
+  const handleEndSession = useCallback(() => {
+    const attendeesCount = sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").length;
+    const absenteesCount = sessionStudents.length - attendeesCount;
+    const totalExtensionSeconds = Object.values(extendedByStep).reduce((sum, s) => sum + s, 0);
+    const lessonStepDuration = SESSION_STEPS.find((s) => s.key === "lesson")!.duration;
+    // Approximation, not a real stopwatch: planned lesson-step duration + any extension logged against it.
+    const explanationDurationSeconds = lessonStepDuration + (extendedByStep["lesson"] ?? 0);
+    const sessionStartMs = Number(sessionIdRef.current.slice("sess-".length));
+    const durationSeconds = Math.max(0, Math.round((Date.now() - sessionStartMs) / 1000));
+    const participantsCount = new Set(
+      state.sessionEvents
+        .filter((e) => e.session_id === sessionIdRef.current)
+        .map((e) => e.student_id),
+    ).size;
+
+    recordSessionSummary({
+      sessionId: sessionIdRef.current,
+      groupId: group.id,
+      teacherId: group.teacher_id,
+      lessonId: latestReadyLesson?.id ?? null,
+      attendeesCount,
+      absenteesCount,
+      questionsAskedCount: askedCount,
+      participantsCount,
+      homeworkLaunchStatus: released ? "sent" : "not_sent",
+      durationSeconds,
+      explanationDurationSeconds,
+      extensionSeconds: totalExtensionSeconds,
+      generalNotes: null,
+    });
+    toast.success("تم حفظ ملخص الحصة");
+    void navigate({ to: "/teacher" });
+  }, [
+    sessionStudents,
+    attendanceStatus,
+    extendedByStep,
+    state.sessionEvents,
+    group.id,
+    group.teacher_id,
+    latestReadyLesson,
+    askedCount,
+    released,
+    navigate,
+  ]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-canvas">
@@ -252,12 +317,13 @@ function SessionMode() {
             <span className="hidden rounded-xl bg-white/15 px-4 py-2 text-sm font-black md:block">
               المرحلة {formatNumber(stepIndex + 1)} من {formatNumber(orderedSteps.length)}
             </span>
-            <Link
-              to="/teacher"
+            <button
+              type="button"
+              onClick={handleEndSession}
               className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-navy hover:opacity-90"
             >
               <X className="size-4" /> إنهاء الحصة
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -378,10 +444,31 @@ function SessionMode() {
                     </div>
                   </div>
 
+                  {/* §7-هـ: duration chosen when drawing, based on question difficulty. */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-muted-foreground">مدة تايمر السؤال:</span>
+                    {QUESTION_DURATIONS.map((seconds) => (
+                      <button
+                        key={seconds}
+                        type="button"
+                        disabled={picked !== null && !answered}
+                        onClick={() => setQuestionDuration(seconds)}
+                        className={cn(
+                          "rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors disabled:opacity-40",
+                          questionDuration === seconds
+                            ? "border-navy bg-navy text-navy-foreground"
+                            : "border-border hover:border-primary",
+                        )}
+                      >
+                        {formatNumber(seconds)} ثانية
+                      </button>
+                    ))}
+                  </div>
+
                   {picked ? (
                     <div className="rounded-2xl border-2 border-border p-5">
                       <p className="mb-3 text-center text-sm font-black text-muted-foreground">
-                        تايمر السؤال — ٦٠ ثانية
+                        تايمر السؤال — {formatNumber(questionDuration)} ثانية
                       </p>
                       <SessionTimer
                         remaining={questionTimer.remaining}
@@ -389,7 +476,7 @@ function SessionMode() {
                         progress={questionTimer.progress}
                         onStart={questionTimer.start}
                         onPause={questionTimer.pause}
-                        onReset={() => questionTimer.reset(QUESTION_SECONDS)}
+                        onReset={() => questionTimer.reset(questionDuration)}
                         size="xl"
                       />
                     </div>

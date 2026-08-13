@@ -31,18 +31,21 @@ export function InteractiveSlideViewer({
   onRetry,
 }: InteractiveSlideViewerProps) {
   const failed = activeLesson?.ai_status === "failed" ? { error: activeLesson.ai_error } : null;
+  const hasSlidesToShow = !busy && !failed && slides.length > 0;
 
-  return (
-    <div className="space-y-5">
-      <PdfUploadBox busy={busy} failed={failed} onFile={onFile} onRetry={onRetry} />
-      {!busy && slides.length > 0 ? (
+  if (hasSlidesToShow) {
+    return (
+      <div className="space-y-4">
         <LessonStep
           slides={slides}
           index={Math.min(index, slides.length - 1)}
           onPrev={onPrev}
           onNext={onNext}
         />
-      ) : null}
-    </div>
-  );
+        <PdfUploadBox busy={busy} failed={failed} onFile={onFile} onRetry={onRetry} compact />
+      </div>
+    );
+  }
+
+  return <PdfUploadBox busy={busy} failed={failed} onFile={onFile} onRetry={onRetry} />;
 }
