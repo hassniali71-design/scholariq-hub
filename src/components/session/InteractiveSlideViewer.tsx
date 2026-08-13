@@ -13,6 +13,8 @@ interface InteractiveSlideViewerProps {
   onNext: () => void;
   onFile: (file: File) => void;
   onRetry: () => void;
+  /** §18-2: always-available inline edit on the current slide. */
+  onEditSlide: (slideId: string, title: string, bullets: string[]) => void;
 }
 
 /**
@@ -29,6 +31,7 @@ export function InteractiveSlideViewer({
   onNext,
   onFile,
   onRetry,
+  onEditSlide,
 }: InteractiveSlideViewerProps) {
   const failed = activeLesson?.ai_status === "failed" ? { error: activeLesson.ai_error } : null;
   const hasSlidesToShow = !busy && !failed && slides.length > 0;
@@ -41,6 +44,7 @@ export function InteractiveSlideViewer({
           index={Math.min(index, slides.length - 1)}
           onPrev={onPrev}
           onNext={onNext}
+          onEdit={onEditSlide}
         />
         <PdfUploadBox busy={busy} failed={failed} onFile={onFile} onRetry={onRetry} compact />
       </div>

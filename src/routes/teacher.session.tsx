@@ -26,6 +26,8 @@ import {
   recordTimerExtension,
   releaseSessionTasks,
   scoreHomework as persistHomeworkScore,
+  updateLessonSlide,
+  updateQuizQuestion,
   useDataStore,
 } from "@/lib/data-store";
 import { SESSION_STEPS } from "@/lib/mock-data";
@@ -422,6 +424,10 @@ function SessionMode() {
                   onNext={() => setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))}
                   onFile={(file) => void handleUploadFile(file)}
                   onRetry={() => void handleRetryLesson()}
+                  onEditSlide={(slideId, title, bullets) => {
+                    updateLessonSlide(slideId, title, bullets);
+                    toast.success("تم حفظ التعديل");
+                  }}
                 />
               ) : null}
 
@@ -485,6 +491,10 @@ function SessionMode() {
                     question={question}
                     answered={answered}
                     onAnswer={answer}
+                    onEdit={(questionId, text, options, correctIndex) => {
+                      updateQuizQuestion(questionId, text, options, correctIndex);
+                      toast.success("تم حفظ التعديل");
+                    }}
                   />
                 </div>
               ) : null}

@@ -750,6 +750,32 @@ export function recordTimerExtension(
   });
 }
 
+/**
+ * §18-2: always-available inline edit for a generated (or legacy static) slide —
+ * saves immediately, no separate approval step (matches spec §15 decision #2).
+ */
+export function updateLessonSlide(slideId: string, title: string, bullets: string[]) {
+  update((state) => ({
+    ...state,
+    lessonSlides: state.lessonSlides.map((s) => (s.id === slideId ? { ...s, title, bullets } : s)),
+  }));
+}
+
+/** §18-2: same, for a question — text/options/correct answer, saved immediately. */
+export function updateQuizQuestion(
+  questionId: string,
+  text: string,
+  options: string[],
+  correctIndex: number,
+) {
+  update((state) => ({
+    ...state,
+    sessionQuestions: state.sessionQuestions.map((q) =>
+      q.id === questionId ? { ...q, text, options, correct_index: correctIndex } : q,
+    ),
+  }));
+}
+
 /** Logs a fair-pick draw (§7-هـ) — feeds `pickFairly`'s weighting on future draws. */
 export function recordRandomPick(groupId: string, studentId: string, sessionId: string) {
   update((state) => {

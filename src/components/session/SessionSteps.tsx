@@ -1,4 +1,5 @@
-import { Check, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import { formatNumber } from "@/lib/format";
@@ -90,30 +91,91 @@ export function LessonStep({
   index,
   onPrev,
   onNext,
+  onEdit,
 }: {
   slides: LessonSlide[];
   index: number;
   onPrev: () => void;
   onNext: () => void;
+  /** §18-2: always-available inline edit, saved immediately — no separate approval step. */
+  onEdit: (slideId: string, title: string, bullets: string[]) => void;
 }) {
   const slide = slides[index]!;
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(slide.title);
+  const [draftBullets, setDraftBullets] = useState(slide.bullets.join("\n"));
+
+  useEffect(() => {
+    setDraftTitle(slide.title);
+    setDraftBullets(slide.bullets.join("\n"));
+    setEditing(false);
+  }, [slide.id, slide.title, slide.bullets]);
+
+  const save = () => {
+    const bullets = draftBullets
+      .split("\n")
+      .map((b) => b.trim())
+      .filter(Boolean);
+    onEdit(slide.id, draftTitle.trim() || slide.title, bullets.length > 0 ? bullets : slide.bullets);
+    setEditing(false);
+  };
+
   return (
     <div>
       <div className="rounded-2xl border-2 border-border bg-canvas p-8 md:p-12">
-        <p className="text-sm font-black text-primary">
-          شريحة {formatNumber(slide.index)} من {formatNumber(slides.length)}
-        </p>
-        <h3 className="mt-3 text-3xl leading-snug font-black text-foreground md:text-4xl">
-          {slide.title}
-        </h3>
-        <ul className="mt-6 space-y-4">
-          {slide.bullets.map((b) => (
-            <li key={b} className="flex items-start gap-3 text-xl font-extrabold text-foreground md:text-2xl">
-              <span className="mt-2 size-3 shrink-0 rounded-full bg-primary" />
-              {b}
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-black text-primary">
+            شريحة {formatNumber(slide.index)} من {formatNumber(slides.length)}
+          </p>
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <Pencil className="size-3.5" /> {editing ? "إلغاء" : "تعديل"}
+          </button>
+        </div>
+
+        {editing ? (
+          <div className="mt-4 space-y-3">
+            <input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-xl font-black outline-none focus:border-primary"
+            />
+            <textarea
+              value={draftBullets}
+              onChange={(e) => setDraftBullets(e.target.value)}
+              rows={4}
+              placeholder="نقطة في كل سطر"
+              className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-bold outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-xl bg-navy px-5 py-2.5 text-sm font-black text-navy-foreground hover:opacity-90"
+            >
+              حفظ
+            </button>
+          </div>
+        ) : (
+          <>
+            <h3 className="mt-3 text-3xl leading-snug font-black text-foreground md:text-4xl">
+              {slide.title}
+            </h3>
+            <ul className="mt-6 space-y-4">
+              {slide.bullets.map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start gap-3 text-xl font-extrabold text-foreground md:text-2xl"
+                >
+                  <span className="mt-2 size-3 shrink-0 rounded-full bg-primary" />
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
@@ -151,12 +213,28 @@ export function QuestionCard({
   question,
   answered,
   onAnswer,
+  onEdit,
 }: {
   student: LiveScore | null;
   question: QuizQuestion | null;
   answered: boolean;
   onAnswer: (correct: boolean) => void;
+  /** §18-2: always-available inline edit, saved immediately — no separate approval step. */
+  onEdit: (questionId: string, text: string, options: string[], correctIndex: number) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState("");
+  const [draftOptions, setDraftOptions] = useState<string[]>([]);
+  const [draftCorrect, setDraftCorrect] = useState(0);
+
+  useEffect(() => {
+    if (!question) return;
+    setDraftText(question.text);
+    setDraftOptions(question.options);
+    setDraftCorrect(question.correct_index);
+    setEditing(false);
+  }, [question]);
+
   if (!student || !question) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-border p-12 text-center">
@@ -167,6 +245,11 @@ export function QuestionCard({
     );
   }
 
+  const save = () => {
+    onEdit(question.id, draftText.trim() || question.text, draftOptions, draftCorrect);
+    setEditing(false);
+  };
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border-2 border-navy bg-navy p-6 text-center text-navy-foreground">
@@ -175,33 +258,87 @@ export function QuestionCard({
       </div>
 
       <div className="rounded-2xl border-2 border-border p-6">
-        <StatusBadge tone="primary">
-          {question.kind === "mcq" ? "اختيار من متعدد" : "صح أم خطأ"}
-        </StatusBadge>
-        <p className="mt-4 text-2xl leading-snug font-black text-foreground md:text-3xl">
-          {question.text}
-        </p>
-        <div className="mt-6 grid gap-3 md:grid-cols-2">
-          {question.options.map((opt, i) => (
-            <button
-              key={opt}
-              disabled={answered}
-              onClick={() => onAnswer(i === question.correct_index)}
-              className={cn(
-                "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
-                answered && i === question.correct_index
-                  ? "border-success bg-success/10 text-success"
-                  : answered
-                    ? "border-border opacity-50"
-                    : "border-border hover:border-primary",
-              )}
-            >
-              {opt}
-              {answered && i === question.correct_index ? <Check className="size-5" /> : null}
-              {answered && i !== question.correct_index ? <X className="size-5 opacity-40" /> : null}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <StatusBadge tone="primary">
+            {question.kind === "mcq" ? "اختيار من متعدد" : "صح أم خطأ"}
+          </StatusBadge>
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <Pencil className="size-3.5" /> {editing ? "إلغاء" : "تعديل"}
+          </button>
         </div>
+
+        {editing ? (
+          <div className="mt-4 space-y-3">
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-lg font-black outline-none focus:border-primary"
+            />
+            <div className="space-y-2">
+              {draftOptions.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`correct-option-${question.id}`}
+                    checked={draftCorrect === i}
+                    onChange={() => setDraftCorrect(i)}
+                    className="size-4 shrink-0"
+                  />
+                  <input
+                    value={opt}
+                    onChange={(e) => {
+                      const next = [...draftOptions];
+                      next[i] = e.target.value;
+                      setDraftOptions(next);
+                    }}
+                    className="flex-1 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm font-bold outline-none focus:border-primary"
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-xl bg-navy px-5 py-2.5 text-sm font-black text-navy-foreground hover:opacity-90"
+            >
+              حفظ
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mt-4 text-2xl leading-snug font-black text-foreground md:text-3xl">
+              {question.text}
+            </p>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {question.options.map((opt, i) => (
+                <button
+                  key={opt}
+                  disabled={answered}
+                  onClick={() => onAnswer(i === question.correct_index)}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
+                    answered && i === question.correct_index
+                      ? "border-success bg-success/10 text-success"
+                      : answered
+                        ? "border-border opacity-50"
+                        : "border-border hover:border-primary",
+                  )}
+                >
+                  {opt}
+                  {answered && i === question.correct_index ? <Check className="size-5" /> : null}
+                  {answered && i !== question.correct_index ? (
+                    <X className="size-5 opacity-40" />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
