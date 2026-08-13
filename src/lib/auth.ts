@@ -84,7 +84,7 @@ function seedAccounts(): Account[] {
     },
   ];
 
-  seedStudents.slice(0, 6).forEach((s, i) => {
+  seedStudents.slice(0, 8).forEach((s, i) => {
     list.push({
       id: `acc-std-${i}`,
       center_id: c,
@@ -96,7 +96,7 @@ function seedAccounts(): Account[] {
     });
   });
 
-  seedTeachers.slice(0, 4).forEach((t, i) => {
+  seedTeachers.slice(0, 5).forEach((t, i) => {
     list.push({
       id: `acc-tch-${i}`,
       center_id: c,

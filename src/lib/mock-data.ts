@@ -38,12 +38,16 @@ const c = CURRENT_TENANT.center_id;
 
 /* ---------------- Reference tables (Subject / Grade) ---------------- */
 
+/**
+ * DESIGN_ATMOSPHERE_SPEC.md §0.2 — replaced the previous 5 subjects
+ * (فيزياء/كيمياء/رياضيات/لغة إنجليزية/أحياء) with these 5, same ids.
+ */
 export const subjects: Subject[] = [
-  { id: "sub-1", center_id: c, name: "الفيزياء", theme_key: "physics" },
-  { id: "sub-2", center_id: c, name: "الكيمياء", theme_key: "chemistry" },
-  { id: "sub-3", center_id: c, name: "الرياضيات", theme_key: "math" },
-  { id: "sub-4", center_id: c, name: "اللغة الإنجليزية", theme_key: "english" },
-  { id: "sub-5", center_id: c, name: "الأحياء", theme_key: "biology" },
+  { id: "sub-1", center_id: c, name: "عربي", theme_key: "arabic" },
+  { id: "sub-2", center_id: c, name: "إنجليزي", theme_key: "english" },
+  { id: "sub-3", center_id: c, name: "رياضيات", theme_key: "math" },
+  { id: "sub-4", center_id: c, name: "دراسات", theme_key: "social" },
+  { id: "sub-5", center_id: c, name: "علوم", theme_key: "science" },
 ];
 
 export const grades: Grade[] = [
@@ -52,24 +56,28 @@ export const grades: Grade[] = [
   { id: "gd-3", center_id: c, name: "الثالث الثانوي", order: 3 },
 ];
 
-/* ---------------- Curriculum plan (§9) — physics / الثالث الثانوي, matching gr-1 ---------------- */
-
+/**
+ * Curriculum plan (§9) — دراسات / الثالث الثانوي, matching gr-1.
+ * DESIGN_ATMOSPHERE_SPEC.md §0.2 reassigned gr-1's teacher (tc-1) from physics to
+ * دراسات, so the physics-specific plan that used to live here (sub-1) no longer
+ * makes sense under any subject; replaced with دراسات content under sub-4.
+ */
 export const curriculumUnits: CurriculumUnit[] = [
   {
     id: "cu-1",
     center_id: c,
-    subject_id: "sub-1",
+    subject_id: "sub-4",
     grade_id: "gd-3",
-    name: "الباب الثالث — المجال المغناطيسي",
+    name: "الوحدة الأولى — الجغرافيا الطبيعية لمصر",
     order: 1,
     planned_duration_days: 14,
   },
   {
     id: "cu-2",
     center_id: c,
-    subject_id: "sub-1",
+    subject_id: "sub-4",
     grade_id: "gd-3",
-    name: "الباب الرابع — الحث الكهرومغناطيسي",
+    name: "الوحدة الثانية — تاريخ مصر الحديث",
     order: 2,
     planned_duration_days: 10,
   },
@@ -80,7 +88,7 @@ export const curriculumLessons: CurriculumLesson[] = [
     id: "cl-1",
     unit_id: "cu-1",
     order: 1,
-    title: "التأثير المغناطيسي للتيار",
+    title: "نهر النيل ودوره التاريخي",
     status: "done",
     linked_lesson_id: null,
   },
@@ -88,7 +96,7 @@ export const curriculumLessons: CurriculumLesson[] = [
     id: "cl-2",
     unit_id: "cu-1",
     order: 2,
-    title: "قانون بيو-سافار",
+    title: "المناخ والتضاريس المصرية",
     status: "not_started",
     linked_lesson_id: null,
   },
@@ -96,7 +104,7 @@ export const curriculumLessons: CurriculumLesson[] = [
     id: "cl-3",
     unit_id: "cu-1",
     order: 3,
-    title: "الملف اللولبي والوشيعة الدائرية",
+    title: "الموارد الطبيعية وتوزيعها",
     status: "not_started",
     linked_lesson_id: null,
   },
@@ -104,7 +112,7 @@ export const curriculumLessons: CurriculumLesson[] = [
     id: "cl-4",
     unit_id: "cu-2",
     order: 1,
-    title: "قانون فاراداي للحث الكهرومغناطيسي",
+    title: "الحملة الفرنسية وآثارها",
     status: "not_started",
     linked_lesson_id: null,
   },
@@ -112,7 +120,7 @@ export const curriculumLessons: CurriculumLesson[] = [
     id: "cl-5",
     unit_id: "cu-2",
     order: 2,
-    title: "قانون لنץ واتجاه التيار المستحث",
+    title: "عصر محمد علي ونهضة مصر",
     status: "not_started",
     linked_lesson_id: null,
   },
@@ -125,7 +133,7 @@ export const students: Student[] = [
     code: "STD-10234",
     full_name: "أحمد محمود السيد",
     grade: "الثالث الثانوي",
-    group_name: "فيزياء - سبت 4م",
+    group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "محمود السيد",
     guardian_phone: "01001234567",
@@ -141,7 +149,7 @@ export const students: Student[] = [
     code: "STD-10235",
     full_name: "سارة عادل إبراهيم",
     grade: "الثالث الثانوي",
-    group_name: "كيمياء - أحد 6م",
+    group_name: "علوم - أحد 6م",
     group_id: "gr-2",
     guardian_name: "عادل إبراهيم",
     guardian_phone: "01112345678",
@@ -157,7 +165,7 @@ export const students: Student[] = [
     code: "STD-10236",
     full_name: "يوسف خالد منصور",
     grade: "الثاني الثانوي",
-    group_name: "رياضيات - اثنين 5م",
+    group_name: "إنجليزي - اثنين 5م",
     group_id: "gr-3",
     guardian_name: "خالد منصور",
     guardian_phone: "01223456789",
@@ -173,7 +181,7 @@ export const students: Student[] = [
     code: "STD-10237",
     full_name: "منة الله طارق",
     grade: "الثاني الثانوي",
-    group_name: "أحياء - ثلاثاء 3م",
+    group_name: "علوم - ثلاثاء 3م",
     group_id: "gr-4",
     guardian_name: "طارق فهمي",
     guardian_phone: "01034567890",
@@ -189,7 +197,7 @@ export const students: Student[] = [
     code: "STD-10238",
     full_name: "عمر حسام الدين",
     grade: "الأول الثانوي",
-    group_name: "لغة إنجليزية - أربعاء 7م",
+    group_name: "رياضيات - أربعاء 7م",
     group_id: "gr-5",
     guardian_name: "حسام الدين علي",
     guardian_phone: "01145678901",
@@ -205,7 +213,7 @@ export const students: Student[] = [
     code: "STD-10239",
     full_name: "ملك أشرف زكي",
     grade: "الثالث الثانوي",
-    group_name: "فيزياء - سبت 4م",
+    group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "أشرف زكي",
     guardian_phone: "01256789012",
@@ -215,8 +223,46 @@ export const students: Student[] = [
     attendance_rate: 97,
     avg_score: 90,
   },
+  {
+    id: "st-7",
+    center_id: c,
+    code: "STD-10240",
+    full_name: "زياد إبراهيم عبد الله",
+    grade: "الثاني الثانوي",
+    group_name: "عربي - خميس 5م",
+    group_id: "gr-6",
+    guardian_name: "إبراهيم عبد الله",
+    guardian_phone: "01167890123",
+    payment_status: "paid",
+    balance_due: 0,
+    points: 1510,
+    attendance_rate: 93,
+    avg_score: 86,
+  },
+  {
+    id: "st-8",
+    center_id: c,
+    code: "STD-10241",
+    full_name: "نور محمد سامي",
+    grade: "الثاني الثانوي",
+    group_name: "عربي - خميس 5م",
+    group_id: "gr-6",
+    guardian_name: "محمد سامي",
+    guardian_phone: "01278901234",
+    payment_status: "pending",
+    balance_due: 250,
+    points: 1350,
+    attendance_rate: 88,
+    avg_score: 81,
+  },
 ];
 
+/**
+ * DESIGN_ATMOSPHERE_SPEC.md §0.2 — `subject`/`subject_id` reshuffled across the
+ * new 5-subject list (no teacher kept their old subject); every other field
+ * (id, name, groups/students/timer_compliance/sla_breaches/monthly_revenue)
+ * untouched. tc-5 is the new 5th teacher needed to cover the 5th subject.
+ */
 export const teachers: Teacher[] = [
   {
     id: "tc-1",
@@ -224,8 +270,8 @@ export const teachers: Teacher[] = [
     // Phase 1 default (decision #7): no auth.ts account↔teacher linking yet.
     user_id: null,
     full_name: "أ. مصطفى الجندي",
-    subject: "الفيزياء",
-    subject_id: "sub-1",
+    subject: "دراسات",
+    subject_id: "sub-4",
     groups: 6,
     students: 214,
     timer_compliance: 97,
@@ -237,8 +283,8 @@ export const teachers: Teacher[] = [
     center_id: c,
     user_id: null,
     full_name: "أ. هبة عبد الرحمن",
-    subject: "الكيمياء",
-    subject_id: "sub-2",
+    subject: "علوم",
+    subject_id: "sub-5",
     groups: 5,
     students: 178,
     timer_compliance: 92,
@@ -250,8 +296,8 @@ export const teachers: Teacher[] = [
     center_id: c,
     user_id: null,
     full_name: "أ. كريم شوقي",
-    subject: "الرياضيات",
-    subject_id: "sub-3",
+    subject: "إنجليزي",
+    subject_id: "sub-2",
     groups: 7,
     students: 240,
     timer_compliance: 78,
@@ -263,13 +309,26 @@ export const teachers: Teacher[] = [
     center_id: c,
     user_id: null,
     full_name: "أ. نورهان سعيد",
-    subject: "اللغة الإنجليزية",
-    subject_id: "sub-4",
+    subject: "رياضيات",
+    subject_id: "sub-3",
     groups: 4,
     students: 132,
     timer_compliance: 88,
     sla_breaches: 4,
     monthly_revenue: 52800,
+  },
+  {
+    id: "tc-5",
+    center_id: c,
+    user_id: null,
+    full_name: "أ. سلمى وجدي",
+    subject: "عربي",
+    subject_id: "sub-1",
+    groups: 3,
+    students: 95,
+    timer_compliance: 90,
+    sla_breaches: 2,
+    monthly_revenue: 45000,
   },
 ];
 
@@ -277,9 +336,9 @@ export const groups: Group[] = [
   {
     id: "gr-1",
     center_id: c,
-    name: "فيزياء - سبت 4م",
-    subject: "الفيزياء",
-    subject_id: "sub-1",
+    name: "دراسات - سبت 4م",
+    subject: "دراسات",
+    subject_id: "sub-4",
     teacher_name: "أ. مصطفى الجندي",
     teacher_id: "tc-1",
     grade: "الثالث الثانوي",
@@ -293,9 +352,9 @@ export const groups: Group[] = [
   {
     id: "gr-2",
     center_id: c,
-    name: "كيمياء - أحد 6م",
-    subject: "الكيمياء",
-    subject_id: "sub-2",
+    name: "علوم - أحد 6م",
+    subject: "علوم",
+    subject_id: "sub-5",
     teacher_name: "أ. هبة عبد الرحمن",
     teacher_id: "tc-2",
     grade: "الثالث الثانوي",
@@ -309,9 +368,9 @@ export const groups: Group[] = [
   {
     id: "gr-3",
     center_id: c,
-    name: "رياضيات - اثنين 5م",
-    subject: "الرياضيات",
-    subject_id: "sub-3",
+    name: "إنجليزي - اثنين 5م",
+    subject: "إنجليزي",
+    subject_id: "sub-2",
     teacher_name: "أ. كريم شوقي",
     teacher_id: "tc-3",
     grade: "الثاني الثانوي",
@@ -325,8 +384,8 @@ export const groups: Group[] = [
   {
     id: "gr-4",
     center_id: c,
-    name: "أحياء - ثلاثاء 3م",
-    subject: "الأحياء",
+    name: "علوم - ثلاثاء 3م",
+    subject: "علوم",
     subject_id: "sub-5",
     teacher_name: "أ. هبة عبد الرحمن",
     teacher_id: "tc-2",
@@ -342,9 +401,9 @@ export const groups: Group[] = [
     // Pre-existing gap fixed: st-5's group_name had no matching Group record.
     id: "gr-5",
     center_id: c,
-    name: "لغة إنجليزية - أربعاء 7م",
-    subject: "اللغة الإنجليزية",
-    subject_id: "sub-4",
+    name: "رياضيات - أربعاء 7م",
+    subject: "رياضيات",
+    subject_id: "sub-3",
     teacher_name: "أ. نورهان سعيد",
     teacher_id: "tc-4",
     grade: "الأول الثانوي",
@@ -355,6 +414,23 @@ export const groups: Group[] = [
     enrolled: 26,
     capacity: 30,
   },
+  {
+    // New group for the new 5th teacher (DESIGN_ATMOSPHERE_SPEC.md §0.2).
+    id: "gr-6",
+    center_id: c,
+    name: "عربي - خميس 5م",
+    subject: "عربي",
+    subject_id: "sub-1",
+    teacher_name: "أ. سلمى وجدي",
+    teacher_id: "tc-5",
+    grade: "الثاني الثانوي",
+    grade_id: "gd-2",
+    weekday: "الخميس",
+    time: "05:00 م",
+    room: "قاعة C2",
+    enrolled: 24,
+    capacity: 30,
+  },
 ];
 
 export const attendanceToday: AttendanceRecord[] = [
@@ -363,7 +439,7 @@ export const attendanceToday: AttendanceRecord[] = [
     center_id: c,
     student_id: "st-1",
     student_name: "أحمد محمود السيد",
-    group_name: "فيزياء - سبت 4م",
+    group_name: "دراسات - سبت 4م",
     status: "present",
     checked_in_at: "03:52 م",
     method: "qr",
@@ -374,7 +450,7 @@ export const attendanceToday: AttendanceRecord[] = [
     center_id: c,
     student_id: "st-6",
     student_name: "ملك أشرف زكي",
-    group_name: "فيزياء - سبت 4م",
+    group_name: "دراسات - سبت 4م",
     status: "present",
     checked_in_at: "03:55 م",
     method: "barcode",
@@ -385,7 +461,7 @@ export const attendanceToday: AttendanceRecord[] = [
     center_id: c,
     student_id: "st-3",
     student_name: "يوسف خالد منصور",
-    group_name: "رياضيات - اثنين 5م",
+    group_name: "إنجليزي - اثنين 5م",
     status: "late",
     checked_in_at: "05:18 م",
     method: "qr",
@@ -396,7 +472,7 @@ export const attendanceToday: AttendanceRecord[] = [
     center_id: c,
     student_id: "st-5",
     student_name: "عمر حسام الدين",
-    group_name: "لغة إنجليزية - أربعاء 7م",
+    group_name: "رياضيات - أربعاء 7م",
     status: "absent",
     checked_in_at: "—",
     method: "manual",
