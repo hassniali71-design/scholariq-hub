@@ -1,8 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookMarked } from "lucide-react";
 
 import { Panel } from "@/components/dashboard/StatCard";
+import { UnitTree } from "@/components/curriculum/UnitTree";
 import { AppShell } from "@/components/layout/AppShell";
+import { useCurrentTeacher } from "@/hooks/use-current-teacher";
+import {
+  getCurriculumLessonsForUnit,
+  getCurriculumUnitsForSubjectGrade,
+  getGroupsForTeacher,
+  useDataStore,
+} from "@/lib/data-store";
 
 export const Route = createFileRoute("/teacher/curriculum")({
   head: () => ({
@@ -23,24 +30,60 @@ export const Route = createFileRoute("/teacher/curriculum")({
 });
 
 function CurriculumPage() {
+  const state = useDataStore();
+  const teacher = useCurrentTeacher();
+  const myGroups = getGroupsForTeacher(state, teacher.id);
+  const findLinkedLesson = (lessonId: string) => state.lessons.find((l) => l.id === lessonId);
+
+  /** Unique subject+grade combos across the teacher's own groups — one Panel each. */
+  const subjectGrades = new Map<string, { subjectId: string; gradeId: string }>();
+  for (const g of myGroups) {
+    subjectGrades.set(`${g.subject_id}:${g.grade_id}`, { subjectId: g.subject_id, gradeId: g.grade_id });
+  }
+
   return (
     <AppShell
       role="teacher"
       title="الخطة والمنهج"
-      description="ذاكرة تشغيل المنهج — تُحدَّث تلقائياً من أحداث وضع الحصة"
+      description="ذاكرة تشغيل المنهج — تُحدَّث تلقائياً من أحداث وضع الحصة، بدون أي إدخال يدوي"
     >
-      <Panel title="قيد الإنشاء" description="هذا القسم جزء من مرحلة لاحقة من خطة التطوير">
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <BookMarked className="size-7" />
-          </span>
-          <p className="font-black text-foreground">قسم الخطة والمنهج قيد التنفيذ</p>
-          <p className="max-w-sm text-sm font-bold text-muted-foreground">
-            سيعرض وحدات المنهج ودروسها المخططة، وحالة كل درس (لم يبدأ / قيد التنفيذ / تم)
-            مرتبطة تلقائياً بما يُرفع ويُدرَّس فعلياً داخل وضع الحصة، بدون أي إدخال يدوي إضافي.
+      {subjectGrades.size === 0 ? (
+        <Panel title="الخطة والمنهج">
+          <p className="py-8 text-center font-black text-muted-foreground">
+            لا توجد مجموعات مرتبطة بك بعد
           </p>
-        </div>
-      </Panel>
+        </Panel>
+      ) : (
+        [...subjectGrades.values()].map(({ subjectId, gradeId }) => {
+          const subjectName = state.subjects.find((s) => s.id === subjectId)?.name ?? "";
+          const gradeName = state.grades.find((g) => g.id === gradeId)?.name ?? "";
+          const units = getCurriculumUnitsForSubjectGrade(state, subjectId, gradeId);
+          return (
+            <Panel
+              key={`${subjectId}:${gradeId}`}
+              title={`${subjectName} — ${gradeName}`}
+              description="تقدّم المنهج لكل وحدة، ورابط مباشر للدرس الفعلي بمجرد رفعه"
+            >
+              {units.length === 0 ? (
+                <p className="py-6 text-center font-black text-muted-foreground">
+                  لا توجد خطة منهج مضافة لهذه المادة بعد
+                </p>
+              ) : (
+                <div className="grid gap-4">
+                  {units.map((u) => (
+                    <UnitTree
+                      key={u.id}
+                      unit={u}
+                      lessons={getCurriculumLessonsForUnit(state, u.id)}
+                      findLinkedLesson={findLinkedLesson}
+                    />
+                  ))}
+                </div>
+              )}
+            </Panel>
+          );
+        })
+      )}
     </AppShell>
   );
 }
