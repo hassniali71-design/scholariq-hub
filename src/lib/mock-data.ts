@@ -2,6 +2,8 @@ import type {
   AttendancePoint,
   AttendanceRecord,
   BookletItem,
+  CurriculumLesson,
+  CurriculumUnit,
   Grade,
   Group,
   HomeworkTask,
@@ -48,6 +50,72 @@ export const grades: Grade[] = [
   { id: "gd-1", center_id: c, name: "الأول الثانوي", order: 1 },
   { id: "gd-2", center_id: c, name: "الثاني الثانوي", order: 2 },
   { id: "gd-3", center_id: c, name: "الثالث الثانوي", order: 3 },
+];
+
+/* ---------------- Curriculum plan (§9) — physics / الثالث الثانوي, matching gr-1 ---------------- */
+
+export const curriculumUnits: CurriculumUnit[] = [
+  {
+    id: "cu-1",
+    center_id: c,
+    subject_id: "sub-1",
+    grade_id: "gd-3",
+    name: "الباب الثالث — المجال المغناطيسي",
+    order: 1,
+    planned_duration_days: 14,
+  },
+  {
+    id: "cu-2",
+    center_id: c,
+    subject_id: "sub-1",
+    grade_id: "gd-3",
+    name: "الباب الرابع — الحث الكهرومغناطيسي",
+    order: 2,
+    planned_duration_days: 10,
+  },
+];
+
+export const curriculumLessons: CurriculumLesson[] = [
+  {
+    id: "cl-1",
+    unit_id: "cu-1",
+    order: 1,
+    title: "التأثير المغناطيسي للتيار",
+    status: "done",
+    linked_lesson_id: null,
+  },
+  {
+    id: "cl-2",
+    unit_id: "cu-1",
+    order: 2,
+    title: "قانون بيو-سافار",
+    status: "not_started",
+    linked_lesson_id: null,
+  },
+  {
+    id: "cl-3",
+    unit_id: "cu-1",
+    order: 3,
+    title: "الملف اللولبي والوشيعة الدائرية",
+    status: "not_started",
+    linked_lesson_id: null,
+  },
+  {
+    id: "cl-4",
+    unit_id: "cu-2",
+    order: 1,
+    title: "قانون فاراداي للحث الكهرومغناطيسي",
+    status: "not_started",
+    linked_lesson_id: null,
+  },
+  {
+    id: "cl-5",
+    unit_id: "cu-2",
+    order: 2,
+    title: "قانون لنץ واتجاه التيار المستحث",
+    status: "not_started",
+    linked_lesson_id: null,
+  },
 ];
 
 export const students: Student[] = [

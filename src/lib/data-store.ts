@@ -5,6 +5,8 @@ import {
   SESSION_STEPS,
   attendanceToday as seedAttendance,
   booklets as seedBooklets,
+  curriculumLessons as seedCurriculumLessons,
+  curriculumUnits as seedCurriculumUnits,
   grades as seedGrades,
   groups as seedGroups,
   homeworkTasks as seedHomework,
@@ -23,6 +25,8 @@ import type {
   AttendanceRecord,
   AttendanceStatus,
   BookletItem,
+  CurriculumLesson,
+  CurriculumUnit,
   Grade,
   Group,
   HomeworkTask,
@@ -94,6 +98,8 @@ export interface DataState {
   sessionEvents: SessionEvent[];
   sessionRecords: SessionRecord[];
   assessmentScores: AssessmentScore[];
+  curriculumUnits: CurriculumUnit[];
+  curriculumLessons: CurriculumLesson[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -166,6 +172,8 @@ function seedState(): DataState {
     sessionEvents: [],
     sessionRecords: [],
     assessmentScores: [],
+    curriculumUnits: seedCurriculumUnits.map((u) => ({ ...u })),
+    curriculumLessons: seedCurriculumLessons.map((l) => ({ ...l })),
   };
 }
 
@@ -282,6 +290,37 @@ export function getStudentsForGroup(state: DataState, groupId: string): Student[
 /** A group's past sessions, newest-first (§18-3's attendance grid columns). */
 export function getSessionRecordsForGroup(state: DataState, groupId: string): SessionRecord[] {
   return state.sessionRecords.filter((r) => r.group_id === groupId);
+}
+
+/* ---------------- Curriculum plan — "ذاكرة التشغيل" (§9) ---------------- */
+
+export function getCurriculumUnitsForSubjectGrade(
+  state: DataState,
+  subjectId: string,
+  gradeId: string,
+): CurriculumUnit[] {
+  return state.curriculumUnits
+    .filter((u) => u.subject_id === subjectId && u.grade_id === gradeId)
+    .sort((a, b) => a.order - b.order);
+}
+
+export function getCurriculumLessonsForUnit(state: DataState, unitId: string): CurriculumLesson[] {
+  return state.curriculumLessons
+    .filter((l) => l.unit_id === unitId)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** First not-yet-done planned lesson across a subject/grade's units, in curriculum order. */
+function getNextPlannedLesson(
+  state: DataState,
+  subjectId: string,
+  gradeId: string,
+): CurriculumLesson | undefined {
+  for (const unit of getCurriculumUnitsForSubjectGrade(state, subjectId, gradeId)) {
+    const next = getCurriculumLessonsForUnit(state, unit.id).find((l) => l.status !== "done");
+    if (next) return next;
+  }
+  return undefined;
 }
 
 /** The current (general, not tied to one past session) score for a student in a category — §8. */
@@ -695,6 +734,12 @@ export function getQuestionsForLesson(state: DataState, lessonId: string): QuizQ
 }
 
 /** Starts the pipeline: inserts a `processing` Lesson row. Returns its id. */
+/**
+ * §9-ب "ذاكرة التشغيل": uploading a new lesson auto-links it to the group's next
+ * not-done planned `CurriculumLesson` (same subject/grade) and flips that plan
+ * entry to "in_progress" — no separate manual step, no independent logic here,
+ * just data written once at the moment the event actually happens.
+ */
 export function createLesson(
   groupId: string,
   subjectId: string,
@@ -720,7 +765,16 @@ export function createLesson(
       actual_duration_seconds: null,
       created_by_teacher_id: teacherId,
     };
-    return { ...state, lessons: [lesson, ...state.lessons] };
+
+    const group = state.groups.find((g) => g.id === groupId);
+    const planned = group ? getNextPlannedLesson(state, subjectId, group.grade_id) : undefined;
+    const curriculumLessons = planned
+      ? state.curriculumLessons.map((l) =>
+          l.id === planned.id ? { ...l, linked_lesson_id: id, status: "in_progress" as const } : l,
+        )
+      : state.curriculumLessons;
+
+    return { ...state, lessons: [lesson, ...state.lessons], curriculumLessons };
   });
   return id;
 }
@@ -875,7 +929,19 @@ export function recordSessionSummary(input: SessionSummaryInput) {
       extension_seconds: input.extensionSeconds,
       general_notes: input.generalNotes,
     };
-    return { ...state, sessionRecords: [record, ...state.sessionRecords] };
+
+    // §9-ب: ending a session that taught a linked lesson marks its curriculum entry "done".
+    const curriculumLessons = input.lessonId
+      ? state.curriculumLessons.map((l) =>
+          l.linked_lesson_id === input.lessonId ? { ...l, status: "done" as const } : l,
+        )
+      : state.curriculumLessons;
+
+    return {
+      ...state,
+      sessionRecords: [record, ...state.sessionRecords],
+      curriculumLessons,
+    };
   });
 }
 
