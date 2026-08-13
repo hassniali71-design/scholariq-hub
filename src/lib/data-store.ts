@@ -32,6 +32,9 @@ import type {
   PaymentRecord,
   QuizQuestion,
   QuizResult,
+  RandomPickLog,
+  SessionEvent,
+  SessionRecord,
   SessionStepKey,
   Student,
   Subject,
@@ -85,6 +88,9 @@ export interface DataState {
   lessonSlides: LessonSlide[];
   sessionQuestions: QuizQuestion[];
   timerExtensions: TimerExtension[];
+  randomPickLogs: RandomPickLog[];
+  sessionEvents: SessionEvent[];
+  sessionRecords: SessionRecord[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -107,6 +113,26 @@ function nowTime() {
 
 function todayLabel() {
   return `اليوم ${nowTime()}`;
+}
+
+let eventCounter = 0;
+
+/** Durable per-event log entry (§7-ح) — built inline so callers stay atomic with their `update()`. */
+function buildSessionEvent(
+  sessionId: string,
+  studentId: string,
+  kind: SessionEvent["kind"],
+  payload: Record<string, unknown>,
+): SessionEvent {
+  eventCounter += 1;
+  return {
+    id: `sev-${Date.now()}-${eventCounter}`,
+    session_id: sessionId,
+    student_id: studentId,
+    at: todayLabel(),
+    kind,
+    payload,
+  };
 }
 
 /* ---------------- Seed ---------------- */
@@ -133,6 +159,9 @@ function seedState(): DataState {
     lessonSlides: seedLessonSlides.map((s) => ({ ...s })),
     sessionQuestions: seedSessionQuestions.map((q) => ({ ...q })),
     timerExtensions: [],
+    randomPickLogs: [],
+    sessionEvents: [],
+    sessionRecords: [],
   };
 }
 
@@ -269,10 +298,12 @@ export function classificationReason(student: Student): string {
 
 /* ---------------- Mutations ---------------- */
 
+/** `sessionId`: only passed from inside session mode — logs a durable SessionEvent too (§7-ح). */
 export function recordAttendance(
   studentId: string,
   status: AttendanceStatus,
   method: AttendanceRecord["method"],
+  sessionId?: string,
 ) {
   update((state) => {
     const student = findStudentById(state, studentId);
@@ -299,10 +330,14 @@ export function recordAttendance(
           : `تم تسجيل حضور الطالب ${student.full_name} في حصة ${student.group_name} الساعة ${record.checked_in_at}.`,
       delivered: true,
     };
+    const sessionEvents = sessionId
+      ? [buildSessionEvent(sessionId, student.id, "attendance", { status, method }), ...state.sessionEvents]
+      : state.sessionEvents;
     return {
       ...state,
       attendanceRecords: [record, ...state.attendanceRecords],
       whatsappLogs: [log, ...state.whatsappLogs],
+      sessionEvents,
     };
   });
 }
@@ -393,7 +428,7 @@ function ensureLiveScore(state: DataState, student: Student): LiveScore {
 }
 
 /** Homework evaluation inside session mode — persists to the student record. */
-export function scoreHomework(studentId: string, value: number) {
+export function scoreHomework(studentId: string, value: number, sessionId?: string) {
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
@@ -420,6 +455,9 @@ export function scoreHomework(studentId: string, value: number) {
       grade: value,
     };
     const exists = state.homeworkTasks.some((h) => h.id === taskId);
+    const sessionEvents = sessionId
+      ? [buildSessionEvent(sessionId, student.id, "homework_score", { value }), ...state.sessionEvents]
+      : state.sessionEvents;
 
     return {
       ...state,
@@ -429,12 +467,13 @@ export function scoreHomework(studentId: string, value: number) {
       homeworkTasks: exists
         ? state.homeworkTasks.map((h) => (h.id === taskId ? graded : h))
         : [graded, ...state.homeworkTasks],
+      sessionEvents,
     };
   });
 }
 
 /** Random-question answer inside session mode — updates points + leaderboard. */
-export function recordQuestionAnswer(studentId: string, correct: boolean) {
+export function recordQuestionAnswer(studentId: string, correct: boolean, sessionId?: string) {
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
@@ -448,11 +487,15 @@ export function recordQuestionAnswer(studentId: string, correct: boolean) {
     const students = state.students.map((s) =>
       s.id === student.id ? { ...s, points: s.points + gain } : s,
     );
+    const sessionEvents = sessionId
+      ? [buildSessionEvent(sessionId, student.id, "question_answer", { correct }), ...state.sessionEvents]
+      : state.sessionEvents;
     return {
       ...state,
       students,
       leaderboard: buildLeaderboard(students),
       liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextScore],
+      sessionEvents,
     };
   });
 }
@@ -642,6 +685,60 @@ export function recordTimerExtension(
       at: todayLabel(),
     };
     return { ...state, timerExtensions: [entry, ...state.timerExtensions] };
+  });
+}
+
+/** Logs a fair-pick draw (§7-هـ) — feeds `pickFairly`'s weighting on future draws. */
+export function recordRandomPick(groupId: string, studentId: string, sessionId: string) {
+  update((state) => {
+    const entry: RandomPickLog = {
+      id: `rpl-${Date.now()}`,
+      group_id: groupId,
+      student_id: studentId,
+      session_id: sessionId,
+      picked_at: todayLabel(),
+    };
+    return { ...state, randomPickLogs: [entry, ...state.randomPickLogs] };
+  });
+}
+
+export interface SessionSummaryInput {
+  sessionId: string;
+  groupId: string;
+  teacherId: string;
+  lessonId: string | null;
+  attendeesCount: number;
+  absenteesCount: number;
+  questionsAskedCount: number;
+  participantsCount: number;
+  homeworkLaunchStatus: "not_sent" | "sent";
+  durationSeconds: number;
+  explanationDurationSeconds: number;
+  extensionSeconds: number;
+  generalNotes: string | null;
+}
+
+/** §7-ط — persisted once, when the teacher actually ends the session (not on every step change). */
+export function recordSessionSummary(input: SessionSummaryInput) {
+  update((state) => {
+    const record: SessionRecord = {
+      id: input.sessionId,
+      center_id: CENTER_ID,
+      group_id: input.groupId,
+      lesson_id: input.lessonId,
+      teacher_id: input.teacherId,
+      date: todayLabel(),
+      attendees_count: input.attendeesCount,
+      absentees_count: input.absenteesCount,
+      questions_asked_count: input.questionsAskedCount,
+      participants_count: input.participantsCount,
+      homework_launch_status: input.homeworkLaunchStatus,
+      duration_seconds: input.durationSeconds,
+      explanation_duration_seconds: input.explanationDurationSeconds,
+      extension_seconds: input.extensionSeconds,
+      general_notes: input.generalNotes,
+    };
+    return { ...state, sessionRecords: [record, ...state.sessionRecords] };
   });
 }
 
