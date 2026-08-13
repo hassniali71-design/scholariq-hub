@@ -1,12 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { AlertCircle, Search, Star, User, Users } from "lucide-react";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { classifyStudent, useDataStore } from "@/lib/data-store";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import { useDataStore } from "@/lib/data-store";
-import type { PaymentStatus } from "@/types";
+import { cn } from "@/lib/utils";
+import type { PaymentStatus, Student } from "@/types";
+
+/**
+ * DESIGN_ATMOSPHERE_SPEC.md §5 — display-only ranking, not a data-store rule:
+ * top 20% by points within the student's own group. Reuses `classifyStudent`
+ * for the "needs attention" tier (no new classification logic there).
+ */
+function isTopPerformerInGroup(student: Student, allStudents: Student[]): boolean {
+  const groupmates = allStudents.filter((s) => s.group_id === student.group_id);
+  if (groupmates.length === 0) return false;
+  const sorted = [...groupmates].sort((a, b) => b.points - a.points);
+  const rank = sorted.findIndex((s) => s.id === student.id);
+  return (rank + 1) / sorted.length <= 0.2;
+}
+
+type StudentVisualStatus = "top" | "attention" | "normal";
+
+function studentVisualStatus(student: Student, allStudents: Student[]): StudentVisualStatus {
+  if (classifyStudent(student) === "needs_attention") return "attention";
+  if (isTopPerformerInGroup(student, allStudents)) return "top";
+  return "normal";
+}
+
+const visualStatusMeta: Record<
+  StudentVisualStatus,
+  { icon: typeof Star; border: string; label: string }
+> = {
+  top: { icon: Star, border: "border-r-primary", label: "متفوق" },
+  attention: { icon: AlertCircle, border: "border-r-muted-foreground", label: "يحتاج متابعة" },
+  normal: { icon: User, border: "border-r-border", label: "عادي" },
+};
 
 export const Route = createFileRoute("/owner/students")({
   head: () => ({
@@ -82,6 +113,39 @@ function StudentsPage() {
           tone="success"
         />
       </div>
+
+      <Panel title="نظرة الطلاب البصرية" description="متفوق (أعلى 20% نقاطاً في مجموعته) · يحتاج متابعة · عادي">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {students.map((s) => {
+            const status = studentVisualStatus(s, students);
+            const meta = visualStatusMeta[status];
+            return (
+              <div
+                key={s.id}
+                className={cn("rounded-xl border-2 border-r-4 border-border p-4", meta.border)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-black text-foreground">{s.full_name}</p>
+                  <meta.icon
+                    className={cn(
+                      "size-4 shrink-0",
+                      status === "top"
+                        ? "fill-primary text-primary"
+                        : status === "attention"
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground",
+                    )}
+                  />
+                </div>
+                <p className="mt-1 text-xs font-bold text-muted-foreground">{s.group_name}</p>
+                <p className="mt-2 text-xs font-extrabold text-muted-foreground">
+                  {formatNumber(s.points)} نقطة · {formatPercent(s.attendance_rate)} حضور
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
 
       <Panel
         title="سجل الطلاب"
