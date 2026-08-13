@@ -18,6 +18,7 @@ import {
   whatsappLogs as seedWhatsapp,
 } from "@/lib/mock-data";
 import type {
+  AssessmentScore,
   AttendanceRecord,
   AttendanceStatus,
   BookletItem,
@@ -91,6 +92,7 @@ export interface DataState {
   randomPickLogs: RandomPickLog[];
   sessionEvents: SessionEvent[];
   sessionRecords: SessionRecord[];
+  assessmentScores: AssessmentScore[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -162,6 +164,7 @@ function seedState(): DataState {
     randomPickLogs: [],
     sessionEvents: [],
     sessionRecords: [],
+    assessmentScores: [],
   };
 }
 
@@ -273,6 +276,17 @@ export function getStudentsForTeacher(state: DataState, teacherId: string): Stud
 
 export function getStudentsForGroup(state: DataState, groupId: string): Student[] {
   return state.students.filter((s) => s.group_id === groupId);
+}
+
+/** The current (general, not tied to one past session) score for a student in a category — §8. */
+export function getAssessmentScore(
+  state: DataState,
+  studentId: string,
+  category: AssessmentScore["category"],
+): AssessmentScore | undefined {
+  return state.assessmentScores.find(
+    (a) => a.student_id === studentId && a.category === category && a.session_id === null,
+  );
 }
 
 export type StudentClassification = "excellent" | "needs_attention" | "average";
@@ -739,6 +753,56 @@ export function recordSessionSummary(input: SessionSummaryInput) {
       general_notes: input.generalNotes,
     };
     return { ...state, sessionRecords: [record, ...state.sessionRecords] };
+  });
+}
+
+export interface AssessmentScoreInput {
+  studentId: string;
+  teacherId: string;
+  category: AssessmentScore["category"];
+  source: AssessmentScore["source"];
+  value: number;
+  maxValue: number;
+  sessionId?: string | null;
+  lessonId?: string | null;
+}
+
+/**
+ * Records/edits an assessment score (§8) — a real ledger value, not an append-only
+ * event log. Upserts by (student, category, session): calling it again for the
+ * same combination *updates the existing record in place*, which is what makes
+ * "تعديل درجة قديمة بأثر رجعي" (Phase 4's testable criterion) actually work.
+ * Deliberately separate from `scoreHomework`'s live in-session points/HomeworkTask
+ * update (§7-أ: session mode vs. this independent management section).
+ */
+export function recordAssessmentScore(input: AssessmentScoreInput) {
+  update((state) => {
+    const student = findStudentById(state, input.studentId);
+    if (!student) return state;
+    const sessionId = input.sessionId ?? null;
+    const existing = state.assessmentScores.find(
+      (a) =>
+        a.student_id === input.studentId &&
+        a.category === input.category &&
+        a.session_id === sessionId,
+    );
+    const entry: AssessmentScore = {
+      id: existing?.id ?? `asc-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      session_id: sessionId,
+      lesson_id: input.lessonId ?? null,
+      category: input.category,
+      source: input.source,
+      value: input.value,
+      max_value: input.maxValue,
+      recorded_by_teacher_id: input.teacherId,
+      recorded_at: todayLabel(),
+    };
+    const assessmentScores = existing
+      ? state.assessmentScores.map((a) => (a.id === existing.id ? entry : a))
+      : [entry, ...state.assessmentScores];
+    return { ...state, assessmentScores };
   });
 }
 
