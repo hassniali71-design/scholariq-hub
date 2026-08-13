@@ -14,6 +14,7 @@ import { useCountdown } from "@/hooks/use-countdown";
 import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
 import { formatNumber } from "@/lib/format";
 import {
+  REASONABLE_EXTENSION_RATIO,
   getLatestReadyLesson,
   getLessonsForGroup,
   getQuestionsForLesson,
@@ -31,9 +32,6 @@ import { SESSION_STEPS } from "@/lib/mock-data";
 import { getSubjectTheme } from "@/lib/subject-themes";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
-
-/** Documented default (spec §7-ج doesn't give an exact %) — extension budget before compliance visibly degrades. */
-const REASONABLE_EXTENSION_RATIO = 0.2;
 
 /** §7-هـ: teacher picks the question's timer duration when drawing, based on difficulty. */
 const QUESTION_DURATIONS = [10, 15, 30] as const;

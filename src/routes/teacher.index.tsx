@@ -23,6 +23,7 @@ import {
   classificationReason,
   getGroupsForTeacher,
   getStudentsForTeacher,
+  getTimerCompliance,
   useDataStore,
 } from "@/lib/data-store";
 
@@ -51,6 +52,7 @@ function TeacherHome() {
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const myStudents = getStudentsForTeacher(state, teacher.id);
   const subjectName = subjects.find((s) => s.id === teacher.subject_id)?.name ?? teacher.subject;
+  const timerCompliance = getTimerCompliance(state, teacher.id);
 
   const myGroupNames = new Set(myGroups.map((g) => g.name));
   const absentLastSession = attendanceRecords.filter(
@@ -83,9 +85,9 @@ function TeacherHome() {
         <StatCard label="عدد الطلاب" value={formatNumber(myStudents.length)} icon={Users} />
         <StatCard
           label="الالتزام بالتايمر"
-          value={formatPercent(teacher.timer_compliance)}
+          value={formatPercent(timerCompliance)}
           icon={Timer}
-          tone="success"
+          tone={timerCompliance >= 90 ? "success" : "warning"}
         />
         <StatCard
           label="حصص هذا الأسبوع"

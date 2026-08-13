@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 import {
   CURRENT_TENANT,
+  SESSION_STEPS,
   attendanceToday as seedAttendance,
   booklets as seedBooklets,
   grades as seedGrades,
@@ -287,6 +288,53 @@ export function getAssessmentScore(
   return state.assessmentScores.find(
     (a) => a.student_id === studentId && a.category === category && a.session_id === null,
   );
+}
+
+/**
+ * Documented default (spec §7-ج doesn't give an exact %) — extension budget before
+ * compliance visibly degrades. Shared by the live per-step badge (teacher.session.tsx)
+ * and the aggregate calculation below, so the two stay consistent.
+ */
+export const REASONABLE_EXTENSION_RATIO = 0.2;
+
+const PLANNED_SESSION_SECONDS = SESSION_STEPS.reduce((sum, s) => sum + s.duration, 0);
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Per-session compliance (§18-1): 100% if the session finished within the planned
+ * total duration or within a "reasonable" extension budget on top of it (mirrors
+ * §7-ج's rule — no penalty for finishing early or for a modest overrun); beyond
+ * that, degrades gradually rather than dropping straight to 0. The decay rate
+ * (1 point per 30s of excess) is a documented default, same category as the ratio above.
+ */
+function sessionComplianceScore(record: SessionRecord): number {
+  const overrun = Math.max(0, record.duration_seconds - PLANNED_SESSION_SECONDS);
+  const reasonable = PLANNED_SESSION_SECONDS * REASONABLE_EXTENSION_RATIO;
+  if (overrun <= reasonable) return 100;
+  const excess = overrun - reasonable;
+  return Math.max(40, 100 - excess / 30);
+}
+
+/**
+ * Real timer-compliance aggregate (§18-1) — average per-session compliance over the
+ * teacher's `SessionRecord`s from the last 30 days. `SessionRecord.id` is the
+ * session id minted at session start (`sess-<ms>`, see teacher.session.tsx), so its
+ * creation time is recovered from the id itself rather than a separate timestamp.
+ * Falls back to the static seeded `Teacher.timer_compliance` when a teacher has no
+ * real session data yet, so the KPI shows zero visual diff until real usage exists.
+ */
+export function getTimerCompliance(state: DataState, teacherId: string): number {
+  const cutoff = Date.now() - THIRTY_DAYS_MS;
+  const records = state.sessionRecords.filter((r) => {
+    if (r.teacher_id !== teacherId) return false;
+    const createdAtMs = Number(r.id.slice("sess-".length));
+    return !Number.isNaN(createdAtMs) && createdAtMs >= cutoff;
+  });
+  if (records.length === 0) {
+    return state.teachers.find((t) => t.id === teacherId)?.timer_compliance ?? 0;
+  }
+  const avg = records.reduce((sum, r) => sum + sessionComplianceScore(r), 0) / records.length;
+  return Math.round(avg);
 }
 
 export type StudentClassification = "excellent" | "needs_attention" | "average";
