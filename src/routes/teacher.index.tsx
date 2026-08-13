@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
+import { SubjectRoomHeader } from "@/components/teacher/SubjectRoomHeader";
 import { useCurrentTeacher } from "@/hooks/use-current-teacher";
-import { formatNumber, formatPercent } from "@/lib/format";
 import {
   addTeacherNote,
   classifyStudent,
@@ -26,6 +26,8 @@ import {
   getTimerCompliance,
   useDataStore,
 } from "@/lib/data-store";
+import { formatNumber, formatPercent } from "@/lib/format";
+import { getSubjectTheme } from "@/lib/subject-themes";
 
 export const Route = createFileRoute("/teacher/")({
   head: () => ({
@@ -51,7 +53,9 @@ function TeacherHome() {
   const teacher = useCurrentTeacher();
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const myStudents = getStudentsForTeacher(state, teacher.id);
-  const subjectName = subjects.find((s) => s.id === teacher.subject_id)?.name ?? teacher.subject;
+  const subject = subjects.find((s) => s.id === teacher.subject_id);
+  const subjectName = subject?.name ?? teacher.subject;
+  const theme = getSubjectTheme(subject?.theme_key);
   const timerCompliance = getTimerCompliance(state, teacher.id);
 
   const myGroupNames = new Set(myGroups.map((g) => g.name));
@@ -81,6 +85,15 @@ function TeacherHome() {
         </Link>
       }
     >
+      <SubjectRoomHeader
+        teacherName={teacher.full_name}
+        subjectName={subjectName}
+        themeKey={subject?.theme_key}
+        theme={theme}
+        groupsCount={myGroups.length}
+        studentsCount={myStudents.length}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="عدد الطلاب" value={formatNumber(myStudents.length)} icon={Users} />
         <StatCard

@@ -1,27 +1,32 @@
+import { BookOpen, FlaskConical, Globe, Languages, Sigma } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 export interface SubjectTheme {
   primary: string;
   accent: string;
+  icon: LucideIcon;
 }
 
 /**
- * Keyed by `Subject.theme_key` (the real values seeded in mock-data.ts) —
- * spec §7-و's example table used illustrative subject names that don't match
- * our actual Subject rows, so this uses the real keys instead.
+ * Keyed by `Subject.theme_key` (the real values seeded in mock-data.ts).
+ * Colors/icons per DESIGN_ATMOSPHERE_SPEC.md §2 — the doc's own example table
+ * used illustrative subject-name keys ("عربي" etc.); this uses the real
+ * theme_key slugs instead, same pattern already established in this file.
  *
- * Applied only inside teacher.session.tsx's own presenter header, never on
- * `AppShell.tsx` — that component is shared by every role, and touching it
- * would risk changing the sidebar/header for owner/staff/student/parent too.
+ * Applied inside teacher.index.tsx's "غرفة المادة" header and
+ * teacher.session.tsx's presenter header only — never on `AppShell.tsx`,
+ * which is shared by every role.
  */
 export const SUBJECT_THEMES: Record<string, SubjectTheme> = {
-  physics: { primary: "#1565C0", accent: "#90CAF9" },
-  chemistry: { primary: "#6A1B9A", accent: "#CE93D8" },
-  math: { primary: "#EF6C00", accent: "#FFCC80" },
-  english: { primary: "#2E7D32", accent: "#A5D6A7" },
-  biology: { primary: "#00838F", accent: "#80DEEA" },
+  arabic: { primary: "#8B2E3F", accent: "#D9A8B1", icon: BookOpen },
+  english: { primary: "#12777A", accent: "#8FD3D5", icon: Languages },
+  math: { primary: "#5B4B8A", accent: "#C3B8E0", icon: Sigma },
+  science: { primary: "#2E7D4F", accent: "#A8D9BC", icon: FlaskConical },
+  social: { primary: "#B8792F", accent: "#E8C89A", icon: Globe },
 };
 
 /** Matches the existing `--navy` token exactly — zero visual change when no theme matches. */
-const DEFAULT_THEME: SubjectTheme = { primary: "#1E3A8A", accent: "#93A5D8" };
+const DEFAULT_THEME: SubjectTheme = { primary: "#1E3A8A", accent: "#93A5D8", icon: BookOpen };
 
 export function getSubjectTheme(themeKey: string | undefined): SubjectTheme {
   return (themeKey ? SUBJECT_THEMES[themeKey] : undefined) ?? DEFAULT_THEME;

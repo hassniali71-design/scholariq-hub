@@ -187,3 +187,26 @@
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+
+/* DESIGN_ATMOSPHERE_SPEC.md §2 — subject-room background icon, teacher.index.tsx only */
+@keyframes gentle-float {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+.subject-room-icon {
+  animation: gentle-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subject-room-icon {
+    animation: none;
+  }
+}

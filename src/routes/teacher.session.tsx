@@ -306,12 +306,17 @@ function SessionMode() {
         style={{ backgroundColor: theme.primary }}
       >
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8">
-          <div>
-            <p className="text-xs font-black text-white/70">وضع الحصة — شاشة العرض</p>
-            <h1 className="text-2xl font-black md:text-3xl">{group.name}</h1>
-            <p className="text-xs font-bold text-white/70">
-              {group.teacher_name} · {group.room} · {formatNumber(group.enrolled)} طالب
-            </p>
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+              <theme.icon className="size-6" />
+            </span>
+            <div>
+              <p className="text-xs font-black text-white/70">وضع الحصة — شاشة العرض</p>
+              <h1 className="text-2xl font-black md:text-3xl">{group.name}</h1>
+              <p className="text-xs font-bold text-white/70">
+                {group.teacher_name} · {group.room} · {formatNumber(group.enrolled)} طالب
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-xl bg-white/15 px-4 py-2 text-sm font-black md:block">
