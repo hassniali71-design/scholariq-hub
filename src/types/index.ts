@@ -100,6 +100,8 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   checked_in_at: string;
   method: "qr" | "barcode" | "manual";
+  /** Links to `SessionRecord.id` for session-mode marks; null for QR-gate/legacy check-ins with no session context. */
+  session_id: UUID | null;
 }
 
 export type PaymentMethod = "cash" | "wallet" | "instapay";

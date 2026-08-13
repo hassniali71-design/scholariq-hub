@@ -279,6 +279,11 @@ export function getStudentsForGroup(state: DataState, groupId: string): Student[
   return state.students.filter((s) => s.group_id === groupId);
 }
 
+/** A group's past sessions, newest-first (§18-3's attendance grid columns). */
+export function getSessionRecordsForGroup(state: DataState, groupId: string): SessionRecord[] {
+  return state.sessionRecords.filter((r) => r.group_id === groupId);
+}
+
 /** The current (general, not tied to one past session) score for a student in a category — §8. */
 export function getAssessmentScore(
   state: DataState,
@@ -379,6 +384,7 @@ export function recordAttendance(
       status,
       checked_in_at: status === "absent" ? "—" : nowTime(),
       method,
+      session_id: sessionId ?? null,
     };
     const log: WhatsAppLog = {
       id: `wa-${Date.now()}`,
@@ -401,6 +407,49 @@ export function recordAttendance(
       whatsappLogs: [log, ...state.whatsappLogs],
       sessionEvents,
     };
+  });
+}
+
+/** The recorded status for a student in one specific past session — a grid cell (§18-3). */
+export function getAttendanceForSession(
+  state: DataState,
+  studentId: string,
+  sessionId: string,
+): AttendanceRecord | undefined {
+  return state.attendanceRecords.find(
+    (a) => a.student_id === studentId && a.session_id === sessionId,
+  );
+}
+
+/**
+ * §18-3: retroactive per-cell edit for the attendance grid (student × past session) —
+ * upserts by (student, session), unlike `recordAttendance`'s append-only live check-in
+ * log. Calling it again for the same cell corrects it in place.
+ */
+export function updateAttendanceForSession(
+  studentId: string,
+  sessionId: string,
+  status: AttendanceStatus,
+) {
+  update((state) => {
+    const student = findStudentById(state, studentId);
+    if (!student) return state;
+    const existing = getAttendanceForSession(state, studentId, sessionId);
+    const record: AttendanceRecord = {
+      id: existing?.id ?? `at-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      student_name: student.full_name,
+      group_name: student.group_name,
+      status,
+      checked_in_at: existing?.checked_in_at ?? (status === "absent" ? "—" : nowTime()),
+      method: existing?.method ?? "manual",
+      session_id: sessionId,
+    };
+    const attendanceRecords = existing
+      ? state.attendanceRecords.map((a) => (a.id === existing.id ? record : a))
+      : [record, ...state.attendanceRecords];
+    return { ...state, attendanceRecords };
   });
 }
 

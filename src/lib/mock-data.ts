@@ -299,6 +299,7 @@ export const attendanceToday: AttendanceRecord[] = [
     status: "present",
     checked_in_at: "03:52 م",
     method: "qr",
+    session_id: null,
   },
   {
     id: "at-2",
@@ -309,6 +310,7 @@ export const attendanceToday: AttendanceRecord[] = [
     status: "present",
     checked_in_at: "03:55 م",
     method: "barcode",
+    session_id: null,
   },
   {
     id: "at-3",
@@ -319,6 +321,7 @@ export const attendanceToday: AttendanceRecord[] = [
     status: "late",
     checked_in_at: "05:18 م",
     method: "qr",
+    session_id: null,
   },
   {
     id: "at-4",
@@ -329,6 +332,7 @@ export const attendanceToday: AttendanceRecord[] = [
     status: "absent",
     checked_in_at: "—",
     method: "manual",
+    session_id: null,
   },
 ];
 
