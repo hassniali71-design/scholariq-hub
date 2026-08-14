@@ -87,12 +87,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&display=swap",
-      },
+      // DESIGN_ATMOSPHERE_SPEC.md §2: IBM Plex Sans Arabic, bundled locally via
+      // @fontsource (imported in styles.css) instead of a Google Fonts CDN link —
+      // for offline stability, per the spec's own reasoning.
       {
         rel: "stylesheet",
         href: appCss,
