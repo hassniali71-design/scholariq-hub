@@ -87,9 +87,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      // DESIGN_ATMOSPHERE_SPEC.md §2: IBM Plex Sans Arabic, bundled locally via
-      // @fontsource (imported in styles.css) instead of a Google Fonts CDN link —
-      // for offline stability, per the spec's own reasoning.
+      // DESIGN_ATMOSPHERE_SPEC.md §2: Tajawal, bundled locally via @fontsource
+      // (imported in styles.css) instead of a Google Fonts CDN link — for
+      // offline stability, per the spec's own reasoning.
       {
         rel: "stylesheet",
         href: appCss,

@@ -3,20 +3,21 @@
 @import "tw-animate-css";
 
 /*
- * DESIGN_ATMOSPHERE_SPEC.md §2 — project-wide font swap (Cairo → IBM Plex
- * Sans Arabic), the one deliberate exception to that spec's teacher/owner-only
- * scope. Bundled locally via @fontsource instead of a Google Fonts CDN link,
- * per the spec's own offline-stability reasoning.
+ * DESIGN_ATMOSPHERE_SPEC.md §2 — project-wide font swap (Cairo → Tajawal),
+ * the one deliberate exception to that spec's teacher/owner-only scope.
+ * Bundled locally via @fontsource instead of a Google Fonts CDN link, per
+ * the spec's own offline-stability reasoning.
  *
- * Note: IBM Plex Sans Arabic only ships weights up to 700 (no 800/900) — the
- * user was told this explicitly and chose to proceed anyway; `font-black`
- * (900) / `font-extrabold` (800) utilities used throughout the app render at
- * the closest available weight (700) instead of a true black/extrabold cut.
+ * Tajawal ships true 800 (ExtraBold) and 900 (Black) faces, so `font-black`
+ * and `font-extrabold` render at their exact intended weight (no fallback
+ * substitution). It does not ship a 600 cut — `font-semibold` resolves to
+ * the browser's nearest available face (500 or 700) instead of a true 600.
  */
-@import "@fontsource/ibm-plex-sans-arabic/400.css";
-@import "@fontsource/ibm-plex-sans-arabic/500.css";
-@import "@fontsource/ibm-plex-sans-arabic/600.css";
-@import "@fontsource/ibm-plex-sans-arabic/700.css";
+@import "@fontsource/tajawal/400.css";
+@import "@fontsource/tajawal/500.css";
+@import "@fontsource/tajawal/700.css";
+@import "@fontsource/tajawal/800.css";
+@import "@fontsource/tajawal/900.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -28,8 +29,8 @@
  */
 
 @theme inline {
-  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
-  --font-display: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-sans: "Tajawal", system-ui, sans-serif;
+  --font-display: "Tajawal", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
