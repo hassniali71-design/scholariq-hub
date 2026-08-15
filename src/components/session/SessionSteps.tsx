@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { AttendanceStatus, LessonSlide, LiveScore, QuizQuestion } from "@/types";
+import type { AttendanceStatus, LessonSlide, LiveScore, QuestionKind, QuizQuestion } from "@/types";
+
+const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
+  mcq: "اختيار من متعدد",
+  true_false: "صح أم خطأ",
+  ordering: "ترتيب",
+  matching: "توصيل",
+};
 
 /* -------- Step 1: homework evaluation + quick attendance -------- */
 
@@ -206,6 +213,169 @@ export function LessonStep({
   );
 }
 
+/* -------- §8 question-kind variety: ordering + matching interactive bodies -------- */
+
+/** "ordering" kind: tap items in the order believed correct; `question.options` IS the correct order. */
+function OrderingAnswerBody({
+  question,
+  answered,
+  onAnswer,
+}: {
+  question: QuizQuestion;
+  answered: boolean;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [shuffled, setShuffled] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+
+  useEffect(() => {
+    setShuffled([...question.options].sort(() => Math.random() - 0.5));
+    setPicked([]);
+  }, [question.id]);
+
+  const pick = (item: string) => {
+    if (answered || picked.includes(item)) return;
+    const next = [...picked, item];
+    setPicked(next);
+    if (next.length === question.options.length) {
+      onAnswer(next.every((v, i) => v === question.options[i]));
+    }
+  };
+
+  return (
+    <div className="mt-6 space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {shuffled.map((item) => {
+          const order = picked.indexOf(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              disabled={answered || order !== -1}
+              onClick={() => pick(item)}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-black transition-colors disabled:opacity-70",
+                order !== -1
+                  ? "border-navy bg-navy text-navy-foreground"
+                  : "border-border hover:border-primary",
+              )}
+            >
+              {order !== -1 ? (
+                <span className="flex size-5 items-center justify-center rounded-full bg-white/20 text-xs">
+                  {order + 1}
+                </span>
+              ) : null}
+              {item}
+            </button>
+          );
+        })}
+      </div>
+      {answered ? (
+        <div className="rounded-xl border-2 border-border p-3">
+          <p className="text-xs font-black text-muted-foreground">الترتيب الصحيح:</p>
+          <p className="mt-1 text-sm font-bold text-foreground">{question.options.join(" ← ")}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** "matching" kind: tap a left item then a right item to connect them, by index pairing. */
+function MatchingAnswerBody({
+  question,
+  answered,
+  onAnswer,
+}: {
+  question: QuizQuestion;
+  answered: boolean;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const targets = question.match_targets ?? [];
+  const [shuffledTargets, setShuffledTargets] = useState<string[]>([]);
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const [connections, setConnections] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    setShuffledTargets([...targets].sort(() => Math.random() - 0.5));
+    setSelectedLeft(null);
+    setConnections({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
+
+  const connectedTargets = new Set(Object.values(connections));
+
+  const pickRight = (targetValue: string) => {
+    if (answered || selectedLeft === null) return;
+    const canonicalIndex = targets.indexOf(targetValue);
+    if (connectedTargets.has(canonicalIndex)) return;
+    const next = { ...connections, [selectedLeft]: canonicalIndex };
+    setConnections(next);
+    setSelectedLeft(null);
+    if (Object.keys(next).length === question.options.length) {
+      onAnswer(question.options.every((_, i) => next[i] === i));
+    }
+  };
+
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
+          {question.options.map((opt, i) => (
+            <button
+              key={opt}
+              type="button"
+              disabled={answered || connections[i] !== undefined}
+              onClick={() => setSelectedLeft(i)}
+              className={cn(
+                "w-full rounded-xl border-2 px-4 py-3 text-right text-sm font-black transition-colors disabled:opacity-70",
+                connections[i] !== undefined
+                  ? "border-success bg-success/10 text-success"
+                  : selectedLeft === i
+                    ? "border-navy bg-navy text-navy-foreground"
+                    : "border-border hover:border-primary",
+              )}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {shuffledTargets.map((t) => {
+            const canonicalIndex = targets.indexOf(t);
+            const isConnected = connectedTargets.has(canonicalIndex);
+            return (
+              <button
+                key={t}
+                type="button"
+                disabled={answered || isConnected || selectedLeft === null}
+                onClick={() => pickRight(t)}
+                className={cn(
+                  "w-full rounded-xl border-2 px-4 py-3 text-right text-sm font-black transition-colors disabled:opacity-40",
+                  isConnected ? "border-success bg-success/10 text-success" : "border-border hover:border-primary",
+                )}
+              >
+                {t}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {answered ? (
+        <div className="rounded-xl border-2 border-border p-3">
+          <p className="text-xs font-black text-muted-foreground">الحل الصحيح:</p>
+          <div className="mt-1 space-y-1">
+            {question.options.map((opt, i) => (
+              <p key={opt} className="text-sm font-bold text-foreground">
+                {opt} ← {targets[i]}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /* -------- Step 3: random question picker -------- */
 
 export function QuestionCard({
@@ -259,16 +429,18 @@ export function QuestionCard({
 
       <div className="rounded-2xl border-2 border-border p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <StatusBadge tone="primary">
-            {question.kind === "mcq" ? "اختيار من متعدد" : "صح أم خطأ"}
-          </StatusBadge>
-          <button
-            type="button"
-            onClick={() => setEditing((e) => !e)}
-            className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-          >
-            <Pencil className="size-3.5" /> {editing ? "إلغاء" : "تعديل"}
-          </button>
+          <StatusBadge tone="primary">{QUESTION_KIND_LABELS[question.kind]}</StatusBadge>
+          {/* §18-2's inline edit only ever covered mcq/true_false's text+options+correct_index shape;
+              ordering/matching are new kinds introduced now with no editor built for them yet. */}
+          {question.kind === "mcq" || question.kind === "true_false" ? (
+            <button
+              type="button"
+              onClick={() => setEditing((e) => !e)}
+              className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              <Pencil className="size-3.5" /> {editing ? "إلغاء" : "تعديل"}
+            </button>
+          ) : null}
         </div>
 
         {editing ? (
@@ -314,29 +486,35 @@ export function QuestionCard({
             <p className="mt-4 text-2xl leading-snug font-black text-foreground md:text-3xl">
               {question.text}
             </p>
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
-              {question.options.map((opt, i) => (
-                <button
-                  key={opt}
-                  disabled={answered}
-                  onClick={() => onAnswer(i === question.correct_index)}
-                  className={cn(
-                    "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
-                    answered && i === question.correct_index
-                      ? "border-success bg-success/10 text-success"
-                      : answered
-                        ? "border-border opacity-50"
-                        : "border-border hover:border-primary",
-                  )}
-                >
-                  {opt}
-                  {answered && i === question.correct_index ? <Check className="size-5" /> : null}
-                  {answered && i !== question.correct_index ? (
-                    <X className="size-5 opacity-40" />
-                  ) : null}
-                </button>
-              ))}
-            </div>
+            {question.kind === "ordering" ? (
+              <OrderingAnswerBody question={question} answered={answered} onAnswer={onAnswer} />
+            ) : question.kind === "matching" ? (
+              <MatchingAnswerBody question={question} answered={answered} onAnswer={onAnswer} />
+            ) : (
+              <div className="mt-6 grid gap-3 md:grid-cols-2">
+                {question.options.map((opt, i) => (
+                  <button
+                    key={opt}
+                    disabled={answered}
+                    onClick={() => onAnswer(i === question.correct_index)}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
+                      answered && i === question.correct_index
+                        ? "border-success bg-success/10 text-success"
+                        : answered
+                          ? "border-border opacity-50"
+                          : "border-border hover:border-primary",
+                    )}
+                  >
+                    {opt}
+                    {answered && i === question.correct_index ? <Check className="size-5" /> : null}
+                    {answered && i !== question.correct_index ? (
+                      <X className="size-5 opacity-40" />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

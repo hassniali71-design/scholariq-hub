@@ -126,10 +126,28 @@ function stubGenerateContent(
       correct_index: 0,
     },
     {
-      kind: "truefalse",
+      kind: "true_false",
       text: `الدرس "${title}" يغطي أساسيات ${subjectName} في هذا الباب.`,
       options: ["صح", "خطأ"],
       correct_index: 0,
+    },
+    {
+      kind: "ordering",
+      text: `رتّب خطوات فهم درس "${title}" بالترتيب المنطقي الصحيح.`,
+      options: [
+        "قراءة أهداف الدرس",
+        "استيعاب المفهوم الأساسي",
+        "حل مثال محلول",
+        "تطبيق ما تم فهمه على مسألة جديدة",
+      ],
+      correct_index: 0,
+    },
+    {
+      kind: "matching",
+      text: `صل كل مفهوم من درس "${title}" بتعريفه الصحيح.`,
+      options: ["المفهوم الأول", "المفهوم الثاني", "المفهوم الثالث"],
+      correct_index: 0,
+      match_targets: ["تعريف المفهوم الأول", "تعريف المفهوم الثاني", "تعريف المفهوم الثالث"],
     },
   ];
   return { slides, questions };
