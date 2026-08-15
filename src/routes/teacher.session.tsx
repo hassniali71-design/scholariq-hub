@@ -19,6 +19,7 @@ import {
   getLessonsForGroup,
   getQuestionsForLesson,
   getSlidesForLesson,
+  recordAssessmentScore,
   recordAttendance,
   recordQuestionAnswer,
   recordRandomPick,
@@ -210,9 +211,28 @@ function SessionMode() {
       ? (activeQuestionPool[questionIndex % activeQuestionPool.length] ?? null)
       : null;
 
-  const scoreHomework = useCallback((studentId: string, value: number) => {
-    persistHomeworkScore(studentId, value, sessionIdRef.current);
-  }, []);
+  /**
+   * CURRICULUM_ENGINE_SPEC.md §4: besides the live in-session point tracking
+   * (`persistHomeworkScore`), also upserts a real `AssessmentScore` row with a
+   * non-null `lesson_id` — previously nothing in the app ever wrote one, so §5's
+   * per-subject rollup had no data to read.
+   */
+  const scoreHomework = useCallback(
+    (studentId: string, value: number) => {
+      persistHomeworkScore(studentId, value, sessionIdRef.current);
+      recordAssessmentScore({
+        studentId,
+        teacherId: group.teacher_id,
+        category: "homework",
+        source: "manual",
+        value,
+        maxValue: 10,
+        sessionId: sessionIdRef.current,
+        lessonId: latestReadyLesson?.id ?? null,
+      });
+    },
+    [group.teacher_id, latestReadyLesson],
+  );
 
   /** §7-هـ: weighted fair pick — excludes anyone absent or already drawn this session. */
   const pickRandom = useCallback(() => {
@@ -234,12 +254,25 @@ function SessionMode() {
       setAnswered(true);
       questionTimer.pause();
       setAskedCount((c) => c + 1);
-      if (pickedId) recordQuestionAnswer(pickedId, correct, sessionIdRef.current);
+      if (pickedId) {
+        recordQuestionAnswer(pickedId, correct, sessionIdRef.current);
+        // CURRICULUM_ENGINE_SPEC.md §4: same lesson_id linkage as scoreHomework above.
+        recordAssessmentScore({
+          studentId: pickedId,
+          teacherId: group.teacher_id,
+          category: "question",
+          source: "auto",
+          value: correct ? 10 : 0,
+          maxValue: 10,
+          sessionId: sessionIdRef.current,
+          lessonId: latestReadyLesson?.id ?? null,
+        });
+      }
       toast[correct ? "success" : "error"](
         correct ? "إجابة صحيحة — +٥٠ نقطة" : "إجابة خاطئة — تم الرصد",
       );
     },
-    [pickedId, questionTimer],
+    [pickedId, questionTimer, group.teacher_id, latestReadyLesson],
   );
 
   const releaseTasks = () => {
