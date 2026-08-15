@@ -26,8 +26,8 @@ import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderb
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherAssessmentsRouteImport } from './routes/teacher.assessments'
 import { Route as TeacherCurriculumRouteImport } from './routes/teacher.curriculum'
-import { Route as TeacherSessionRouteImport } from './routes/teacher.session'
 import { Route as VisitorIndexRouteImport } from './routes/visitor.index'
+import { Route as TeacherSessionGroupIdRouteImport } from './routes/teacher.session.$groupId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -114,14 +114,14 @@ const TeacherCurriculumRoute = TeacherCurriculumRouteImport.update({
   path: '/teacher/curriculum',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TeacherSessionRoute = TeacherSessionRouteImport.update({
-  id: '/teacher/session',
-  path: '/teacher/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const VisitorIndexRoute = VisitorIndexRouteImport.update({
   id: '/visitor/',
   path: '/visitor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherSessionGroupIdRoute = TeacherSessionGroupIdRouteImport.update({
+  id: '/teacher/session/$groupId',
+  path: '/teacher/session/$groupId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -138,13 +138,13 @@ export interface FileRoutesByFullPath {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
-  '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/teacher/': typeof TeacherIndexRoute
   '/visitor/': typeof VisitorIndexRoute
+  '/teacher/session/$groupId': typeof TeacherSessionGroupIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -159,13 +159,13 @@ export interface FileRoutesByTo {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
-  '/teacher/session': typeof TeacherSessionRoute
   '/owner': typeof OwnerIndexRoute
   '/parent': typeof ParentIndexRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/teacher': typeof TeacherIndexRoute
   '/visitor': typeof VisitorIndexRoute
+  '/teacher/session/$groupId': typeof TeacherSessionGroupIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -181,13 +181,13 @@ export interface FileRoutesById {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
-  '/teacher/session': typeof TeacherSessionRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/teacher/': typeof TeacherIndexRoute
   '/visitor/': typeof VisitorIndexRoute
+  '/teacher/session/$groupId': typeof TeacherSessionGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -204,13 +204,13 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
-    | '/teacher/session'
     | '/owner/'
     | '/parent/'
     | '/staff/'
     | '/student/'
     | '/teacher/'
     | '/visitor/'
+    | '/teacher/session/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -225,13 +225,13 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
-    | '/teacher/session'
     | '/owner'
     | '/parent'
     | '/staff'
     | '/student'
     | '/teacher'
     | '/visitor'
+    | '/teacher/session/$groupId'
   id:
     | '__root__'
     | '/'
@@ -246,13 +246,13 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
-    | '/teacher/session'
     | '/owner/'
     | '/parent/'
     | '/staff/'
     | '/student/'
     | '/teacher/'
     | '/visitor/'
+    | '/teacher/session/$groupId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -268,13 +268,13 @@ export interface RootRouteChildren {
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
   TeacherCurriculumRoute: typeof TeacherCurriculumRoute
-  TeacherSessionRoute: typeof TeacherSessionRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   ParentIndexRoute: typeof ParentIndexRoute
   StaffIndexRoute: typeof StaffIndexRoute
   StudentIndexRoute: typeof StudentIndexRoute
   TeacherIndexRoute: typeof TeacherIndexRoute
   VisitorIndexRoute: typeof VisitorIndexRoute
+  TeacherSessionGroupIdRoute: typeof TeacherSessionGroupIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -398,18 +398,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherCurriculumRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/teacher/session': {
-      id: '/teacher/session'
-      path: '/teacher/session'
-      fullPath: '/teacher/session'
-      preLoaderRoute: typeof TeacherSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/visitor/': {
       id: '/visitor/'
       path: '/visitor'
       fullPath: '/visitor/'
       preLoaderRoute: typeof VisitorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher/session/$groupId': {
+      id: '/teacher/session/$groupId'
+      path: '/teacher/session/$groupId'
+      fullPath: '/teacher/session/$groupId'
+      preLoaderRoute: typeof TeacherSessionGroupIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -428,13 +428,13 @@ const rootRouteChildren: RootRouteChildren = {
   StudentLeaderboardRoute: StudentLeaderboardRoute,
   TeacherAssessmentsRoute: TeacherAssessmentsRoute,
   TeacherCurriculumRoute: TeacherCurriculumRoute,
-  TeacherSessionRoute: TeacherSessionRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   ParentIndexRoute: ParentIndexRoute,
   StaffIndexRoute: StaffIndexRoute,
   StudentIndexRoute: StudentIndexRoute,
   TeacherIndexRoute: TeacherIndexRoute,
   VisitorIndexRoute: VisitorIndexRoute,
+  TeacherSessionGroupIdRoute: TeacherSessionGroupIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

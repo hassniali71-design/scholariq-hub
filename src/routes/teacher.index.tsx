@@ -77,12 +77,15 @@ function TeacherHome() {
       title={teacher.full_name}
       description={subjectName}
       actions={
-        <Link
-          to="/teacher/session"
-          className="flex items-center gap-2 rounded-xl bg-navy px-5 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
-        >
-          <MonitorPlay className="size-5" /> بدء وضع الحصة
-        </Link>
+        myGroups.length > 0 ? (
+          <Link
+            to="/teacher/session/$groupId"
+            params={{ groupId: myGroups[0]!.id }}
+            className="flex items-center gap-2 rounded-xl bg-navy px-5 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
+          >
+            <MonitorPlay className="size-5" /> بدء وضع الحصة
+          </Link>
+        ) : undefined
       }
     >
       <SubjectRoomHeader
@@ -153,7 +156,8 @@ function TeacherHome() {
                     {g.weekday} {g.time}
                   </StatusBadge>
                   <Link
-                    to="/teacher/session"
+                    to="/teacher/session/$groupId"
+                    params={{ groupId: g.id }}
                     className="rounded-xl border-2 border-navy px-3 py-2 text-xs font-black text-navy hover:bg-navy hover:text-navy-foreground"
                   >
                     ابدأ

@@ -73,7 +73,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
             const active = pathname === item.to;
             return (
               <Link
-                key={item.to}
+                key={item.label}
                 to={item.to}
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-extrabold transition-colors",
@@ -136,7 +136,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
           <div className="flex gap-2 overflow-x-auto border-t-2 border-border px-5 py-2 md:hidden">
             {config.nav.map((item) => (
               <Link
-                key={item.to}
+                key={item.label}
                 to={item.to}
                 className={cn(
                   "shrink-0 rounded-lg px-3 py-2 text-xs font-extrabold",

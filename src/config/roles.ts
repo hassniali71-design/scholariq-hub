@@ -75,7 +75,10 @@ export const ROLES: Record<UserRole, RoleConfig> = {
     icon: MonitorPlay,
     nav: [
       { label: "لوحة المدرس", to: "/teacher", icon: LayoutDashboard },
-      { label: "وضع الحصة", to: "/teacher/session", icon: MonitorPlay },
+      // "وضع الحصة" يوجّه للوحة المدرس نفسها لا مباشرة لجلسة — هذا الرابط عام
+      // بلا سياق مجموعة محددة (الراوت بقى يحتاج $groupId بعد إصلاح البق).
+      // زر "ابدأ" الحقيقي لكل مجموعة موجود في قائمة المجموعات بلوحة المدرس.
+      { label: "وضع الحصة", to: "/teacher", icon: MonitorPlay },
       { label: "التقييمات والغياب", to: "/teacher/assessments", icon: ClipboardCheck },
       { label: "الخطة والمنهج", to: "/teacher/curriculum", icon: BookMarked },
     ],
