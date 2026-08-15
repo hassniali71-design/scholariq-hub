@@ -27,7 +27,24 @@ export interface Session {
   identifier: string;
 }
 
-const ACCOUNTS_KEY = "erp.accounts.v1";
+/**
+ * Same recurring-staleness bug as data-store.ts's STORAGE_KEY (see its comment):
+ * `readAccounts` never re-seeds once a key has been used, so every `.slice(0, N)`
+ * bump here (4→5 teachers, 6→8→13 students, across several past changes) landed
+ * unbumped — real browsers kept old account lists with missing teacher/student
+ * logins indefinitely. Fingerprinting the actual seed content instead of a
+ * manually-remembered version number closes this permanently.
+ */
+function fingerprintAccountSeed(): string {
+  const raw = JSON.stringify([seedStudents, seedTeachers]);
+  let hash = 5381;
+  for (let i = 0; i < raw.length; i++) {
+    hash = (hash * 33) ^ raw.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+const ACCOUNTS_KEY = `erp.accounts.v2.${fingerprintAccountSeed()}`;
 const SESSION_KEY = "erp.session.v1";
 
 export const DEMO_OWNER = {

@@ -68,12 +68,49 @@ import type {
  */
 
 /**
- * Bumped to v2 for CURRICULUM_ENGINE_SPEC.md §8's grade overhaul (secondary →
- * primary stages). `readState` merges cached localStorage over a fresh seed, so
- * without this bump any browser that already seeded v1 would keep the old
- * ثانوي grades mixed with the new `gradeSubjects` table — a broken combination.
+ * Root cause of a recurring class of bug (hit twice now): `readState` merges
+ * cached localStorage over a fresh seed, so any browser that already seeded
+ * under a given key keeps stale content FOREVER for that key, no matter how
+ * many times mock-data.ts changes afterward — a manually-bumped version
+ * string only helps if every single seed edit remembers to bump it, which
+ * didn't happen (e.g. the grade overhaul bumped v1→v2, but §7's subject_ids,
+ * the 5 test students, the gr-1 grade fix, and Teacher.user_id all landed
+ * under "v2" unbumped — real users' browsers silently kept null `user_id`
+ * long after the fix shipped, exactly what caused this bug report).
+ *
+ * Fix: derive the key from an actual fingerprint of the seed data itself, so
+ * ANY future edit to any seed array auto-invalidates old snapshots — no
+ * manual step to forget again.
  */
-const STORAGE_KEY = "erp.data.v2";
+function fingerprintSeed(): string {
+  const raw = JSON.stringify([
+    seedStudents,
+    seedTeachers,
+    seedGroups,
+    seedSubjects,
+    seedGrades,
+    seedGradeSubjects,
+    seedAttendance,
+    seedPayments,
+    seedBooklets,
+    seedQuizResults,
+    seedHomework,
+    seedWhatsapp,
+    seedTeacherNotes,
+    seedLessonSlides,
+    seedSessionQuestions,
+    seedCurriculumUnits,
+    seedCurriculumLessons,
+  ]);
+  // Non-cryptographic (djb2) — just needs to change when content changes, not resist tampering.
+  let hash = 5381;
+  for (let i = 0; i < raw.length; i++) {
+    hash = (hash * 33) ^ raw.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+const STORAGE_KEY = `erp.data.v3.${fingerprintSeed()}`;
 const CENTER_ID = CURRENT_TENANT.center_id;
 
 export interface ShiftClosure {
