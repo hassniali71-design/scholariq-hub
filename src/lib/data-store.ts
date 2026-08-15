@@ -7,6 +7,7 @@ import {
   booklets as seedBooklets,
   curriculumLessons as seedCurriculumLessons,
   curriculumUnits as seedCurriculumUnits,
+  gradeSubjects as seedGradeSubjects,
   grades as seedGrades,
   groups as seedGroups,
   homeworkTasks as seedHomework,
@@ -28,6 +29,7 @@ import type {
   CurriculumLesson,
   CurriculumUnit,
   Grade,
+  GradeSubject,
   Group,
   HomeworkTask,
   LeaderboardEntry,
@@ -62,7 +64,13 @@ import type {
  * network instead of localStorage — component code stays identical.
  */
 
-const STORAGE_KEY = "erp.data.v1";
+/**
+ * Bumped to v2 for CURRICULUM_ENGINE_SPEC.md §8's grade overhaul (secondary →
+ * primary stages). `readState` merges cached localStorage over a fresh seed, so
+ * without this bump any browser that already seeded v1 would keep the old
+ * ثانوي grades mixed with the new `gradeSubjects` table — a broken combination.
+ */
+const STORAGE_KEY = "erp.data.v2";
 const CENTER_ID = CURRENT_TENANT.center_id;
 
 export interface ShiftClosure {
@@ -80,6 +88,7 @@ export interface DataState {
   groups: Group[];
   subjects: Subject[];
   grades: Grade[];
+  gradeSubjects: GradeSubject[];
   attendanceRecords: AttendanceRecord[];
   payments: PaymentRecord[];
   booklets: BookletItem[];
@@ -154,6 +163,7 @@ function seedState(): DataState {
     groups: seedGroups.map((g) => ({ ...g })),
     subjects: seedSubjects.map((s) => ({ ...s })),
     grades: seedGrades.map((g) => ({ ...g })),
+    gradeSubjects: seedGradeSubjects.map((gs) => ({ ...gs })),
     attendanceRecords: seedAttendance.map((a) => ({ ...a })),
     payments: seedPayments.map((p) => ({ ...p })),
     booklets: seedBooklets.map((b) => ({ ...b })),
@@ -290,6 +300,14 @@ export function getStudentsForGroup(state: DataState, groupId: string): Student[
 /** A group's past sessions, newest-first (§18-3's attendance grid columns). */
 export function getSessionRecordsForGroup(state: DataState, groupId: string): SessionRecord[] {
   return state.sessionRecords.filter((r) => r.group_id === groupId);
+}
+
+/** Subjects a grade actually studies (CURRICULUM_ENGINE_SPEC.md §8), via `GradeSubject`. */
+export function getSubjectsForGrade(state: DataState, gradeId: string): Subject[] {
+  const subjectIds = new Set(
+    state.gradeSubjects.filter((gs) => gs.grade_id === gradeId).map((gs) => gs.subject_id),
+  );
+  return state.subjects.filter((s) => subjectIds.has(s.id));
 }
 
 /* ---------------- Curriculum plan — "ذاكرة التشغيل" (§9) ---------------- */

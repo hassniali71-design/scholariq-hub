@@ -5,6 +5,7 @@ import type {
   CurriculumLesson,
   CurriculumUnit,
   Grade,
+  GradeSubject,
   Group,
   HomeworkTask,
   LeaderboardEntry,
@@ -50,17 +51,54 @@ export const subjects: Subject[] = [
   { id: "sub-5", center_id: c, name: "علوم", theme_key: "science" },
 ];
 
+/**
+ * CURRICULUM_ENGINE_SPEC.md §8 — project is primary/prep only; the old secondary
+ * (ثانوي) stage was removed entirely, not kept alongside this. gd-1/gd-2/gd-3 keep
+ * their ids (existing groups/students/curriculum FKs stay valid) but now mean
+ * 1st/2nd/3rd primary instead of 1st/2nd/3rd secondary. gd-4/gd-5/gd-6 are new —
+ * a plain reference table, not hardcoded to 6: a 7th+ grade (prep stage) later is
+ * a seed-data addition only, matching the existing 4th-6th primary pattern.
+ */
 export const grades: Grade[] = [
-  { id: "gd-1", center_id: c, name: "الأول الثانوي", order: 1 },
-  { id: "gd-2", center_id: c, name: "الثاني الثانوي", order: 2 },
-  { id: "gd-3", center_id: c, name: "الثالث الثانوي", order: 3 },
+  { id: "gd-1", center_id: c, name: "الأول الابتدائي", order: 1 },
+  { id: "gd-2", center_id: c, name: "الثاني الابتدائي", order: 2 },
+  { id: "gd-3", center_id: c, name: "الثالث الابتدائي", order: 3 },
+  { id: "gd-4", center_id: c, name: "الرابع الابتدائي", order: 4 },
+  { id: "gd-5", center_id: c, name: "الخامس الابتدائي", order: 5 },
+  { id: "gd-6", center_id: c, name: "السادس الابتدائي", order: 6 },
 ];
 
 /**
- * Curriculum plan (§9) — دراسات / الثالث الثانوي, matching gr-1.
- * DESIGN_ATMOSPHERE_SPEC.md §0.2 reassigned gr-1's teacher (tc-1) from physics to
- * دراسات, so the physics-specific plan that used to live here (sub-1) no longer
- * makes sense under any subject; replaced with دراسات content under sub-4.
+ * Which subjects each grade actually studies — data-driven (§8), not a code
+ * conditional. 1st-3rd primary: عربي/إنجليزي/رياضيات only. 4th-6th primary adds
+ * علوم + دراسات (they split off from "دراسات" as separate subjects starting 4th
+ * grade in the real curriculum this center follows).
+ */
+const CORE_SUBJECT_IDS = ["sub-1", "sub-2", "sub-3"] as const;
+const UPPER_PRIMARY_SUBJECT_IDS = ["sub-1", "sub-2", "sub-3", "sub-4", "sub-5"] as const;
+
+export const gradeSubjects: GradeSubject[] = grades.flatMap((g) => {
+  const subjectIds = g.order <= 3 ? CORE_SUBJECT_IDS : UPPER_PRIMARY_SUBJECT_IDS;
+  return subjectIds.map((subjectId) => ({
+    id: `gs-${g.id}-${subjectId}`,
+    grade_id: g.id,
+    subject_id: subjectId,
+  }));
+});
+
+/**
+ * Curriculum plan (§9) — دراسات / gd-3, matching gr-1. DESIGN_ATMOSPHERE_SPEC.md
+ * §0.2 reassigned gr-1's teacher (tc-1) from physics to دراسات, so the
+ * physics-specific plan that used to live here (sub-1) no longer makes sense
+ * under any subject; replaced with دراسات content under sub-4.
+ *
+ * KNOWN MISMATCH (CURRICULUM_ENGINE_SPEC.md §8, not fixed here by design): gd-3
+ * is now "الثالث الابتدائي", and `gradeSubjects` above says 1st-3rd primary only
+ * study عربي/إنجليزي/رياضيات — دراسات isn't supposed to exist below 4th grade.
+ * The user's own instruction for this pass was "فقط grade_id يُحدَّث" (only
+ * relabel, don't reshuffle which teacher/group has which grade), so this content
+ * was deliberately left in place rather than silently moved to gd-4/5/6. Revisit
+ * when the full curriculum skeleton (§8) is rebuilt with real content.
  */
 export const curriculumUnits: CurriculumUnit[] = [
   {
@@ -132,7 +170,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10234",
     full_name: "أحمد محمود السيد",
-    grade: "الثالث الثانوي",
+    grade: "الثالث الابتدائي",
     group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "محمود السيد",
@@ -148,7 +186,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10235",
     full_name: "سارة عادل إبراهيم",
-    grade: "الثالث الثانوي",
+    grade: "الثالث الابتدائي",
     group_name: "علوم - أحد 6م",
     group_id: "gr-2",
     guardian_name: "عادل إبراهيم",
@@ -164,7 +202,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10236",
     full_name: "يوسف خالد منصور",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     group_name: "إنجليزي - اثنين 5م",
     group_id: "gr-3",
     guardian_name: "خالد منصور",
@@ -180,7 +218,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10237",
     full_name: "منة الله طارق",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     group_name: "علوم - ثلاثاء 3م",
     group_id: "gr-4",
     guardian_name: "طارق فهمي",
@@ -196,7 +234,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10238",
     full_name: "عمر حسام الدين",
-    grade: "الأول الثانوي",
+    grade: "الأول الابتدائي",
     group_name: "رياضيات - أربعاء 7م",
     group_id: "gr-5",
     guardian_name: "حسام الدين علي",
@@ -212,7 +250,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10239",
     full_name: "ملك أشرف زكي",
-    grade: "الثالث الثانوي",
+    grade: "الثالث الابتدائي",
     group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "أشرف زكي",
@@ -228,7 +266,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10240",
     full_name: "زياد إبراهيم عبد الله",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     group_name: "عربي - خميس 5م",
     group_id: "gr-6",
     guardian_name: "إبراهيم عبد الله",
@@ -244,7 +282,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10241",
     full_name: "نور محمد سامي",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     group_name: "عربي - خميس 5م",
     group_id: "gr-6",
     guardian_name: "محمد سامي",
@@ -341,7 +379,7 @@ export const groups: Group[] = [
     subject_id: "sub-4",
     teacher_name: "أ. مصطفى الجندي",
     teacher_id: "tc-1",
-    grade: "الثالث الثانوي",
+    grade: "الثالث الابتدائي",
     grade_id: "gd-3",
     weekday: "السبت",
     time: "04:00 م",
@@ -357,7 +395,7 @@ export const groups: Group[] = [
     subject_id: "sub-5",
     teacher_name: "أ. هبة عبد الرحمن",
     teacher_id: "tc-2",
-    grade: "الثالث الثانوي",
+    grade: "الثالث الابتدائي",
     grade_id: "gd-3",
     weekday: "الأحد",
     time: "06:00 م",
@@ -373,7 +411,7 @@ export const groups: Group[] = [
     subject_id: "sub-2",
     teacher_name: "أ. كريم شوقي",
     teacher_id: "tc-3",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     grade_id: "gd-2",
     weekday: "الإثنين",
     time: "05:00 م",
@@ -389,7 +427,7 @@ export const groups: Group[] = [
     subject_id: "sub-5",
     teacher_name: "أ. هبة عبد الرحمن",
     teacher_id: "tc-2",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     grade_id: "gd-2",
     weekday: "الثلاثاء",
     time: "03:00 م",
@@ -406,7 +444,7 @@ export const groups: Group[] = [
     subject_id: "sub-3",
     teacher_name: "أ. نورهان سعيد",
     teacher_id: "tc-4",
-    grade: "الأول الثانوي",
+    grade: "الأول الابتدائي",
     grade_id: "gd-1",
     weekday: "الأربعاء",
     time: "07:00 م",
@@ -423,7 +461,7 @@ export const groups: Group[] = [
     subject_id: "sub-1",
     teacher_name: "أ. سلمى وجدي",
     teacher_id: "tc-5",
-    grade: "الثاني الثانوي",
+    grade: "الثاني الابتدائي",
     grade_id: "gd-2",
     weekday: "الخميس",
     time: "05:00 م",

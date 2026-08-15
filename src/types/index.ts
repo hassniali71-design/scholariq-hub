@@ -91,6 +91,16 @@ export interface Grade {
   order: number;
 }
 
+/**
+ * Which subjects a grade actually studies (CURRICULUM_ENGINE_SPEC.md §8) — data,
+ * not a hardcoded rule, so adding a 7th grade later is a seed-data change only.
+ */
+export interface GradeSubject {
+  id: UUID;
+  grade_id: UUID;
+  subject_id: UUID;
+}
+
 export interface AttendanceRecord {
   id: UUID;
   center_id: UUID;
