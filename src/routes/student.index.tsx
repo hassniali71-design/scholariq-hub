@@ -15,7 +15,12 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { getSubjectPerformanceSummary, useDataStore } from "@/lib/data-store";
+import {
+  diagnoseWeakPoint,
+  getPerformanceLabel,
+  getSubjectPerformanceSummary,
+  useDataStore,
+} from "@/lib/data-store";
 import { studentAttendanceSeries } from "@/lib/mock-data";
 
 const trendMeta = {
@@ -97,6 +102,14 @@ function StudentPortal() {
             {mySubjects.map((subject) => {
               const summary = getSubjectPerformanceSummary(state, me.id, subject.id);
               const meta = trendMeta[summary.trend];
+              /**
+               * CURRICULUM_ENGINE_SPEC.md §6-ج: combines the subject-scoped rollup
+               * (headline % + label) with the general cross-category diagnosis
+               * (weak point) into one descriptive sentence, matching the spec's
+               * own worked example.
+               */
+              const label = getPerformanceLabel(summary.overallAvg);
+              const diagnosis = diagnoseWeakPoint(state, me.id);
               return (
                 <div key={subject.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex items-center justify-between gap-2">
@@ -108,9 +121,15 @@ function StudentPortal() {
                   {summary.lessonsRecordedCount > 0 ? (
                     <>
                       <p className="kpi-number mt-3 text-3xl">{formatPercent(summary.overallAvg)}</p>
+                      <p className="mt-1 text-xs font-black text-primary">{label}</p>
                       <p className="mt-1 text-xs font-bold text-muted-foreground">
                         عبر {formatNumber(summary.lessonsRecordedCount)} درس مسجَّل
                       </p>
+                      {diagnosis.hasWeakPoint ? (
+                        <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs font-bold text-foreground">
+                          {diagnosis.text}
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <p className="mt-3 text-sm font-bold text-muted-foreground">

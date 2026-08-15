@@ -355,6 +355,59 @@ export function getAssessmentScore(
   );
 }
 
+/** §6-أ: final approved thresholds — six tiers, not five. Do not adjust. */
+export function getPerformanceLabel(avgPercent: number): string {
+  if (avgPercent >= 85) return "متفوق";
+  if (avgPercent >= 65) return "جيد جداً";
+  if (avgPercent >= 40) return "متوسط، يحتاج تحسين";
+  if (avgPercent >= 25) return "ضعيف";
+  if (avgPercent >= 10) return "يحتاج متابعة عاجلة";
+  return "خطر — يحتاج تدخل فوري";
+}
+
+export interface WeakPointDiagnosis {
+  hasWeakPoint: boolean;
+  text: string;
+}
+
+const WEAK_POINT_CATEGORIES: { label: string; category: AssessmentScore["category"] }[] = [
+  { label: "الواجب المنزلي", category: "homework" },
+  { label: "الواجب الإلكتروني", category: "e_homework" },
+  { label: "النشاط", category: "activity" },
+  { label: "السلوك", category: "behavior" },
+];
+
+/**
+ * §6-ب: compares a student's general standing (`getAssessmentScore`'s single
+ * current value per category, not lesson-scoped — those four categories are
+ * recorded generally in teacher.assessments.tsx, not per-subject) across the
+ * four retroactive categories to flag whichever lags behind. A category with
+ * no recorded score yet is excluded rather than treated as 0 — missing data
+ * isn't the same as a weak result.
+ */
+export function diagnoseWeakPoint(state: DataState, studentId: string): WeakPointDiagnosis {
+  const components = WEAK_POINT_CATEGORIES.map(({ label, category }) => {
+    const score = getAssessmentScore(state, studentId, category);
+    return score ? { label, value: Math.round((score.value / score.max_value) * 100) } : null;
+  }).filter((c): c is { label: string; value: number } => c !== null);
+
+  if (components.length < 2) {
+    return { hasWeakPoint: false, text: "لا توجد بيانات كافية بعد لتشخيص نقطة ضعف" };
+  }
+
+  const sorted = [...components].sort((a, b) => a.value - b.value);
+  const weakest = sorted[0]!;
+  const strongest = sorted[sorted.length - 1]!;
+
+  if (strongest.value - weakest.value < 10) {
+    return { hasWeakPoint: false, text: "الأداء متوازن عبر كل الجوانب" };
+  }
+  return {
+    hasWeakPoint: true,
+    text: `نقطة ضعفه: ${weakest.label} (متوسط ${weakest.value}% مقابل باقي الأنشطة ${strongest.value}%+)`,
+  };
+}
+
 /** Lesson creation order recovered from its `lsn-<ms>` id — same technique as getTimerCompliance. */
 function lessonCreatedMs(lessonId: string): number {
   return Number(lessonId.slice("lsn-".length));
