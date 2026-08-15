@@ -403,8 +403,8 @@ export const teachers: Teacher[] = [
   {
     id: "tc-1",
     center_id: c,
-    // Phase 1 default (decision #7): no auth.ts account↔teacher linking yet.
-    user_id: null,
+    // Matches auth.ts's seedAccounts (`TCH-${2001 + i}`) at index 0.
+    user_id: "TCH-2001",
     full_name: "أ. مصطفى الجندي",
     subject: "دراسات",
     subject_id: "sub-4",
@@ -417,7 +417,7 @@ export const teachers: Teacher[] = [
   {
     id: "tc-2",
     center_id: c,
-    user_id: null,
+    user_id: "TCH-2002",
     full_name: "أ. هبة عبد الرحمن",
     subject: "علوم",
     subject_id: "sub-5",
@@ -430,7 +430,7 @@ export const teachers: Teacher[] = [
   {
     id: "tc-3",
     center_id: c,
-    user_id: null,
+    user_id: "TCH-2003",
     full_name: "أ. كريم شوقي",
     subject: "إنجليزي",
     subject_id: "sub-2",
@@ -443,7 +443,7 @@ export const teachers: Teacher[] = [
   {
     id: "tc-4",
     center_id: c,
-    user_id: null,
+    user_id: "TCH-2004",
     full_name: "أ. نورهان سعيد",
     subject: "رياضيات",
     subject_id: "sub-3",
@@ -456,7 +456,7 @@ export const teachers: Teacher[] = [
   {
     id: "tc-5",
     center_id: c,
-    user_id: null,
+    user_id: "TCH-2005",
     full_name: "أ. سلمى وجدي",
     subject: "عربي",
     subject_id: "sub-1",

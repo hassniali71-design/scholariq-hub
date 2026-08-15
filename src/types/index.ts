@@ -50,7 +50,11 @@ export interface Student {
 export interface Teacher {
   id: UUID;
   center_id: UUID;
-  /** Links this teacher record to their auth.ts account. Phase 1 default: unset — see resolveCurrentTeacher. */
+  /**
+   * The teacher's `auth.ts` login identifier (e.g. "TCH-2001") — `Session`
+   * only carries `identifier`, never a real account id, so this is a login
+   * code join key, same mechanism as `Student.code`, not a literal UUID FK.
+   */
   user_id: UUID | null;
   full_name: string;
   subject: string;

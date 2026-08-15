@@ -292,6 +292,19 @@ export function resolveCurrentStudent(state: DataState, identifier?: string | nu
   return match ?? state.students[0]!;
 }
 
+/**
+ * Resolves the teacher the current session belongs to, by login identifier
+ * (`Teacher.user_id`, same join-key mechanism as `Student.code` above —
+ * `Session` never carries a real account id, only `identifier`). Real fix
+ * for TEACHER_MODULE_SPEC.md §15 decision #7's Phase 1 placeholder: every
+ * teacher account used to resolve to `teachers[0]` regardless of who
+ * actually logged in.
+ */
+export function resolveCurrentTeacher(state: DataState, identifier?: string | null): Teacher {
+  const match = identifier ? state.teachers.find((t) => t.user_id === identifier) : undefined;
+  return match ?? state.teachers[0]!;
+}
+
 export interface CreateStudentInput {
   /** The login code from `auth.ts`'s `createStudent` — must match so `resolveCurrentStudent` finds this record. */
   code: string;
