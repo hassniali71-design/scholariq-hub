@@ -131,8 +131,13 @@ export function buildLeaderboard(students: Student[]): LeaderboardEntry[] {
     }));
 }
 
+/** `numberingSystem: "latn"` — same tofu-glyph fix as format.ts, applied here too. */
 function nowTime() {
-  return new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString("ar-EG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    numberingSystem: "latn",
+  });
 }
 
 function todayLabel() {

@@ -1,6 +1,13 @@
 /** Formatting helpers shared across the ERP modules. */
 
-const ar = new Intl.NumberFormat("ar-EG");
+/**
+ * Real browser trial caught this: `ar-EG`'s default numbering system renders
+ * Eastern Arabic-Indic digits (٠١٢...), which the project's Tajawal font
+ * doesn't reliably paint — showed up as tofu (◆) in KPI cards. Forcing the
+ * `latn` numbering system keeps Arabic locale conventions (grouping, etc.)
+ * but with Western digit glyphs (0-9), which every font supports.
+ */
+const ar = new Intl.NumberFormat("ar-EG", { numberingSystem: "latn" });
 
 export function formatNumber(value: number): string {
   return ar.format(value);
