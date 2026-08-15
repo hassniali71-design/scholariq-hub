@@ -29,6 +29,7 @@ import type {
   BookletItem,
   CurriculumLesson,
   CurriculumUnit,
+  ElectronicHomework,
   Grade,
   GradeSubject,
   Group,
@@ -113,6 +114,7 @@ export interface DataState {
   curriculumLessons: CurriculumLesson[];
   bookExerciseTasks: BookExerciseTask[];
   suggestedActivities: SuggestedActivity[];
+  electronicHomeworks: ElectronicHomework[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -190,6 +192,7 @@ function seedState(): DataState {
     curriculumLessons: seedCurriculumLessons.map((l) => ({ ...l })),
     bookExerciseTasks: [],
     suggestedActivities: [],
+    electronicHomeworks: [],
   };
 }
 
@@ -1005,14 +1008,41 @@ export function completeLessonGeneration(
       id: `act-${lessonId}`,
       lesson_id: lessonId,
     };
+    /**
+     * §8: "واجب الويب سايت" reuses the exact same generated question bank as the
+     * in-session random pool ("نفس البنك، سياقان مختلفان") — not a separately
+     * generated set.
+     */
+    const lessonGroupId = state.lessons.find((l) => l.id === lessonId)?.group_id;
+    const newElectronicHomeworks = lessonGroupId
+      ? [
+          ...state.electronicHomeworks,
+          {
+            id: `eh-${lessonId}`,
+            lesson_id: lessonId,
+            group_id: lessonGroupId,
+            questions: newQuestions,
+            due_at: "خلال ٣ أيام",
+          },
+        ]
+      : state.electronicHomeworks;
     return {
       ...state,
       lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, ai_status: "ready" } : l)),
       lessonSlides: [...state.lessonSlides, ...newSlides],
       sessionQuestions: [...state.sessionQuestions, ...newQuestions],
       suggestedActivities: [...state.suggestedActivities, newActivity],
+      electronicHomeworks: newElectronicHomeworks,
     };
   });
+}
+
+/** §8: a group's electronic homework for its latest-ready lesson, if any. */
+export function getElectronicHomeworkForGroup(
+  state: DataState,
+  groupId: string,
+): ElectronicHomework | undefined {
+  return [...state.electronicHomeworks].reverse().find((h) => h.group_id === groupId);
 }
 
 /** §8: the one suggested activity generated for a lesson. */
@@ -1179,18 +1209,29 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
     const student = findStudentById(state, input.studentId);
     if (!student) return state;
     const sessionId = input.sessionId ?? null;
+    const lessonId = input.lessonId ?? null;
+    /**
+     * Upsert key includes `lesson_id` (CURRICULUM_ENGINE_SPEC.md §8's electronic
+     * homework fix): without it, a student's 2nd/3rd electronic homework
+     * (session_id always null, only lesson_id differs) would silently overwrite
+     * the previous lesson's score instead of recording a new one — breaking
+     * §5's per-lesson trend rollup for the "e_homework" category. Session-mode
+     * calls (real sessionId) and teacher.assessments.tsx's general retroactive
+     * calls (session_id and lesson_id both null) are unaffected by this.
+     */
     const existing = state.assessmentScores.find(
       (a) =>
         a.student_id === input.studentId &&
         a.category === input.category &&
-        a.session_id === sessionId,
+        a.session_id === sessionId &&
+        a.lesson_id === lessonId,
     );
     const entry: AssessmentScore = {
       id: existing?.id ?? `asc-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
       session_id: sessionId,
-      lesson_id: input.lessonId ?? null,
+      lesson_id: lessonId,
       category: input.category,
       source: input.source,
       value: input.value,
@@ -1203,6 +1244,17 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
       : [entry, ...state.assessmentScores];
     return { ...state, assessmentScores };
   });
+}
+
+/** §8: has this student already completed this lesson's electronic homework? */
+export function getElectronicHomeworkScore(
+  state: DataState,
+  studentId: string,
+  lessonId: string,
+): AssessmentScore | undefined {
+  return state.assessmentScores.find(
+    (a) => a.student_id === studentId && a.category === "e_homework" && a.lesson_id === lessonId,
+  );
 }
 
 export interface BookExerciseTaskInput {

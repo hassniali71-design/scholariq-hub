@@ -9,7 +9,14 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import {
+  McqAnswerBody,
+  MatchingAnswerBody,
+  OrderingAnswerBody,
+  QUESTION_KIND_LABELS,
+} from "@/components/session/SessionSteps";
 import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -17,17 +24,123 @@ import { formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
   diagnoseWeakPoint,
+  getElectronicHomeworkForGroup,
+  getElectronicHomeworkScore,
   getPerformanceLabel,
   getSubjectPerformanceSummary,
+  recordAssessmentScore,
   useDataStore,
+  type DataState,
 } from "@/lib/data-store";
 import { studentAttendanceSeries } from "@/lib/mock-data";
+import type { ElectronicHomework } from "@/types";
 
 const trendMeta = {
   up: { icon: TrendingUp, tone: "success" as const, label: "في تحسّن" },
   down: { icon: TrendingDown, tone: "destructive" as const, label: "في تراجع" },
   same: { icon: Minus, tone: "neutral" as const, label: "مستقر" },
 };
+
+/**
+ * CURRICULUM_ENGINE_SPEC.md §8 — "واجب الويب سايت": same question bank and
+ * answer components as the in-session random-question picker, reused here in
+ * a second context. Auto-submits once every question is answered (source:
+ * "auto"), which also flips `getElectronicHomeworkScore` so the parent swaps
+ * this panel for the "تم التسليم" summary on the next render.
+ */
+function ElectronicHomeworkPanel({
+  homework,
+  studentId,
+  teacherId,
+}: {
+  homework: ElectronicHomework;
+  studentId: string;
+  teacherId: string;
+}) {
+  const [results, setResults] = useState<Record<number, boolean>>({});
+  const allAnswered = Object.keys(results).length === homework.questions.length;
+
+  useEffect(() => {
+    if (!allAnswered) return;
+    const correctCount = Object.values(results).filter(Boolean).length;
+    recordAssessmentScore({
+      studentId,
+      teacherId,
+      category: "e_homework",
+      source: "auto",
+      value: correctCount,
+      maxValue: homework.questions.length,
+      lessonId: homework.lesson_id,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnswered]);
+
+  return (
+    <div className="space-y-4">
+      {homework.questions.map((q, i) => (
+        <div key={q.id} className="rounded-xl border-2 border-border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <StatusBadge tone="primary">{QUESTION_KIND_LABELS[q.kind]}</StatusBadge>
+            {results[i] !== undefined ? (
+              <StatusBadge tone={results[i] ? "success" : "destructive"}>
+                {results[i] ? "إجابة صحيحة" : "إجابة خاطئة"}
+              </StatusBadge>
+            ) : null}
+          </div>
+          <p className="mt-3 text-lg font-black text-foreground">{q.text}</p>
+          {q.kind === "ordering" ? (
+            <OrderingAnswerBody
+              question={q}
+              answered={results[i] !== undefined}
+              onAnswer={(correct) => setResults((prev) => ({ ...prev, [i]: correct }))}
+            />
+          ) : q.kind === "matching" ? (
+            <MatchingAnswerBody
+              question={q}
+              answered={results[i] !== undefined}
+              onAnswer={(correct) => setResults((prev) => ({ ...prev, [i]: correct }))}
+            />
+          ) : (
+            <McqAnswerBody
+              question={q}
+              answered={results[i] !== undefined}
+              onAnswer={(correct) => setResults((prev) => ({ ...prev, [i]: correct }))}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ElectronicHomeworkSection({ state, studentId }: { state: DataState; studentId: string }) {
+  const student = state.students.find((s) => s.id === studentId);
+  const homework = student?.group_id
+    ? getElectronicHomeworkForGroup(state, student.group_id)
+    : undefined;
+  if (!homework) return null;
+
+  const lesson = state.lessons.find((l) => l.id === homework.lesson_id);
+  const score = getElectronicHomeworkScore(state, studentId, homework.lesson_id);
+
+  return (
+    <Panel title="الواجب الإلكتروني" description={`آخر موعد للتسليم: ${homework.due_at}`}>
+      {score ? (
+        <div className="rounded-xl border-2 border-success bg-success/10 p-4 text-center">
+          <p className="font-black text-success">
+            تم التسليم — الدرجة: {formatPercent(Math.round((score.value / score.max_value) * 100))}
+          </p>
+        </div>
+      ) : lesson ? (
+        <ElectronicHomeworkPanel
+          homework={homework}
+          studentId={studentId}
+          teacherId={lesson.created_by_teacher_id}
+        />
+      ) : null}
+    </Panel>
+  );
+}
 
 export const Route = createFileRoute("/student/")({
   head: () => ({
@@ -137,6 +250,8 @@ function StudentPortal() {
           </div>
         </Panel>
       ) : null}
+
+      <ElectronicHomeworkSection state={state} studentId={me.id} />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="منحنى نتائجي" description="نسبة الدرجات في آخر التقييمات">

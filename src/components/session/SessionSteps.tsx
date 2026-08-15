@@ -6,7 +6,7 @@ import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, LessonSlide, LiveScore, QuestionKind, QuizQuestion } from "@/types";
 
-const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
+export const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
   mcq: "اختيار من متعدد",
   true_false: "صح أم خطأ",
   ordering: "ترتيب",
@@ -215,8 +215,47 @@ export function LessonStep({
 
 /* -------- §8 question-kind variety: ordering + matching interactive bodies -------- */
 
+/**
+ * "mcq"/"true_false" kinds: tap an option once, locks in. Exported (not just
+ * used by `QuestionCard`) so the electronic-homework panel (§8 — "نفس البنك،
+ * سياقان مختلفان") can reuse the exact same answer interaction.
+ */
+export function McqAnswerBody({
+  question,
+  answered,
+  onAnswer,
+}: {
+  question: QuizQuestion;
+  answered: boolean;
+  onAnswer: (correct: boolean) => void;
+}) {
+  return (
+    <div className="mt-6 grid gap-3 md:grid-cols-2">
+      {question.options.map((opt, i) => (
+        <button
+          key={opt}
+          disabled={answered}
+          onClick={() => onAnswer(i === question.correct_index)}
+          className={cn(
+            "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
+            answered && i === question.correct_index
+              ? "border-success bg-success/10 text-success"
+              : answered
+                ? "border-border opacity-50"
+                : "border-border hover:border-primary",
+          )}
+        >
+          {opt}
+          {answered && i === question.correct_index ? <Check className="size-5" /> : null}
+          {answered && i !== question.correct_index ? <X className="size-5 opacity-40" /> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** "ordering" kind: tap items in the order believed correct; `question.options` IS the correct order. */
-function OrderingAnswerBody({
+export function OrderingAnswerBody({
   question,
   answered,
   onAnswer,
@@ -281,7 +320,7 @@ function OrderingAnswerBody({
 }
 
 /** "matching" kind: tap a left item then a right item to connect them, by index pairing. */
-function MatchingAnswerBody({
+export function MatchingAnswerBody({
   question,
   answered,
   onAnswer,
@@ -491,29 +530,7 @@ export function QuestionCard({
             ) : question.kind === "matching" ? (
               <MatchingAnswerBody question={question} answered={answered} onAnswer={onAnswer} />
             ) : (
-              <div className="mt-6 grid gap-3 md:grid-cols-2">
-                {question.options.map((opt, i) => (
-                  <button
-                    key={opt}
-                    disabled={answered}
-                    onClick={() => onAnswer(i === question.correct_index)}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl border-2 px-5 py-4 text-lg font-black transition-colors",
-                      answered && i === question.correct_index
-                        ? "border-success bg-success/10 text-success"
-                        : answered
-                          ? "border-border opacity-50"
-                          : "border-border hover:border-primary",
-                    )}
-                  >
-                    {opt}
-                    {answered && i === question.correct_index ? <Check className="size-5" /> : null}
-                    {answered && i !== question.correct_index ? (
-                      <X className="size-5 opacity-40" />
-                    ) : null}
-                  </button>
-                ))}
-              </div>
+              <McqAnswerBody question={question} answered={answered} onAnswer={onAnswer} />
             )}
           </>
         )}
