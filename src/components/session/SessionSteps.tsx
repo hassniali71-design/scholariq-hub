@@ -344,6 +344,68 @@ export function QuestionCard({
   );
 }
 
+/* -------- "حل تمارين الكتاب" (CURRICULUM_ENGINE_SPEC.md §1) — same component, two contexts -------- */
+
+export function BookExerciseCard({
+  title,
+  value,
+  onSave,
+}: {
+  title: string;
+  /** Current saved pages text, or null if nothing entered yet this session. */
+  value: string | null;
+  onSave: (pagesText: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  useEffect(() => {
+    setDraft(value ?? "");
+  }, [value]);
+
+  const save = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    onSave(trimmed);
+    setEditing(false);
+  };
+
+  return (
+    <div className="rounded-xl border-2 border-border p-4">
+      <p className="font-black text-foreground underline decoration-2 underline-offset-4">{title}</p>
+      {value && !editing ? (
+        <p className="mt-2 text-sm font-bold text-muted-foreground">{value}</p>
+      ) : null}
+
+      {editing ? (
+        <div className="mt-3 space-y-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="مثال: 4، 5، 6"
+            className="w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-sm font-bold outline-none focus:border-primary"
+          />
+          <button
+            type="button"
+            onClick={save}
+            className="rounded-lg bg-navy px-4 py-2 text-xs font-black text-navy-foreground hover:opacity-90"
+          >
+            حفظ
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="mt-3 flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        >
+          <Pencil className="size-3.5" /> {value ? "تعديل الصفحات" : "أدخل الصفحات"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* -------- Live scoreboard (shared) -------- */
 
 export function LiveScoreboard({ scores }: { scores: LiveScore[] }) {

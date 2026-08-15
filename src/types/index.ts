@@ -280,6 +280,21 @@ export interface RandomPickLog {
   picked_at: string;
 }
 
+/**
+ * "حل تمارين الكتاب" (CURRICULUM_ENGINE_SPEC.md §1) — deliberately simple: a free-text
+ * page-number field, no book content lookup. Same shape used twice per session via
+ * `context`, once for in-class exercises and once assigned as homework.
+ */
+export interface BookExerciseTask {
+  id: UUID;
+  center_id: UUID;
+  session_id: UUID;
+  student_group_id: UUID;
+  pages_text: string;
+  context: "in_session" | "homework";
+  created_at: string;
+}
+
 export interface ElectronicHomework {
   id: UUID;
   lesson_id: UUID;

@@ -25,6 +25,7 @@ import type {
   AssessmentScore,
   AttendanceRecord,
   AttendanceStatus,
+  BookExerciseTask,
   BookletItem,
   CurriculumLesson,
   CurriculumUnit,
@@ -109,6 +110,7 @@ export interface DataState {
   assessmentScores: AssessmentScore[];
   curriculumUnits: CurriculumUnit[];
   curriculumLessons: CurriculumLesson[];
+  bookExerciseTasks: BookExerciseTask[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -184,6 +186,7 @@ function seedState(): DataState {
     assessmentScores: [],
     curriculumUnits: seedCurriculumUnits.map((u) => ({ ...u })),
     curriculumLessons: seedCurriculumLessons.map((l) => ({ ...l })),
+    bookExerciseTasks: [],
   };
 }
 
@@ -1011,6 +1014,51 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
       : [entry, ...state.assessmentScores];
     return { ...state, assessmentScores };
   });
+}
+
+export interface BookExerciseTaskInput {
+  sessionId: string;
+  groupId: string;
+  context: BookExerciseTask["context"];
+  pagesText: string;
+}
+
+/** "حل تمارين الكتاب" (§1) — upserts by (session, group, context): re-entering pages edits in place. */
+export function recordBookExerciseTask(input: BookExerciseTaskInput) {
+  update((state) => {
+    const group = state.groups.find((g) => g.id === input.groupId);
+    if (!group) return state;
+    const existing = state.bookExerciseTasks.find(
+      (t) =>
+        t.session_id === input.sessionId &&
+        t.student_group_id === input.groupId &&
+        t.context === input.context,
+    );
+    const entry: BookExerciseTask = {
+      id: existing?.id ?? `bet-${Date.now()}`,
+      center_id: group.center_id,
+      session_id: input.sessionId,
+      student_group_id: input.groupId,
+      pages_text: input.pagesText,
+      context: input.context,
+      created_at: existing?.created_at ?? todayLabel(),
+    };
+    const bookExerciseTasks = existing
+      ? state.bookExerciseTasks.map((t) => (t.id === existing.id ? entry : t))
+      : [entry, ...state.bookExerciseTasks];
+    return { ...state, bookExerciseTasks };
+  });
+}
+
+export function getBookExerciseTask(
+  state: DataState,
+  sessionId: string,
+  groupId: string,
+  context: BookExerciseTask["context"],
+): BookExerciseTask | undefined {
+  return state.bookExerciseTasks.find(
+    (t) => t.session_id === sessionId && t.student_group_id === groupId && t.context === context,
+  );
 }
 
 /** Clears the per-session live scoreboard (start of a new session). */

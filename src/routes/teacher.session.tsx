@@ -6,7 +6,12 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import { pickFairly } from "@/components/session/FairRandomPicker";
 import { InteractiveSlideViewer } from "@/components/session/InteractiveSlideViewer";
-import { HomeworkStep, LiveScoreboard, QuestionCard } from "@/components/session/SessionSteps";
+import {
+  BookExerciseCard,
+  HomeworkStep,
+  LiveScoreboard,
+  QuestionCard,
+} from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
 import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
 import { useContentHash } from "@/hooks/use-content-hash";
@@ -19,9 +24,11 @@ import {
   getLessonsForGroup,
   getQuestionsForLesson,
   getSlidesForLesson,
+  getBookExerciseTask,
   getSessionRecordsForGroup,
   recordAssessmentScore,
   recordAttendance,
+  recordBookExerciseTask,
   recordQuestionAnswer,
   recordRandomPick,
   recordSessionSummary,
@@ -557,6 +564,39 @@ function SessionMode() {
                     <TaskCard
                       title="تقرير ولي الأمر"
                       text="درجات الواجب والأسئلة + ملاحظة المدرس"
+                    />
+                    {/* CURRICULUM_ENGINE_SPEC.md §1: نفس المكوّن، مرتان بـcontext مختلف */}
+                    <BookExerciseCard
+                      title="حل تمارين الكتاب — داخل الحصة"
+                      value={
+                        getBookExerciseTask(state, sessionIdRef.current, group.id, "in_session")
+                          ?.pages_text ?? null
+                      }
+                      onSave={(pagesText) => {
+                        recordBookExerciseTask({
+                          sessionId: sessionIdRef.current,
+                          groupId: group.id,
+                          context: "in_session",
+                          pagesText,
+                        });
+                        toast.success("تم حفظ صفحات التمارين");
+                      }}
+                    />
+                    <BookExerciseCard
+                      title="حل تمارين الكتاب — كواجب منزلي"
+                      value={
+                        getBookExerciseTask(state, sessionIdRef.current, group.id, "homework")
+                          ?.pages_text ?? null
+                      }
+                      onSave={(pagesText) => {
+                        recordBookExerciseTask({
+                          sessionId: sessionIdRef.current,
+                          groupId: group.id,
+                          context: "homework",
+                          pagesText,
+                        });
+                        toast.success("تم حفظ صفحات التمارين");
+                      }}
                     />
                   </div>
                   <button
