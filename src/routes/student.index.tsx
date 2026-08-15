@@ -49,7 +49,7 @@ export const Route = createFileRoute("/student/")({
 
 function StudentPortal() {
   const state = useDataStore();
-  const { quizResults, homeworkTasks, leaderboard, groups, subjects } = state;
+  const { quizResults, homeworkTasks, leaderboard, subjects } = state;
   const me = useCurrentStudent();
   const myQuizzes = quizResults.filter((q) => q.student_id === me.id);
   const myHomework = homeworkTasks.filter((h) => h.student_id === me.id);
@@ -58,15 +58,10 @@ function StudentPortal() {
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
 
-  /**
-   * CURRICULUM_ENGINE_SPEC.md §5: subjects the student studies. Interim source
-   * until §7 (`Student.subject_ids`) lands — derived from the student's current
-   * group, so today this is always 0 or 1 subject; §7 will extend this to a real
-   * multi-subject list without changing how the section below renders it.
-   */
-  const myGroup = groups.find((g) => g.id === me.group_id);
-  const mySubject = subjects.find((s) => s.id === myGroup?.subject_id);
-  const mySubjects = mySubject ? [mySubject] : [];
+  /** CURRICULUM_ENGINE_SPEC.md §7: real multi-subject enrollment, replacing §5's interim single-group derivation. */
+  const mySubjects = me.subject_ids
+    .map((id) => subjects.find((s) => s.id === id))
+    .filter((s): s is (typeof subjects)[number] => s !== undefined);
 
   return (
     <AppShell

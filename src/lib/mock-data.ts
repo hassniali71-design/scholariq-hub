@@ -180,6 +180,7 @@ export const students: Student[] = [
     points: 1840,
     attendance_rate: 96,
     avg_score: 92,
+    subject_ids: ["sub-4"],
   },
   {
     id: "st-2",
@@ -196,6 +197,7 @@ export const students: Student[] = [
     points: 2110,
     attendance_rate: 99,
     avg_score: 95,
+    subject_ids: ["sub-5"],
   },
   {
     id: "st-3",
@@ -212,6 +214,7 @@ export const students: Student[] = [
     points: 940,
     attendance_rate: 74,
     avg_score: 68,
+    subject_ids: ["sub-2"],
   },
   {
     id: "st-4",
@@ -228,6 +231,7 @@ export const students: Student[] = [
     points: 1620,
     attendance_rate: 91,
     avg_score: 88,
+    subject_ids: ["sub-5"],
   },
   {
     id: "st-5",
@@ -244,6 +248,7 @@ export const students: Student[] = [
     points: 1275,
     attendance_rate: 85,
     avg_score: 79,
+    subject_ids: ["sub-3"],
   },
   {
     id: "st-6",
@@ -260,6 +265,7 @@ export const students: Student[] = [
     points: 1990,
     attendance_rate: 97,
     avg_score: 90,
+    subject_ids: ["sub-4"],
   },
   {
     id: "st-7",
@@ -276,6 +282,7 @@ export const students: Student[] = [
     points: 1510,
     attendance_rate: 93,
     avg_score: 86,
+    subject_ids: ["sub-1"],
   },
   {
     id: "st-8",
@@ -292,6 +299,7 @@ export const students: Student[] = [
     points: 1350,
     attendance_rate: 88,
     avg_score: 81,
+    subject_ids: ["sub-1"],
   },
 ];
 

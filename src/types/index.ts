@@ -40,6 +40,11 @@ export interface Student {
   points: number;
   attendance_rate: number;
   avg_score: number;
+  /**
+   * CURRICULUM_ENGINE_SPEC.md §7 — explicit multi-subject enrollment, replacing
+   * the old implicit "one subject via group_id" assumption.
+   */
+  subject_ids: UUID[];
 }
 
 export interface Teacher {

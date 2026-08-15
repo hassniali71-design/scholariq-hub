@@ -281,6 +281,58 @@ export function resolveCurrentStudent(state: DataState, identifier?: string | nu
   return match ?? state.students[0]!;
 }
 
+export interface CreateStudentInput {
+  /** The login code from `auth.ts`'s `createStudent` — must match so `resolveCurrentStudent` finds this record. */
+  code: string;
+  fullName: string;
+  groupId: string;
+  guardianName: string;
+  guardianPhone: string;
+  subjectIds: string[];
+}
+
+/**
+ * §7: the "إضافة طالب" screen used to only create an `auth.ts` login account —
+ * no `Student` record ever got created, so a newly-provisioned student's code
+ * matched nothing here and `resolveCurrentStudent` silently fell back to
+ * `students[0]`. This is the missing half: a real `Student` row, seeded from
+ * the chosen group (grade/group_name mirror it) with sensible zeroed stats.
+ * Returns null if the group id doesn't exist.
+ */
+export function createStudentRecord(input: CreateStudentInput): Student | null {
+  const state = getData();
+  const group = state.groups.find((g) => g.id === input.groupId);
+  if (!group) return null;
+
+  const student: Student = {
+    id: `st-${Date.now()}`,
+    center_id: CENTER_ID,
+    code: input.code,
+    full_name: input.fullName,
+    grade: group.grade,
+    group_name: group.name,
+    group_id: group.id,
+    guardian_name: input.guardianName,
+    guardian_phone: input.guardianPhone,
+    payment_status: "pending",
+    balance_due: 0,
+    points: 0,
+    attendance_rate: 0,
+    avg_score: 0,
+    subject_ids: input.subjectIds,
+  };
+
+  update((s) => {
+    const students = [...s.students, student];
+    const groups = s.groups.map((g) =>
+      g.id === group.id ? { ...g, enrolled: g.enrolled + 1 } : g,
+    );
+    return { ...s, students, groups, leaderboard: buildLeaderboard(students) };
+  });
+
+  return student;
+}
+
 /**
  * Teacher-scoped reads — the logical equivalent of Supabase RLS on `teacher_id`
  * until a real backend exists (see CLAUDE.md §4-د / TEACHER_MODULE_SPEC.md §4-د).

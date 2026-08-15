@@ -16,6 +16,7 @@ import {
   type Account,
   type CreatedCredentials,
 } from "@/lib/auth";
+import { createStudentRecord, getSubjectsForGrade, useDataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/owner/access")({
   head: () => ({
@@ -135,6 +136,154 @@ function ProvisionForm({ title, hint, icon: Icon, submitLabel, onCreate }: FormC
   );
 }
 
+/**
+ * CURRICULUM_ENGINE_SPEC.md §7: dedicated form, not the generic `ProvisionForm` —
+ * a student needs a group (to derive grade/group_name) and subject checkboxes,
+ * neither of which fit the shared name+phone shape used for teacher/staff.
+ *
+ * Fixes a real pre-existing gap found while building this: the old student
+ * `ProvisionForm` only created an `auth.ts` login account — no `Student` record
+ * in the central store ever got created from the UI, so a freshly-provisioned
+ * student's code matched nothing and `resolveCurrentStudent` silently fell back
+ * to `students[0]`. This form now creates both, linked by the same code.
+ */
+function StudentProvisionForm() {
+  const state = useDataStore();
+  const { groups } = state;
+  const [fullName, setFullName] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [created, setCreated] = useState<CreatedCredentials | null>(null);
+
+  const selectedGroup = groups.find((g) => g.id === groupId);
+  const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!fullName.trim() || !guardianName.trim() || !guardianPhone.trim()) {
+          toast.error("من فضلك أدخل كل البيانات");
+          return;
+        }
+        if (!groupId) {
+          toast.error("من فضلك اختر مجموعة");
+          return;
+        }
+        if (subjectIds.length === 0) {
+          toast.error("من فضلك اختر مادة واحدة على الأقل");
+          return;
+        }
+        const credentials = createStudent(fullName.trim(), guardianPhone.trim());
+        const record = createStudentRecord({
+          code: credentials.identifier,
+          fullName: fullName.trim(),
+          groupId,
+          guardianName: guardianName.trim(),
+          guardianPhone: guardianPhone.trim(),
+          subjectIds,
+        });
+        if (!record) {
+          toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
+          return;
+        }
+        setCreated(credentials);
+        setFullName("");
+        setGuardianName("");
+        setGuardianPhone("");
+        setGroupId("");
+        setSubjectIds([]);
+        toast.success(`تم توليد الكود: ${credentials.identifier}`);
+      }}
+      className="card-crisp space-y-3 p-5"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <GraduationCap className="size-5" />
+        </span>
+        <div>
+          <p className="text-lg font-black text-foreground">إضافة طالب</p>
+          <p className="text-xs font-bold text-muted-foreground">
+            يتم توليد كود الطالب (Student ID) تلقائياً
+          </p>
+        </div>
+      </div>
+
+      <input
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        placeholder="اسم الطالب بالكامل"
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+      />
+      <input
+        value={guardianName}
+        onChange={(e) => setGuardianName(e.target.value)}
+        placeholder="اسم ولي الأمر"
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+      />
+      <input
+        value={guardianPhone}
+        onChange={(e) => setGuardianPhone(e.target.value)}
+        placeholder="رقم هاتف ولي الأمر"
+        inputMode="tel"
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+      />
+      <select
+        value={groupId}
+        onChange={(e) => {
+          setGroupId(e.target.value);
+          setSubjectIds([]);
+        }}
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+      >
+        <option value="">اختر المجموعة</option>
+        {groups.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name} — {g.grade}
+          </option>
+        ))}
+      </select>
+
+      {selectedGroup ? (
+        <div>
+          <p className="mb-2 text-xs font-black text-muted-foreground">المواد المشترك بيها</p>
+          <div className="flex flex-wrap gap-2">
+            {availableSubjects.map((s) => (
+              <label
+                key={s.id}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-foreground has-checked:border-primary has-checked:bg-primary/10"
+              >
+                <input
+                  type="checkbox"
+                  checked={subjectIds.includes(s.id)}
+                  onChange={(e) =>
+                    setSubjectIds((prev) =>
+                      e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id),
+                    )
+                  }
+                  className="size-4"
+                />
+                {s.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <button
+        type="submit"
+        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
+      >
+        توليد كود الطالب
+      </button>
+
+      {created ? <CredentialCard data={created} /> : null}
+    </form>
+  );
+}
+
 function AccessManagement() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [invite, setInvite] = useState<CreatedCredentials | null>(null);
@@ -151,13 +300,7 @@ function AccessManagement() {
       description="إنشاء الحسابات وتوليد أكواد الدخول — لا يوجد تسجيل ذاتي للمستخدمين"
     >
       <div className="grid gap-4 lg:grid-cols-3">
-        <ProvisionForm
-          title="إضافة طالب"
-          hint="يتم توليد كود الطالب (Student ID) تلقائياً"
-          icon={GraduationCap}
-          submitLabel="توليد كود الطالب"
-          onCreate={createStudent}
-        />
+        <StudentProvisionForm />
         <ProvisionForm
           title="إضافة مدرس"
           hint="يتم توليد كود المدرس وكلمة السر"
