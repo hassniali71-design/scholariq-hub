@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,12 +20,14 @@ import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline
 import { formatNumber } from "@/lib/format";
 import {
   REASONABLE_EXTENSION_RATIO,
+  getData,
   getLatestReadyLesson,
   getLessonsForGroup,
   getQuestionsForLesson,
   getSlidesForLesson,
   getBookExerciseTask,
   getSessionRecordsForGroup,
+  getStudentsForGroup,
   getSuggestedActivityForLesson,
   recordAssessmentScore,
   recordAttendance,
@@ -54,7 +56,22 @@ const QUESTION_DURATIONS = [10, 15, 30] as const;
  */
 const SESSION_FLOW: SessionStepKey[] = ["lesson", "homework", "questions", "release"];
 
-export const Route = createFileRoute("/teacher/session")({
+export const Route = createFileRoute("/teacher/session/$groupId")({
+  /**
+   * Bug fix (real browser trial): session mode used to hardcode `groups[0]`,
+   * so every "ابدأ" button — no matter which group — landed on the same
+   * group's session. Now the route requires a real group id; an invalid one
+   * (bad/stale link) redirects back to the group list instead of crashing.
+   * Safe to check here (not just client-side like AppShell's auth gate)
+   * because `getData()` falls back to the seeded `SERVER_STATE` during SSR,
+   * which always has every seeded group.
+   */
+  beforeLoad: ({ params }) => {
+    const exists = getData().groups.some((g) => g.id === params.groupId);
+    if (!exists) {
+      throw redirect({ to: "/teacher" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "وضع الحصة — محرك التايمر الرباعي" },
@@ -74,12 +91,16 @@ export const Route = createFileRoute("/teacher/session")({
 });
 
 function SessionMode() {
+  const { groupId } = Route.useParams();
   const state = useDataStore();
-  const { groups, students, liveScores, attendanceRecords, subjects } = state;
-  const group = groups[0]!;
+  const { groups, liveScores, attendanceRecords, subjects } = state;
+  /** `beforeLoad` already guarantees this group exists. */
+  const group = groups.find((g) => g.id === groupId)!;
   const navigate = useNavigate();
-  /** "Today's" 6 students standing in for the group's real roster (demo data). */
-  const sessionStudents = useMemo(() => students.slice(0, 6), [students]);
+  const sessionStudents = useMemo(
+    () => getStudentsForGroup(state, group.id),
+    [state.students, group.id],
+  );
   /** §7-و: session mode only — never applied to AppShell (shared by every role). */
   const theme = getSubjectTheme(subjects.find((s) => s.id === group.subject_id)?.theme_key);
   const { computeHash } = useContentHash();
