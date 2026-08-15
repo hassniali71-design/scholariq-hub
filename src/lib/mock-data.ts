@@ -87,25 +87,24 @@ export const gradeSubjects: GradeSubject[] = grades.flatMap((g) => {
 });
 
 /**
- * Curriculum plan (§9) — دراسات / gd-3, matching gr-1. DESIGN_ATMOSPHERE_SPEC.md
+ * Curriculum plan (§9) — دراسات / gd-4, matching gr-1. DESIGN_ATMOSPHERE_SPEC.md
  * §0.2 reassigned gr-1's teacher (tc-1) from physics to دراسات, so the
  * physics-specific plan that used to live here (sub-1) no longer makes sense
  * under any subject; replaced with دراسات content under sub-4.
  *
- * KNOWN MISMATCH (CURRICULUM_ENGINE_SPEC.md §8, not fixed here by design): gd-3
- * is now "الثالث الابتدائي", and `gradeSubjects` above says 1st-3rd primary only
- * study عربي/إنجليزي/رياضيات — دراسات isn't supposed to exist below 4th grade.
- * The user's own instruction for this pass was "فقط grade_id يُحدَّث" (only
- * relabel, don't reshuffle which teacher/group has which grade), so this content
- * was deliberately left in place rather than silently moved to gd-4/5/6. Revisit
- * when the full curriculum skeleton (§8) is rebuilt with real content.
+ * FIXED (real browser trial caught this): this used to sit at gd-3, which
+ * `gradeSubjects` above says only studies عربي/إنجليزي/رياضيات — دراسات isn't
+ * supposed to exist below 4th grade. Moved gr-1 + this plan to gd-4 (per user
+ * decision — moving the grade, not tc-1's subject). gr-2/gr-4 (علوم at
+ * gd-3/gd-2) have the identical mismatch and are NOT fixed here — flagged
+ * separately, pending a decision on whether to fix those too.
  */
 export const curriculumUnits: CurriculumUnit[] = [
   {
     id: "cu-1",
     center_id: c,
     subject_id: "sub-4",
-    grade_id: "gd-3",
+    grade_id: "gd-4",
     name: "الوحدة الأولى — الجغرافيا الطبيعية لمصر",
     order: 1,
     planned_duration_days: 14,
@@ -114,7 +113,7 @@ export const curriculumUnits: CurriculumUnit[] = [
     id: "cu-2",
     center_id: c,
     subject_id: "sub-4",
-    grade_id: "gd-3",
+    grade_id: "gd-4",
     name: "الوحدة الثانية — تاريخ مصر الحديث",
     order: 2,
     planned_duration_days: 10,
@@ -170,7 +169,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10234",
     full_name: "أحمد محمود السيد",
-    grade: "الثالث الابتدائي",
+    grade: "الرابع الابتدائي",
     group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "محمود السيد",
@@ -255,7 +254,7 @@ export const students: Student[] = [
     center_id: c,
     code: "STD-10239",
     full_name: "ملك أشرف زكي",
-    grade: "الثالث الابتدائي",
+    grade: "الرابع الابتدائي",
     group_name: "دراسات - سبت 4م",
     group_id: "gr-1",
     guardian_name: "أشرف زكي",
@@ -478,8 +477,8 @@ export const groups: Group[] = [
     subject_id: "sub-4",
     teacher_name: "أ. مصطفى الجندي",
     teacher_id: "tc-1",
-    grade: "الثالث الابتدائي",
-    grade_id: "gd-3",
+    grade: "الرابع الابتدائي",
+    grade_id: "gd-4",
     weekday: "السبت",
     time: "04:00 م",
     room: "قاعة A1",
