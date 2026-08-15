@@ -77,7 +77,7 @@ function CompliancePage() {
       <Panel title="الالتزام حسب مرحلة الحصة" description="نسبة الحصص التي احترمت توقيت المرحلة">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SESSION_STEPS.map((step, i) => {
-            const value = stepCompliance[i]!.value;
+            const value = stepCompliance.find((s) => s.key === step.key)!.value;
             return (
               <div key={step.key} className="rounded-xl border-2 border-border p-4">
                 <div className="flex items-center justify-between">

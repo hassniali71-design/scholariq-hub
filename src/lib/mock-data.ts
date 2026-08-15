@@ -584,23 +584,25 @@ export const booklets: BookletItem[] = [
 /* ---------------- Session engine ---------------- */
 
 /**
- * Declaration order is NOT the on-screen flow order — owner.compliance.tsx maps a
- * separate `stepCompliance` array to this one positionally, so reordering here
- * would silently misalign that page. `SESSION_FLOW` in teacher.session.tsx
- * controls the actual presentation order (lesson → homework → questions → release).
+ * CURRICULUM_ENGINE_SPEC.md §3: declaration order now matches the real on-screen
+ * flow (شرح ← واجب/غياب ← أنشطة ← إطلاق, TEACHER_MODULE_SPEC.md §7-ب), same as
+ * `SESSION_FLOW` in teacher.session.tsx. owner.compliance.tsx used to map its
+ * `stepCompliance` array to this one positionally (order-sensitive); that lookup
+ * is now keyed by `step.key` instead, so this array's order is free to match
+ * reality without risking misalignment there.
  */
 export const SESSION_STEPS: SessionStep[] = [
-  {
-    key: "homework",
-    title: "تقييم الواجب المنزلي ورصد الغياب",
-    hint: "رصد سريع لتقييم الواجب وتسجيل حضور/غياب كل طالب بلمسة واحدة",
-    duration: 10 * 60,
-  },
   {
     key: "lesson",
     title: "الشرح التفاعلي للدرس",
     hint: "عرض الدرس بقالب موحد عالي التباين على الشاشة الذكية",
     duration: 30 * 60,
+  },
+  {
+    key: "homework",
+    title: "تقييم الواجب المنزلي ورصد الغياب",
+    hint: "رصد سريع لتقييم الواجب وتسجيل حضور/غياب كل طالب بلمسة واحدة",
+    duration: 10 * 60,
   },
   {
     key: "questions",

@@ -19,6 +19,7 @@ import {
   getLessonsForGroup,
   getQuestionsForLesson,
   getSlidesForLesson,
+  getSessionRecordsForGroup,
   recordAssessmentScore,
   recordAttendance,
   recordQuestionAnswer,
@@ -41,9 +42,7 @@ const QUESTION_DURATIONS = [10, 15, 30] as const;
 
 /**
  * On-screen presentation order (spec §7-ب: شرح ← واجب/غياب ← أنشطة ← إطلاق).
- * `SESSION_STEPS`' own declaration order stays untouched — owner.compliance.tsx
- * maps a separate array to it positionally, and reordering there would
- * silently misalign that page.
+ * `SESSION_STEPS` in mock-data.ts now declares the same order (CURRICULUM_ENGINE_SPEC.md §3).
  */
 const SESSION_FLOW: SessionStepKey[] = ["lesson", "homework", "questions", "release"];
 
@@ -127,9 +126,17 @@ function SessionMode() {
       setUploading(false);
     }
   }, [activeLesson, group.subject]);
+  /** CURRICULUM_ENGINE_SPEC.md §3: no prior SessionRecord for this group → nothing to grade yet. */
+  const isFirstSessionForGroup = useMemo(
+    () => getSessionRecordsForGroup(state, group.id).length === 0,
+    [state.sessionRecords, group.id],
+  );
   const orderedSteps = useMemo(
-    () => SESSION_FLOW.map((key) => SESSION_STEPS.find((s) => s.key === key)!),
-    [],
+    () =>
+      SESSION_FLOW.filter((key) => key !== "homework" || !isFirstSessionForGroup).map(
+        (key) => SESSION_STEPS.find((s) => s.key === key)!,
+      ),
+    [isFirstSessionForGroup],
   );
   const [stepIndex, setStepIndex] = useState(0);
   const [slideIndex, setSlideIndex] = useState(0);
