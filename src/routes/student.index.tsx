@@ -1,13 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, BookOpenCheck, CalendarCheck, Flame, Target } from "lucide-react";
+import {
+  Award,
+  BookOpenCheck,
+  CalendarCheck,
+  Flame,
+  Minus,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
 import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore } from "@/lib/data-store";
+import { getSubjectPerformanceSummary, useDataStore } from "@/lib/data-store";
 import { studentAttendanceSeries } from "@/lib/mock-data";
+
+const trendMeta = {
+  up: { icon: TrendingUp, tone: "success" as const, label: "في تحسّن" },
+  down: { icon: TrendingDown, tone: "destructive" as const, label: "في تراجع" },
+  same: { icon: Minus, tone: "neutral" as const, label: "مستقر" },
+};
 
 export const Route = createFileRoute("/student/")({
   head: () => ({
@@ -28,7 +43,8 @@ export const Route = createFileRoute("/student/")({
 });
 
 function StudentPortal() {
-  const { quizResults, homeworkTasks, leaderboard } = useDataStore();
+  const state = useDataStore();
+  const { quizResults, homeworkTasks, leaderboard, groups, subjects } = state;
   const me = useCurrentStudent();
   const myQuizzes = quizResults.filter((q) => q.student_id === me.id);
   const myHomework = homeworkTasks.filter((h) => h.student_id === me.id);
@@ -36,6 +52,16 @@ function StudentPortal() {
   const trend = myQuizzes
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
+
+  /**
+   * CURRICULUM_ENGINE_SPEC.md §5: subjects the student studies. Interim source
+   * until §7 (`Student.subject_ids`) lands — derived from the student's current
+   * group, so today this is always 0 or 1 subject; §7 will extend this to a real
+   * multi-subject list without changing how the section below renders it.
+   */
+  const myGroup = groups.find((g) => g.id === me.group_id);
+  const mySubject = subjects.find((s) => s.id === myGroup?.subject_id);
+  const mySubjects = mySubject ? [mySubject] : [];
 
   return (
     <AppShell
@@ -64,6 +90,39 @@ function StudentPortal() {
           trend="+١ عن الأسبوع الماضي"
         />
       </div>
+
+      {mySubjects.length > 0 ? (
+        <Panel title="مستواك حسب المادة" description="متوسط كل درجاتك المرتبطة بدروس فعلية">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {mySubjects.map((subject) => {
+              const summary = getSubjectPerformanceSummary(state, me.id, subject.id);
+              const meta = trendMeta[summary.trend];
+              return (
+                <div key={subject.id} className="rounded-xl border-2 border-border p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-black text-foreground">مستواك في {subject.name}</p>
+                    <StatusBadge tone={meta.tone}>
+                      <meta.icon className="size-3.5" /> {meta.label}
+                    </StatusBadge>
+                  </div>
+                  {summary.lessonsRecordedCount > 0 ? (
+                    <>
+                      <p className="kpi-number mt-3 text-3xl">{formatPercent(summary.overallAvg)}</p>
+                      <p className="mt-1 text-xs font-bold text-muted-foreground">
+                        عبر {formatNumber(summary.lessonsRecordedCount)} درس مسجَّل
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-3 text-sm font-bold text-muted-foreground">
+                      لا توجد درجات مسجَّلة بعد
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="منحنى نتائجي" description="نسبة الدرجات في آخر التقييمات">

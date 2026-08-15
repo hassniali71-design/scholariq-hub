@@ -355,6 +355,72 @@ export function getAssessmentScore(
   );
 }
 
+/** Lesson creation order recovered from its `lsn-<ms>` id — same technique as getTimerCompliance. */
+function lessonCreatedMs(lessonId: string): number {
+  return Number(lessonId.slice("lsn-".length));
+}
+
+/**
+ * Every `AssessmentScore` tied (via `lesson_id`) to a lesson in this subject (§5).
+ * Scores with a null `lesson_id` (general/retroactive entries from teacher.assessments.tsx)
+ * have no subject to attribute them to, so they're excluded here by design.
+ */
+export function getStudentScoresForSubject(
+  state: DataState,
+  studentId: string,
+  subjectId: string,
+): AssessmentScore[] {
+  const lessonIds = new Set(
+    state.lessons.filter((l) => l.subject_id === subjectId).map((l) => l.id),
+  );
+  return state.assessmentScores.filter(
+    (a) => a.student_id === studentId && a.lesson_id !== null && lessonIds.has(a.lesson_id),
+  );
+}
+
+function averagePercent(scores: AssessmentScore[]): number {
+  if (scores.length === 0) return 0;
+  const sum = scores.reduce((s, a) => s + (a.value / a.max_value) * 100, 0);
+  return Math.round(sum / scores.length);
+}
+
+export interface SubjectPerformanceSummary {
+  overallAvg: number;
+  trend: "up" | "down" | "same";
+  lessonsRecordedCount: number;
+}
+
+/** Student's rollup for one subject (§5) — updates automatically as new lesson scores land. */
+export function getSubjectPerformanceSummary(
+  state: DataState,
+  studentId: string,
+  subjectId: string,
+): SubjectPerformanceSummary {
+  const scores = getStudentScoresForSubject(state, studentId, subjectId);
+  const lessonIds = [...new Set(scores.map((s) => s.lesson_id!))].sort(
+    (a, b) => lessonCreatedMs(b) - lessonCreatedMs(a),
+  );
+  const [latestLessonId, previousLessonId] = lessonIds;
+  const currentAvg = latestLessonId
+    ? averagePercent(scores.filter((s) => s.lesson_id === latestLessonId))
+    : 0;
+  const previousAvg = previousLessonId
+    ? averagePercent(scores.filter((s) => s.lesson_id === previousLessonId))
+    : 0;
+  return {
+    overallAvg: averagePercent(scores),
+    trend:
+      latestLessonId && previousLessonId
+        ? currentAvg > previousAvg
+          ? "up"
+          : currentAvg < previousAvg
+            ? "down"
+            : "same"
+        : "same",
+    lessonsRecordedCount: lessonIds.length,
+  };
+}
+
 /**
  * Documented default (spec §7-ج doesn't give an exact %) — extension budget before
  * compliance visibly degrades. Shared by the live per-step badge (teacher.session.tsx)
