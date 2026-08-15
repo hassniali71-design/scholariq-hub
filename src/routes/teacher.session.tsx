@@ -26,6 +26,7 @@ import {
   getSlidesForLesson,
   getBookExerciseTask,
   getSessionRecordsForGroup,
+  getSuggestedActivityForLesson,
   recordAssessmentScore,
   recordAttendance,
   recordBookExerciseTask,
@@ -598,6 +599,14 @@ function SessionMode() {
                         toast.success("تم حفظ صفحات التمارين");
                       }}
                     />
+                    {/* CURRICULUM_ENGINE_SPEC.md §8: نشاط مقترح واحد لكل درس، مولّد وقت رفعه. */}
+                    {latestReadyLesson &&
+                    getSuggestedActivityForLesson(state, latestReadyLesson.id) ? (
+                      <TaskCard
+                        title="نشاط مقترح"
+                        text={getSuggestedActivityForLesson(state, latestReadyLesson.id)!.title}
+                      />
+                    ) : null}
                   </div>
                   <button
                     onClick={releaseTasks}

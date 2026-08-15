@@ -47,6 +47,7 @@ import type {
   SessionStepKey,
   Student,
   Subject,
+  SuggestedActivity,
   Teacher,
   TeacherNote,
   TimerExtension,
@@ -111,6 +112,7 @@ export interface DataState {
   curriculumUnits: CurriculumUnit[];
   curriculumLessons: CurriculumLesson[];
   bookExerciseTasks: BookExerciseTask[];
+  suggestedActivities: SuggestedActivity[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -187,6 +189,7 @@ function seedState(): DataState {
     curriculumUnits: seedCurriculumUnits.map((u) => ({ ...u })),
     curriculumLessons: seedCurriculumLessons.map((l) => ({ ...l })),
     bookExerciseTasks: [],
+    suggestedActivities: [],
   };
 }
 
@@ -983,6 +986,7 @@ export function completeLessonGeneration(
   lessonId: string,
   slides: Array<Omit<LessonSlide, "id" | "lesson_id">>,
   questions: Array<Omit<QuizQuestion, "id" | "lesson_id" | "source">>,
+  activity: Omit<SuggestedActivity, "id" | "lesson_id">,
 ) {
   update((state) => {
     const newSlides: LessonSlide[] = slides.map((s, i) => ({
@@ -996,13 +1000,27 @@ export function completeLessonGeneration(
       lesson_id: lessonId,
       source: "ai_generated",
     }));
+    const newActivity: SuggestedActivity = {
+      ...activity,
+      id: `act-${lessonId}`,
+      lesson_id: lessonId,
+    };
     return {
       ...state,
       lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, ai_status: "ready" } : l)),
       lessonSlides: [...state.lessonSlides, ...newSlides],
       sessionQuestions: [...state.sessionQuestions, ...newQuestions],
+      suggestedActivities: [...state.suggestedActivities, newActivity],
     };
   });
+}
+
+/** §8: the one suggested activity generated for a lesson. */
+export function getSuggestedActivityForLesson(
+  state: DataState,
+  lessonId: string,
+): SuggestedActivity | undefined {
+  return state.suggestedActivities.find((a) => a.lesson_id === lessonId);
 }
 
 /** Pipeline failure — session mode keeps working; teacher can retry or teach manually. */

@@ -7,7 +7,7 @@ import {
   retryLessonGeneration as flipLessonToProcessing,
   setLessonExtractedText,
 } from "@/lib/data-store";
-import type { LessonSlide, QuizQuestion } from "@/types";
+import type { LessonSlide, QuizQuestion, SuggestedActivity } from "@/types";
 
 /**
  * PDF → AI pipeline orchestration (TEACHER_MODULE_SPEC.md §7-د, §10).
@@ -72,8 +72,8 @@ async function generateInto(lessonId: string, fileName: string, subjectName: str
     setLessonExtractedText(lessonId, stubExtractText(fileName));
 
     await delay(800); // simulates real model latency
-    const { slides, questions } = stubGenerateContent(fileName, subjectName);
-    completeLessonGeneration(lessonId, slides, questions);
+    const { slides, questions, activity } = stubGenerateContent(fileName, subjectName);
+    completeLessonGeneration(lessonId, slides, questions, activity);
   } catch (err) {
     markLessonFailed(lessonId, err instanceof Error ? err.message : "فشل غير متوقع أثناء المعالجة");
   }
@@ -91,6 +91,7 @@ function stubGenerateContent(
 ): {
   slides: Array<Omit<LessonSlide, "id" | "lesson_id">>;
   questions: Array<Omit<QuizQuestion, "id" | "lesson_id" | "source">>;
+  activity: Omit<SuggestedActivity, "id" | "lesson_id">;
 } {
   const title = fileName.replace(/\.pdf$/i, "");
   const slides: Array<Omit<LessonSlide, "id" | "lesson_id">> = [
@@ -150,5 +151,16 @@ function stubGenerateContent(
       match_targets: ["تعريف المفهوم الأول", "تعريف المفهوم الثاني", "تعريف المفهوم الثالث"],
     },
   ];
-  return { slides, questions };
+  /**
+   * §8 — one activity per lesson. A deterministic placeholder like the rest of
+   * this stub (real content depends on the lesson's actual PDF, which isn't
+   * parsed yet — §10's real API key work), not random and not invented subject
+   * knowledge.
+   */
+  const activity: Omit<SuggestedActivity, "id" | "lesson_id"> = {
+    type: "practice",
+    title: `تدرّب على تطبيق درس "${title}"`,
+    description: `نشاط عملي قصير يربط مفاهيم ${subjectName} في هذا الدرس بمثال واقعي، لتثبيت الفهم بعد الحصة.`,
+  };
+  return { slides, questions, activity };
 }
