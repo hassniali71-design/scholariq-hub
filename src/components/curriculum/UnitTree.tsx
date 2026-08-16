@@ -3,7 +3,7 @@ import { LessonLinkCard } from "@/components/curriculum/LessonLinkCard";
 import { formatNumber, formatPercent } from "@/lib/format";
 import type { CurriculumLesson, CurriculumUnit, Lesson } from "@/types";
 
-const statusMeta: Record<
+export const curriculumLessonStatusMeta: Record<
   CurriculumLesson["status"],
   { text: string; tone: "success" | "warning" | "neutral" }
 > = {
@@ -44,7 +44,7 @@ export function UnitTree({
 
       <div className="mt-4 space-y-3">
         {lessons.map((l) => {
-          const meta = statusMeta[l.status];
+          const meta = curriculumLessonStatusMeta[l.status];
           const linked = l.linked_lesson_id ? findLinkedLesson(l.linked_lesson_id) : undefined;
           return (
             <div key={l.id} className="rounded-lg border-2 border-border p-3">

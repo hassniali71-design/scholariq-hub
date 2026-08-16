@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Frown, Meh, Pencil, Smile, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
@@ -12,6 +12,94 @@ export const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
   ordering: "ترتيب",
   matching: "توصيل",
 };
+
+/**
+ * §13-ج step 9 ("تقييم السلوك") — moved here (was inline in teacher.assessments.tsx)
+ * so both the live step and the review panel (past sessions) share one component.
+ */
+export const BEHAVIOR_LEVELS = [
+  { value: 0, label: "يحتاج انتباه", icon: Frown, tone: "destructive" as const },
+  { value: 5, label: "محايد", icon: Meh, tone: "warning" as const },
+  { value: 10, label: "إيجابي", icon: Smile, tone: "success" as const },
+];
+
+export function BehaviorButtons({
+  current,
+  onScore,
+}: {
+  current: number | undefined;
+  onScore: (value: number) => void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {BEHAVIOR_LEVELS.map((level) => (
+        <button
+          key={level.value}
+          type="button"
+          onClick={() => onScore(level.value)}
+          className={cn(
+            "flex flex-1 flex-col items-center gap-1 rounded-lg border-2 py-2 text-xs font-black transition-colors",
+            current === level.value
+              ? level.tone === "success"
+                ? "border-success bg-success/10 text-success"
+                : level.tone === "warning"
+                  ? "border-warning bg-warning/10 text-warning"
+                  : "border-destructive bg-destructive/10 text-destructive"
+              : "border-border hover:border-primary",
+          )}
+        >
+          <level.icon className="size-4" />
+          {level.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Same 0/2/4/6/8/10 quick-score grid used for homework/question retroactive corrections in review mode. */
+export function MiniScoreButtons({
+  current,
+  onScore,
+}: {
+  current: number | undefined;
+  onScore: (value: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {[0, 2, 4, 6, 8, 10].map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onScore(v)}
+          className={cn(
+            "size-7 rounded-md border-2 text-[11px] font-black transition-colors",
+            current === v
+              ? "border-navy bg-navy text-navy-foreground"
+              : "border-border hover:border-primary",
+          )}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export const ATTENDANCE_STATUS_META: Record<
+  AttendanceStatus,
+  { text: string; tone: "success" | "warning" | "destructive" }
+> = {
+  present: { text: "حاضر", tone: "success" },
+  late: { text: "متأخر", tone: "warning" },
+  absent: { text: "غائب", tone: "destructive" },
+};
+
+/** Cycles present → late → absent → present on click; unmarked starts at present. */
+export function nextAttendanceStatus(current: AttendanceStatus | undefined): AttendanceStatus {
+  if (current === "present") return "late";
+  if (current === "late") return "absent";
+  return "present";
+}
 
 /* -------- Step 1: homework evaluation + quick attendance -------- */
 

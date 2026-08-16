@@ -32,6 +32,8 @@ export interface RunLessonPipelineInput {
   subjectId: string;
   teacherId: string;
   subjectName: string;
+  /** §13-ب: explicit curriculum slot chosen by the teacher, or null to upload unlinked. */
+  curriculumLessonId: string | null;
 }
 
 export interface LessonPipelineResult {
@@ -53,6 +55,7 @@ export async function runLessonPipeline(
     input.teacherId,
     input.file.name,
     input.contentHash,
+    input.curriculumLessonId,
   );
 
   await generateInto(lessonId, input.file.name, input.subjectName);

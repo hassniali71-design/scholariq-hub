@@ -13,24 +13,31 @@ export const Route = createFileRoute("/owner/compliance")({
       { title: "التزام المدرسين بالتايمر — لوحة المالك" },
       {
         name: "description",
-        content: "مؤشرات SLA لالتزام المدرسين بمراحل الحصة الأربع وتايمر كل مرحلة.",
+        content: "مؤشرات SLA لالتزام المدرسين بخطوات الحصة الثمان وتايمر كل خطوة.",
       },
       { property: "og:title", content: "التزام المدرسين بالتايمر" },
       {
         property: "og:description",
-        content: "قياس التزام كل مدرس بمراحل الحصة الأربع ورصد المخالفات.",
+        content: "قياس التزام كل مدرس بخطوات الحصة الثمان ورصد المخالفات.",
       },
     ],
   }),
   component: CompliancePage,
 });
 
-/** Per-step compliance snapshot (mock aggregation of session telemetry). */
+/**
+ * Per-step compliance snapshot (mock aggregation of session telemetry).
+ * CURRICULUM_ENGINE_SPEC.md §13-ج's 8 timed steps — matches SessionStepKey.
+ */
 const stepCompliance = [
-  { key: "homework", value: 94 },
+  { key: "last_homework", value: 94 },
   { key: "lesson", value: 88 },
   { key: "questions", value: 81 },
-  { key: "release", value: 76 },
+  { key: "book_exercise", value: 90 },
+  { key: "activity_review", value: 92 },
+  { key: "release_homework", value: 85 },
+  { key: "release_e_homework", value: 83 },
+  { key: "behavior", value: 76 },
 ] as const;
 
 function CompliancePage() {
@@ -75,7 +82,7 @@ function CompliancePage() {
       </div>
 
       <Panel title="الالتزام حسب مرحلة الحصة" description="نسبة الحصص التي احترمت توقيت المرحلة">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SESSION_STEPS.map((step, i) => {
             const value = stepCompliance.find((s) => s.key === step.key)!.value;
             return (

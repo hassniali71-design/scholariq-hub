@@ -148,7 +148,23 @@ export interface BookletItem {
 
 /* ---------------- In-class session engine ---------------- */
 
-export type SessionStepKey = "homework" | "lesson" | "questions" | "release";
+/**
+ * CURRICULUM_ENGINE_SPEC.md §13-ج — 9-row table, final confirmed order; row 8
+ * ("حالة النشاط") has no independent timer ("بلا وقت مستقل") so it is not a
+ * step key here — it's derived status shown inside `release_homework`.
+ * "homework"/"release" (old keys) are gone; "last_homework" replaces
+ * "homework" (same grading+attendance screen, just repositioned first again —
+ * §13-ج explicitly reverses §3's earlier lesson-first order).
+ */
+export type SessionStepKey =
+  | "last_homework"
+  | "lesson"
+  | "questions"
+  | "book_exercise"
+  | "activity_review"
+  | "release_homework"
+  | "release_e_homework"
+  | "behavior";
 
 export interface SessionStep {
   key: SessionStepKey;
@@ -252,6 +268,10 @@ export interface SessionRecord {
   questions_asked_count: number;
   participants_count: number;
   homework_launch_status: "not_sent" | "sent";
+  /** §13-ج step 7 — separate from `homework_launch_status` (step 6's book-exercise release). */
+  e_homework_launch_status: "not_sent" | "sent";
+  /** §13-ج step 8 ("حالة النشاط"): true if marked done live in step 5 ("مراجعة النشاط المقترح"); false = it rode along in the step 6 homework release instead. */
+  activity_completed_in_session: boolean;
   duration_seconds: number;
   explanation_duration_seconds: number;
   extension_seconds: number;

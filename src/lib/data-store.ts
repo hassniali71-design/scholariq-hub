@@ -418,6 +418,14 @@ export function getSessionRecordsForGroup(state: DataState, groupId: string): Se
   return state.sessionRecords.filter((r) => r.group_id === groupId);
 }
 
+/** §13-ب: a lesson with a `SessionRecord` has been taught — the real "is this done?" signal (`Lesson.taught_status` is never actually written anywhere, so it can't be used for this). */
+export function getSessionRecordForLesson(
+  state: DataState,
+  lessonId: string,
+): SessionRecord | undefined {
+  return state.sessionRecords.find((r) => r.lesson_id === lessonId);
+}
+
 /** Subjects a grade actually studies (CURRICULUM_ENGINE_SPEC.md §8), via `GradeSubject`. */
 export function getSubjectsForGrade(state: DataState, gradeId: string): Subject[] {
   const subjectIds = new Set(
@@ -444,8 +452,12 @@ export function getCurriculumLessonsForUnit(state: DataState, unitId: string): C
     .sort((a, b) => a.order - b.order);
 }
 
-/** First not-yet-done planned lesson across a subject/grade's units, in curriculum order. */
-function getNextPlannedLesson(
+/**
+ * First not-yet-done planned lesson across a subject/grade's units, in curriculum
+ * order. §13-ب: exported so the session sidebar can pre-select it as a sensible
+ * default — `createLesson` no longer picks it automatically, the teacher does.
+ */
+export function getNextPlannedLesson(
   state: DataState,
   subjectId: string,
   gradeId: string,
@@ -542,6 +554,14 @@ export function getStudentScoresForSubject(
   return state.assessmentScores.filter(
     (a) => a.student_id === studentId && a.lesson_id !== null && lessonIds.has(a.lesson_id),
   );
+}
+
+/** §13-ب review mode: every score recorded against one specific lesson (any student, any category). */
+export function getAssessmentScoresForLesson(
+  state: DataState,
+  lessonId: string,
+): AssessmentScore[] {
+  return state.assessmentScores.filter((a) => a.lesson_id === lessonId);
 }
 
 function averagePercent(scores: AssessmentScore[]): number {
@@ -986,12 +1006,14 @@ export function getQuestionsForLesson(state: DataState, lessonId: string): QuizQ
   return state.sessionQuestions.filter((q) => q.lesson_id === lessonId);
 }
 
-/** Starts the pipeline: inserts a `processing` Lesson row. Returns its id. */
 /**
- * §9-ب "ذاكرة التشغيل": uploading a new lesson auto-links it to the group's next
- * not-done planned `CurriculumLesson` (same subject/grade) and flips that plan
- * entry to "in_progress" — no separate manual step, no independent logic here,
- * just data written once at the moment the event actually happens.
+ * Starts the pipeline: inserts a `processing` Lesson row. Returns its id.
+ *
+ * CURRICULUM_ENGINE_SPEC.md §13-ب: `curriculumLessonId` is now an explicit
+ * choice from the teacher (the session sidebar), not auto-picked via
+ * `getNextPlannedLesson` — a PDF upload attaches to whichever planned slot the
+ * teacher actually selected. Pass `null` to upload without linking to a plan
+ * entry (still creates a real Lesson; just doesn't advance any CurriculumLesson).
  */
 export function createLesson(
   groupId: string,
@@ -999,6 +1021,7 @@ export function createLesson(
   teacherId: string,
   sourceFileName: string,
   contentHash: string,
+  curriculumLessonId: string | null,
 ): string {
   const id = `lsn-${Date.now()}`;
   update((state) => {
@@ -1019,11 +1042,11 @@ export function createLesson(
       created_by_teacher_id: teacherId,
     };
 
-    const group = state.groups.find((g) => g.id === groupId);
-    const planned = group ? getNextPlannedLesson(state, subjectId, group.grade_id) : undefined;
-    const curriculumLessons = planned
+    const curriculumLessons = curriculumLessonId
       ? state.curriculumLessons.map((l) =>
-          l.id === planned.id ? { ...l, linked_lesson_id: id, status: "in_progress" as const } : l,
+          l.id === curriculumLessonId
+            ? { ...l, linked_lesson_id: id, status: "in_progress" as const }
+            : l,
         )
       : state.curriculumLessons;
 
@@ -1198,6 +1221,10 @@ export interface SessionSummaryInput {
   questionsAskedCount: number;
   participantsCount: number;
   homeworkLaunchStatus: "not_sent" | "sent";
+  /** §13-ج step 7. */
+  eHomeworkLaunchStatus: "not_sent" | "sent";
+  /** §13-ج step 8 — set from step 5's live toggle. */
+  activityCompletedInSession: boolean;
   durationSeconds: number;
   explanationDurationSeconds: number;
   extensionSeconds: number;
@@ -1219,6 +1246,8 @@ export function recordSessionSummary(input: SessionSummaryInput) {
       questions_asked_count: input.questionsAskedCount,
       participants_count: input.participantsCount,
       homework_launch_status: input.homeworkLaunchStatus,
+      e_homework_launch_status: input.eHomeworkLaunchStatus,
+      activity_completed_in_session: input.activityCompletedInSession,
       duration_seconds: input.durationSeconds,
       explanation_duration_seconds: input.explanationDurationSeconds,
       extension_seconds: input.extensionSeconds,

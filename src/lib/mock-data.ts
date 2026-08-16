@@ -682,37 +682,62 @@ export const booklets: BookletItem[] = [
 /* ---------------- Session engine ---------------- */
 
 /**
- * CURRICULUM_ENGINE_SPEC.md §3: declaration order now matches the real on-screen
- * flow (شرح ← واجب/غياب ← أنشطة ← إطلاق, TEACHER_MODULE_SPEC.md §7-ب), same as
- * `SESSION_FLOW` in teacher.session.tsx. owner.compliance.tsx used to map its
- * `stepCompliance` array to this one positionally (order-sensitive); that lookup
- * is now keyed by `step.key` instead, so this array's order is free to match
- * reality without risking misalignment there.
+ * CURRICULUM_ENGINE_SPEC.md §13-ج — final confirmed 9-row table (row 8, "حالة
+ * النشاط", has no independent timer, so it's not a step here — see
+ * SessionRecord.activity_completed_in_session). This REVERSES §3's earlier
+ * "lesson first" order — §13-ج is explicit ("أول خطوة، تقييم آخر مرة اتحطت")
+ * and is marked "مؤكد نهائياً من صاحب المشروع", so it supersedes §3.
+ * Declaration order = on-screen order (owner.compliance.tsx looks up by
+ * `step.key`, not position, so this stays safe to reorder).
  */
 export const SESSION_STEPS: SessionStep[] = [
+  {
+    key: "last_homework",
+    title: "تقييم واجب الحصة اللي فاتت ورصد الغياب",
+    hint: "رصد سريع لتقييم آخر واجب اتحط وتسجيل حضور/غياب كل طالب بلمسة واحدة",
+    duration: 10 * 60,
+  },
   {
     key: "lesson",
     title: "الشرح التفاعلي للدرس",
     hint: "عرض الدرس بقالب موحد عالي التباين على الشاشة الذكية",
-    duration: 30 * 60,
-  },
-  {
-    key: "homework",
-    title: "تقييم الواجب المنزلي ورصد الغياب",
-    hint: "رصد سريع لتقييم الواجب وتسجيل حضور/غياب كل طالب بلمسة واحدة",
-    duration: 10 * 60,
+    duration: 25 * 60,
   },
   {
     key: "questions",
     title: "الأنشطة التفاعلية — الأسئلة العشوائية",
     hint: "سحب اسم طالب عشوائياً مع تايمر لكل سؤال",
-    duration: 10 * 60,
+    duration: 8 * 60,
   },
   {
-    key: "release",
-    title: "إطلاق المهام والأنشطة",
-    hint: "إرسال الواجب والشيت الأسبوعي للطلاب وأولياء الأمور",
-    duration: 10 * 60,
+    key: "book_exercise",
+    title: "حل تمارين الكتاب — داخل الحصة",
+    hint: "أدخل أرقام الصفحات المطلوب حلها الآن",
+    duration: 3 * 60,
+  },
+  {
+    key: "activity_review",
+    title: "مراجعة النشاط المقترح",
+    hint: "استعراض النشاط المقترح للدرس تمهيداً لإطلاقه — بدون تقييم هنا",
+    duration: 3 * 60,
+  },
+  {
+    key: "release_homework",
+    title: "إطلاق واجب البيت — تمارين الكتاب",
+    hint: "أدخل أرقام الصفحات المطلوبة كواجب منزلي وأرسلها للطلاب",
+    duration: 2 * 60,
+  },
+  {
+    key: "release_e_homework",
+    title: "إطلاق واجب الويب سايت",
+    hint: "تأكيد إتاحة الواجب الإلكتروني للطلاب على المنصة",
+    duration: 2 * 60,
+  },
+  {
+    key: "behavior",
+    title: "تقييم السلوك",
+    hint: "رصد سلوك كل طالب طوال الحصة — آخر خطوة قبل إنهاء الحصة",
+    duration: 5 * 60,
   },
 ];
 
