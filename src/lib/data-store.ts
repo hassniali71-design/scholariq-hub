@@ -607,6 +607,36 @@ export function getSubjectPerformanceSummary(
   };
 }
 
+export interface OverallStudentPerformance {
+  overallAvg: number;
+  bySubject: { subject: Subject; summary: SubjectPerformanceSummary }[];
+}
+
+/**
+ * CURRICULUM_ENGINE_SPEC.md §13-هـ: an aggregation layer above `getSubjectPerformanceSummary`
+ * (§5, unchanged) — not a new calculation, just averages the per-subject rollups across every
+ * subject the student is enrolled in (`subject_ids`, §7).
+ */
+export function getOverallStudentPerformance(
+  state: DataState,
+  studentId: string,
+): OverallStudentPerformance {
+  const student = state.students.find((s) => s.id === studentId);
+  const bySubject = (student?.subject_ids ?? [])
+    .map((subjectId) => {
+      const subject = state.subjects.find((s) => s.id === subjectId);
+      return subject ? { subject, summary: getSubjectPerformanceSummary(state, studentId, subjectId) } : null;
+    })
+    .filter((entry): entry is { subject: Subject; summary: SubjectPerformanceSummary } => entry !== null);
+
+  const overallAvg =
+    bySubject.length > 0
+      ? Math.round(bySubject.reduce((sum, b) => sum + b.summary.overallAvg, 0) / bySubject.length)
+      : 0;
+
+  return { overallAvg, bySubject };
+}
+
 /**
  * Documented default (spec §7-ج doesn't give an exact %) — extension budget before
  * compliance visibly degrades. Shared by the live per-step badge (teacher.session.tsx)

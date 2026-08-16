@@ -26,6 +26,7 @@ import {
   diagnoseWeakPoint,
   getElectronicHomeworkForGroup,
   getElectronicHomeworkScore,
+  getOverallStudentPerformance,
   getPerformanceLabel,
   getSubjectPerformanceSummary,
   recordAssessmentScore,
@@ -175,6 +176,7 @@ function StudentPortal() {
   const mySubjects = me.subject_ids
     .map((id) => subjects.find((s) => s.id === id))
     .filter((s): s is (typeof subjects)[number] => s !== undefined);
+  const overallPerformance = getOverallStudentPerformance(state, me.id);
 
   return (
     <AppShell
@@ -203,6 +205,17 @@ function StudentPortal() {
           trend="+١ عن الأسبوع الماضي"
         />
       </div>
+
+      {mySubjects.length > 0 ? (
+        <Panel title="مستواك العام" description="متوسط مُجمَّع عبر كل المواد المشترك فيها">
+          <div className="flex flex-col items-center gap-1 py-4">
+            <p className="kpi-number text-5xl">{formatPercent(overallPerformance.overallAvg)}</p>
+            <p className="text-sm font-bold text-muted-foreground">
+              عبر {formatNumber(overallPerformance.bySubject.length)} مادة
+            </p>
+          </div>
+        </Panel>
+      ) : null}
 
       {mySubjects.length > 0 ? (
         <Panel title="مستواك حسب المادة" description="متوسط كل درجاتك المرتبطة بدروس فعلية">
