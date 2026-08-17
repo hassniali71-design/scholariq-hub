@@ -20,6 +20,14 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Secrets — never commit real Supabase keys
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local metadata (project ref, pooler URL, etc.) — machine-local, not project config
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
