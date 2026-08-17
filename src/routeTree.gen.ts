@@ -18,6 +18,7 @@ import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
+import { Route as PlatformLoginRouteImport } from './routes/platform.login'
 import { Route as PlatformNewCenterRouteImport } from './routes/platform.new-center'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
@@ -74,6 +75,11 @@ const ParentIndexRoute = ParentIndexRouteImport.update({
 const ParentMessagesRoute = ParentMessagesRouteImport.update({
   id: '/parent/messages',
   path: '/parent/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformLoginRoute = PlatformLoginRouteImport.update({
+  id: '/platform/login',
+  path: '/platform/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlatformNewCenterRoute = PlatformNewCenterRouteImport.update({
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/login'
     | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/login'
     | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/login'
     | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
@@ -287,6 +299,7 @@ export interface RootRouteChildren {
   OwnerFinanceRoute: typeof OwnerFinanceRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
   ParentMessagesRoute: typeof ParentMessagesRoute
+  PlatformLoginRoute: typeof PlatformLoginRoute
   PlatformNewCenterRoute: typeof PlatformNewCenterRoute
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/parent/messages'
       fullPath: '/parent/messages'
       preLoaderRoute: typeof ParentMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/login': {
+      id: '/platform/login'
+      path: '/platform/login'
+      fullPath: '/platform/login'
+      preLoaderRoute: typeof PlatformLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/platform/new-center': {
@@ -463,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerFinanceRoute: OwnerFinanceRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,
   ParentMessagesRoute: ParentMessagesRoute,
+  PlatformLoginRoute: PlatformLoginRoute,
   PlatformNewCenterRoute: PlatformNewCenterRoute,
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,

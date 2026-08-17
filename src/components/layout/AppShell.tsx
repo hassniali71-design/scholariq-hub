@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import { ROLES } from "@/config/roles";
 import { useDataStore } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
@@ -55,6 +56,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
 
   return (
     <div dir="rtl" className="flex min-h-screen bg-canvas">
+      <BrandLogo />
       {/* §11-أ: tenant accent — sidebar background only, independent of the 5 subject colors. */}
       <aside
         className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col text-navy-foreground md:flex"

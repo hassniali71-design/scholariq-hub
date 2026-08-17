@@ -3,6 +3,7 @@ import { BadgeCheck, Building2, Check, Copy, Download, LogOut } from "lucide-rea
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import { createCenter } from "@/lib/auth-functions.server";
 import { getSession, signOut } from "@/lib/auth";
 import { fetchCenterDataForAdmin } from "@/lib/data-functions.server";
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/platform/new-center")({
     if (typeof window !== "undefined") {
       const session = getSession();
       if (!session?.isPlatformAdmin) {
-        throw redirect({ to: "/" });
+        throw redirect({ to: "/platform/login" });
       }
     }
   },
@@ -93,6 +94,7 @@ function NewCenterPage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-canvas">
+      <BrandLogo />
       <header className="flex items-center justify-between border-b-2 border-border bg-navy px-6 py-4 text-navy-foreground">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-xl bg-white/15">
@@ -107,7 +109,7 @@ function NewCenterPage() {
           type="button"
           onClick={() => {
             signOut();
-            void navigate({ to: "/" });
+            void navigate({ to: "/platform/login" });
           }}
           className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"
         >
