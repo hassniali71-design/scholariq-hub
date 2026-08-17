@@ -1,0 +1,155 @@
+import * as XLSX from "xlsx";
+
+import type {
+  AttendanceRecord,
+  Group,
+  HomeworkTask,
+  PaymentRecord,
+  QuizResult,
+  Student,
+  Teacher,
+} from "@/types";
+
+/**
+ * SUPABASE_MIGRATION_SPEC.md §10-أ/ب — one sheet per entity, "كل شيت لكيان". Shared by both
+ * the owner's self-service export button and the platform admin's per-center export tool
+ * (§10-ب) — same workbook shape either way, just a different source of the rows.
+ */
+export interface CenterExportData {
+  centerName: string;
+  students: Student[];
+  teachers: Teacher[];
+  groups: Group[];
+  attendanceRecords: AttendanceRecord[];
+  payments: PaymentRecord[];
+  quizResults: QuizResult[];
+  homeworkTasks: HomeworkTask[];
+}
+
+function sheetFromRows<T extends Record<string, unknown>>(rows: T[]) {
+  return XLSX.utils.json_to_sheet(rows);
+}
+
+export function buildCenterWorkbook(data: CenterExportData): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.students.map((s) => ({
+        الكود: s.code,
+        الاسم: s.full_name,
+        الصف: s.grade,
+        المجموعة: s.group_name,
+        "اسم ولي الأمر": s.guardian_name,
+        "هاتف ولي الأمر": s.guardian_phone,
+        "حالة السداد": s.payment_status,
+        "المتبقي عليه": s.balance_due,
+        النقاط: s.points,
+        "نسبة الحضور": s.attendance_rate,
+        "متوسط الدرجات": s.avg_score,
+      })),
+    ),
+    "الطلاب",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.teachers.map((t) => ({
+        الاسم: t.full_name,
+        المادة: t.subject,
+        "عدد المجموعات": t.groups,
+        "عدد الطلاب": t.students,
+        "الالتزام بالتوقيت": t.timer_compliance,
+        "الإيراد الشهري": t.monthly_revenue,
+      })),
+    ),
+    "المدرسين",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.groups.map((g) => ({
+        الاسم: g.name,
+        المادة: g.subject,
+        المدرس: g.teacher_name,
+        الصف: g.grade,
+        اليوم: g.weekday,
+        الوقت: g.time,
+        القاعة: g.room,
+        المسجلون: g.enrolled,
+        السعة: g.capacity,
+      })),
+    ),
+    "المجموعات",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.attendanceRecords.map((a) => ({
+        الطالب: a.student_name,
+        المجموعة: a.group_name,
+        الحالة: a.status,
+        الوقت: a.checked_in_at,
+        الطريقة: a.method,
+      })),
+    ),
+    "الحضور",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.payments.map((p) => ({
+        الطالب: p.student_name,
+        الكود: p.student_code,
+        المبلغ: p.amount,
+        الطريقة: p.method,
+        البند: p.item,
+        التاريخ: p.created_at,
+      })),
+    ),
+    "المدفوعات",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.quizResults.map((q) => ({
+        الطالب: q.student_id,
+        المادة: q.subject,
+        العنوان: q.title,
+        التاريخ: q.date,
+        الدرجة: q.score,
+        "من إجمالي": q.max_score,
+      })),
+    ),
+    "الدرجات",
+  );
+
+  XLSX.utils.book_append_sheet(
+    wb,
+    sheetFromRows(
+      data.homeworkTasks.map((h) => ({
+        الطالب: h.student_id,
+        المادة: h.subject,
+        العنوان: h.title,
+        "موعد التسليم": h.due_date,
+        الحالة: h.status,
+        الدرجة: h.grade ?? "",
+      })),
+    ),
+    "الواجبات",
+  );
+
+  return wb;
+}
+
+export function downloadCenterExcel(data: CenterExportData) {
+  const wb = buildCenterWorkbook(data);
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `${data.centerName}-${stamp}.xlsx`, { bookType: "xlsx" });
+}

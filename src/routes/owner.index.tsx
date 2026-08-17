@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, Banknote, TrendingUp, UserCheck, Users, Wallet } from "lucide-react";
+import { AlertTriangle, Banknote, Download, TrendingUp, UserCheck, Users, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { AttendanceChart, PerformanceChart, RevenueChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { useDataStore } from "@/lib/data-store";
 import { attendanceSeries, performanceSeries, revenueSeries } from "@/lib/mock-data";
@@ -27,7 +29,8 @@ export const Route = createFileRoute("/owner/")({
 });
 
 function OwnerDashboard() {
-  const { students, teachers, groups } = useDataStore();
+  const state = useDataStore();
+  const { students, teachers, groups } = state;
   const totalStudents = students.length;
   const avgCompliance = Math.round(
     teachers.reduce((sum, t) => sum + t.timer_compliance, 0) / teachers.length,
@@ -40,6 +43,32 @@ function OwnerDashboard() {
       role="owner"
       title="برج التحكم"
       description="نظرة شاملة على أداء السنتر خلال شهر أغسطس ٢٠٢٦"
+      actions={
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              downloadCenterExcel({
+                centerName: "بيانات-السنتر",
+                students: state.students,
+                teachers: state.teachers,
+                groups: state.groups,
+                attendanceRecords: state.attendanceRecords,
+                payments: state.payments,
+                quizResults: state.quizResults,
+                homeworkTasks: state.homeworkTasks,
+              });
+              toast.success("تم تحضير ملف النسخة الاحتياطية");
+            } catch {
+              toast.error("تعذّر إنشاء ملف التصدير");
+            }
+          }}
+          className="flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-2.5 text-sm font-black text-foreground transition-colors hover:border-primary"
+        >
+          <Download className="size-4" />
+          تصدير نسخة احتياطية
+        </button>
+      }
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
