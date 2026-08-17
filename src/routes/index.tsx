@@ -56,9 +56,13 @@ function LoginGate() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const result = signIn({ role, identifier, password });
+    setSubmitting(true);
+    const result = await signIn({ role, identifier, password });
+    setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
       toast.error(result.error);
@@ -66,7 +70,7 @@ function LoginGate() {
     }
     setError(null);
     toast.success(`مرحباً ${result.session.full_name}`);
-    navigate({ to: ROLES[role].home });
+    navigate({ to: result.session.isPlatformAdmin ? "/platform/new-center" : ROLES[role].home });
   }
 
   function useDemoOwner() {
@@ -158,10 +162,11 @@ function LoginGate() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3.5 text-base font-black text-navy-foreground transition-opacity hover:opacity-90"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3.5 text-base font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               <LogIn className="size-5" />
-              دخول
+              {submitting ? "جارٍ الدخول…" : "دخول"}
             </button>
 
             <div className="rounded-xl border-2 border-dashed border-border bg-muted/60 p-4">

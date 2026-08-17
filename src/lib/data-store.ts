@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
+import { getSession } from "@/lib/auth";
 import {
   CURRENT_TENANT,
   SESSION_STEPS,
@@ -21,6 +23,14 @@ import {
   teachers as seedTeachers,
   whatsappLogs as seedWhatsapp,
 } from "@/lib/mock-data";
+import {
+  deleteRows,
+  fetchCenterData,
+  insertRow,
+  updateRow,
+  upsertRow,
+  type TableName,
+} from "@/lib/data-functions.server";
 import type {
   AssessmentScore,
   AttendanceRecord,
@@ -58,14 +68,85 @@ import type {
 /**
  * Central client-side data store (single source of truth).
  *
- * Mirrors the `src/lib/auth.ts` pattern: localStorage persistence + a
- * subscribe/emit bus so every role portal reacts to the same events.
+ * SUPABASE_MIGRATION_SPEC.md §5: now backed by Supabase instead of localStorage, behind
+ * `USE_SUPABASE` for a fast revert. The public API (every exported function/hook below) is
+ * unchanged on purpose — every route file that already calls these keeps working with zero
+ * edits; only what happens *inside* each function changed.
  *
- * Every entity keeps its `center_id`, so replacing the read/write helpers with
- * Supabase queries (guarded by RLS on `center_id`) is a drop-in change:
- * only `readState` / `writeState` and the mutation bodies need to talk to the
- * network instead of localStorage — component code stays identical.
+ * Pattern per mutation: apply the change to the in-memory state immediately (same as before
+ * — instant UI feedback, no route needs to `await` a mutation it never awaited previously),
+ * then fire a matching Supabase write in the background via `syncInsert`/`syncUpdate`/
+ * `syncUpsert`/`syncDelete`. A failed background write shows a toast but never blocks or
+ * rolls back the local UI — this app has no offline-conflict story yet (documented gap,
+ * same spirit as §7's deferred RLS).
  */
+export const USE_SUPABASE = true;
+
+const CENTER_ID = CURRENT_TENANT.center_id;
+
+/* ---------------- Supabase sync helpers ---------------- */
+
+function currentIdentifier(): string | null {
+  return getSession()?.identifier ?? null;
+}
+
+function reportSyncFailure(table: string, err: unknown) {
+  console.error(`[data-store] Supabase sync failed for ${table}:`, err);
+  toast.error("تعذّر الحفظ على الخادم", { description: "التغيير ظاهر عندك الآن لكنه لسه مايتزامنش." });
+}
+
+/**
+ * `row`/`patch` accept any plain object (every `DataState` row type — `Student`, `Lesson`,
+ * etc.) rather than `Record<string, unknown>`: those interfaces have no index signature, so
+ * TS rejects passing them where `Record<string, unknown>` is expected even though the actual
+ * shape is fine — the server function's own validator is the real runtime check.
+ */
+type PlainRow = Record<string, unknown>;
+
+function syncInsert(table: TableName, row: object) {
+  if (!USE_SUPABASE) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  void insertRow({ data: { identifier, table, row: row as PlainRow } }).catch((err) =>
+    reportSyncFailure(table, err),
+  );
+}
+
+function syncBulkInsert(table: TableName, rows: object[]) {
+  if (!USE_SUPABASE || rows.length === 0) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  for (const row of rows) {
+    void insertRow({ data: { identifier, table, row: row as PlainRow } }).catch((err) =>
+      reportSyncFailure(table, err),
+    );
+  }
+}
+
+function syncUpdate(table: TableName, id: string, patch: object, idColumn?: string) {
+  if (!USE_SUPABASE) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  void updateRow({
+    data: { identifier, table, id, patch: patch as PlainRow, ...(idColumn ? { idColumn } : {}) },
+  }).catch((err) => reportSyncFailure(table, err));
+}
+
+function syncUpsert(table: TableName, row: object, onConflict = "id") {
+  if (!USE_SUPABASE) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  void upsertRow({ data: { identifier, table, row: row as PlainRow, onConflict } }).catch((err) =>
+    reportSyncFailure(table, err),
+  );
+}
+
+function syncDeleteAll(table: TableName) {
+  if (!USE_SUPABASE) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  void deleteRows({ data: { identifier, table } }).catch((err) => reportSyncFailure(table, err));
+}
 
 /**
  * Root cause of a recurring class of bug (hit twice now): `readState` merges
@@ -80,7 +161,8 @@ import type {
  *
  * Fix: derive the key from an actual fingerprint of the seed data itself, so
  * ANY future edit to any seed array auto-invalidates old snapshots — no
- * manual step to forget again.
+ * manual step to forget again. (Still used as the `USE_SUPABASE = false`
+ * fallback storage key, and as the in-memory placeholder seed either way.)
  */
 function fingerprintSeed(): string {
   const raw = JSON.stringify([
@@ -111,7 +193,6 @@ function fingerprintSeed(): string {
 }
 
 const STORAGE_KEY = `erp.data.v3.${fingerprintSeed()}`;
-const CENTER_ID = CURRENT_TENANT.center_id;
 
 export interface ShiftClosure {
   id: string;
@@ -238,7 +319,7 @@ function seedState(): DataState {
   };
 }
 
-/** Immutable snapshot used during SSR / before hydration. */
+/** Immutable snapshot used during SSR / before hydration — and the `USE_SUPABASE` loading placeholder. */
 const SERVER_STATE: DataState = seedState();
 
 /* ---------------- Store core (subscribe / emit) ---------------- */
@@ -257,8 +338,56 @@ export function subscribeData(listener: () => void) {
   };
 }
 
+/**
+ * §5/§9 isolation: tracks which logged-in identifier `cache` currently holds data for, so
+ * switching accounts in the same browser tab (logout → login as a different center) forces
+ * a fresh fetch instead of briefly showing the previous tenant's cached rows. `null` means
+ * "logged out" (or not yet hydrated) — the seed placeholder is served in that state.
+ */
+let hydratedForIdentifier: string | null = null;
+let hydrating = false;
+
+function bootstrapFromSupabase() {
+  if (!USE_SUPABASE || typeof window === "undefined") return;
+  const identifier = currentIdentifier();
+
+  if (!identifier) {
+    if (hydratedForIdentifier !== null) {
+      hydratedForIdentifier = null;
+      cache = seedState();
+    }
+    return;
+  }
+  if (hydrating || hydratedForIdentifier === identifier) return;
+
+  hydrating = true;
+  fetchCenterData({ data: { identifier } })
+    .then((result) => {
+      const { centerId: _centerId, ...collections } = result as { centerId: string } & Record<string, unknown[]>;
+      cache = { ...seedState(), ...collections } as DataState;
+      cache.leaderboard = buildLeaderboard(cache.students);
+      hydratedForIdentifier = identifier;
+      emit();
+    })
+    .catch((err) => {
+      console.error("[data-store] fetchCenterData failed:", err);
+      toast.error("تعذّر تحميل بيانات المركز من الخادم");
+    })
+    .finally(() => {
+      hydrating = false;
+    });
+}
+
 function readState(): DataState {
   if (typeof window === "undefined") return SERVER_STATE;
+
+  if (USE_SUPABASE) {
+    if (!cache) cache = seedState();
+    bootstrapFromSupabase();
+    return cache;
+  }
+
+  // Legacy localStorage path — kept behind the flag per §5 for a fast revert.
   if (cache) return cache;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (raw) {
@@ -277,7 +406,7 @@ function readState(): DataState {
 
 function writeState(next: DataState) {
   cache = next;
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !USE_SUPABASE) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
   emit();
@@ -291,8 +420,9 @@ export function getData(): DataState {
   return readState();
 }
 
-/** Wipes persisted data and returns to the seeded snapshot. */
+/** Wipes persisted data and returns to the seeded snapshot (local cache only — does not touch Supabase). */
 export function resetData() {
+  hydratedForIdentifier = null;
   writeState(seedState());
 }
 
@@ -390,6 +520,8 @@ export function createStudentRecord(input: CreateStudentInput): Student | null {
     );
     return { ...s, students, groups, leaderboard: buildLeaderboard(students) };
   });
+  syncInsert("students", student);
+  syncUpdate("groups", group.id, { enrolled: group.enrolled + 1 });
 
   return student;
 }
@@ -714,10 +846,13 @@ export function recordAttendance(
   method: AttendanceRecord["method"],
   sessionId?: string,
 ) {
+  let record: AttendanceRecord | null = null;
+  let log: WhatsAppLog | null = null;
+  let event: SessionEvent | null = null;
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
-    const record: AttendanceRecord = {
+    record = {
       id: `at-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -728,7 +863,7 @@ export function recordAttendance(
       method,
       session_id: sessionId ?? null,
     };
-    const log: WhatsAppLog = {
+    log = {
       id: `wa-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -740,9 +875,11 @@ export function recordAttendance(
           : `تم تسجيل حضور الطالب ${student.full_name} في حصة ${student.group_name} الساعة ${record.checked_in_at}.`,
       delivered: true,
     };
-    const sessionEvents = sessionId
-      ? [buildSessionEvent(sessionId, student.id, "attendance", { status, method }), ...state.sessionEvents]
-      : state.sessionEvents;
+    let sessionEvents = state.sessionEvents;
+    if (sessionId) {
+      event = buildSessionEvent(sessionId, student.id, "attendance", { status, method });
+      sessionEvents = [event, ...state.sessionEvents];
+    }
     return {
       ...state,
       attendanceRecords: [record, ...state.attendanceRecords],
@@ -750,6 +887,9 @@ export function recordAttendance(
       sessionEvents,
     };
   });
+  if (record) syncInsert("attendance_records", record);
+  if (log) syncInsert("whatsapp_logs", log);
+  if (event) syncInsert("session_events", event);
 }
 
 /** The recorded status for a student in one specific past session — a grid cell (§18-3). */
@@ -773,11 +913,12 @@ export function updateAttendanceForSession(
   sessionId: string,
   status: AttendanceStatus,
 ) {
+  let record: AttendanceRecord | null = null;
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
     const existing = getAttendanceForSession(state, studentId, sessionId);
-    const record: AttendanceRecord = {
+    record = {
       id: existing?.id ?? `at-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -789,10 +930,11 @@ export function updateAttendanceForSession(
       session_id: sessionId,
     };
     const attendanceRecords = existing
-      ? state.attendanceRecords.map((a) => (a.id === existing.id ? record : a))
+      ? state.attendanceRecords.map((a) => (a.id === existing.id ? record! : a))
       : [record, ...state.attendanceRecords];
     return { ...state, attendanceRecords };
   });
+  if (record) syncUpsert("attendance_records", record);
 }
 
 export function recordPayment(
@@ -801,10 +943,15 @@ export function recordPayment(
   method: PaymentMethod,
   item: string,
 ) {
+  let payment: PaymentRecord | null = null;
+  let log: WhatsAppLog | null = null;
+  let updatedStudentId: string | null = null;
+  let updatedBalanceDue = 0;
+  let updatedPaymentStatus: Student["payment_status"] = "pending";
   update((state) => {
     const student = findStudentByCode(state, studentCode);
     if (!student) return state;
-    const payment: PaymentRecord = {
+    payment = {
       id: `pm-${Date.now()}`,
       center_id: student.center_id,
       student_name: student.full_name,
@@ -815,16 +962,13 @@ export function recordPayment(
       created_at: nowTime(),
     };
     const remaining = Math.max(0, student.balance_due - amount);
-    const students = state.students.map((s) =>
-      s.id === student.id
-        ? {
-            ...s,
-            balance_due: remaining,
-            payment_status: remaining === 0 ? "paid" : s.payment_status,
-          }
-        : s,
-    ) as Student[];
-    const log: WhatsAppLog = {
+    updatedStudentId = student.id;
+    updatedBalanceDue = remaining;
+    updatedPaymentStatus = remaining === 0 ? "paid" : student.payment_status;
+    const students = state.students.map((s): Student =>
+      s.id === student.id ? { ...s, balance_due: remaining, payment_status: updatedPaymentStatus } : s,
+    );
+    log = {
       id: `wa-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -840,23 +984,38 @@ export function recordPayment(
       whatsappLogs: [log, ...state.whatsappLogs],
     };
   });
+  if (payment) syncInsert("payments", payment);
+  if (log) syncInsert("whatsapp_logs", log);
+  if (updatedStudentId) {
+    syncUpdate("students", updatedStudentId, {
+      balance_due: updatedBalanceDue,
+      payment_status: updatedPaymentStatus,
+    });
+  }
 }
 
 export function deliverBooklet(bookletId: string) {
+  let nextInStock: number | null = null;
+  let nextDelivered: number | null = null;
   update((state) => ({
     ...state,
-    booklets: state.booklets.map((b) =>
-      b.id === bookletId && b.in_stock > 0
-        ? { ...b, in_stock: b.in_stock - 1, delivered: b.delivered + 1 }
-        : b,
-    ),
+    booklets: state.booklets.map((b) => {
+      if (b.id !== bookletId || b.in_stock <= 0) return b;
+      nextInStock = b.in_stock - 1;
+      nextDelivered = b.delivered + 1;
+      return { ...b, in_stock: nextInStock, delivered: nextDelivered };
+    }),
   }));
+  if (nextInStock !== null) {
+    syncUpdate("booklets", bookletId, { in_stock: nextInStock, delivered: nextDelivered });
+  }
 }
 
 export function closeShift(countedAmount: number) {
+  let closure: ShiftClosure | null = null;
   update((state) => {
     const expected = state.payments.reduce((sum, p) => sum + p.amount, 0);
-    const closure: ShiftClosure = {
+    closure = {
       id: `sh-${Date.now()}`,
       center_id: CENTER_ID,
       expected,
@@ -866,6 +1025,7 @@ export function closeShift(countedAmount: number) {
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
+  if (closure) syncInsert("shift_closures", closure);
 }
 
 function ensureLiveScore(state: DataState, student: Student): LiveScore {
@@ -882,22 +1042,28 @@ function ensureLiveScore(state: DataState, student: Student): LiveScore {
 
 /** Homework evaluation inside session mode — persists to the student record. */
 export function scoreHomework(studentId: string, value: number, sessionId?: string) {
+  let nextLiveScore: LiveScore | null = null;
+  let nextPoints: number | null = null;
+  let gradedTask: HomeworkTask | null = null;
+  let event: SessionEvent | null = null;
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
     const current = ensureLiveScore(state, student);
     const delta = (value - (current.homework_score ?? 0)) * 5;
-    const nextScore: LiveScore = {
+    nextLiveScore = {
       ...current,
       homework_score: value,
       points: current.points + delta,
     };
-    const students = state.students.map((s) =>
-      s.id === student.id ? { ...s, points: s.points + delta } : s,
-    );
+    const students = state.students.map((s) => {
+      if (s.id !== student.id) return s;
+      nextPoints = s.points + delta;
+      return { ...s, points: nextPoints };
+    });
 
     const taskId = `hw-live-${student.id}`;
-    const graded: HomeworkTask = {
+    gradedTask = {
       id: taskId,
       center_id: student.center_id,
       student_id: student.id,
@@ -908,60 +1074,78 @@ export function scoreHomework(studentId: string, value: number, sessionId?: stri
       grade: value,
     };
     const exists = state.homeworkTasks.some((h) => h.id === taskId);
-    const sessionEvents = sessionId
-      ? [buildSessionEvent(sessionId, student.id, "homework_score", { value }), ...state.sessionEvents]
-      : state.sessionEvents;
+    let sessionEvents = state.sessionEvents;
+    if (sessionId) {
+      event = buildSessionEvent(sessionId, student.id, "homework_score", { value });
+      sessionEvents = [event, ...state.sessionEvents];
+    }
 
     return {
       ...state,
       students,
       leaderboard: buildLeaderboard(students),
-      liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextScore],
+      liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextLiveScore],
       homeworkTasks: exists
-        ? state.homeworkTasks.map((h) => (h.id === taskId ? graded : h))
-        : [graded, ...state.homeworkTasks],
+        ? state.homeworkTasks.map((h) => (h.id === taskId ? gradedTask! : h))
+        : [gradedTask, ...state.homeworkTasks],
       sessionEvents,
     };
   });
+  if (nextLiveScore) syncUpsert("live_scores", nextLiveScore, "student_id");
+  if (nextPoints !== null) syncUpdate("students", studentId, { points: nextPoints });
+  if (gradedTask) syncUpsert("homework_tasks", gradedTask);
+  if (event) syncInsert("session_events", event);
 }
 
 /** Random-question answer inside session mode — updates points + leaderboard. */
 export function recordQuestionAnswer(studentId: string, correct: boolean, sessionId?: string) {
+  let nextLiveScore: LiveScore | null = null;
+  let nextPoints: number | null = null;
+  let event: SessionEvent | null = null;
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
     const current = ensureLiveScore(state, student);
     const gain = correct ? 50 : 0;
-    const nextScore: LiveScore = {
+    nextLiveScore = {
       ...current,
       question_score: correct ? 10 : 0,
       points: current.points + gain,
     };
-    const students = state.students.map((s) =>
-      s.id === student.id ? { ...s, points: s.points + gain } : s,
-    );
-    const sessionEvents = sessionId
-      ? [buildSessionEvent(sessionId, student.id, "question_answer", { correct }), ...state.sessionEvents]
-      : state.sessionEvents;
+    const students = state.students.map((s) => {
+      if (s.id !== student.id) return s;
+      nextPoints = s.points + gain;
+      return { ...s, points: nextPoints };
+    });
+    let sessionEvents = state.sessionEvents;
+    if (sessionId) {
+      event = buildSessionEvent(sessionId, student.id, "question_answer", { correct });
+      sessionEvents = [event, ...state.sessionEvents];
+    }
     return {
       ...state,
       students,
       leaderboard: buildLeaderboard(students),
-      liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextScore],
+      liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextLiveScore],
       sessionEvents,
     };
   });
+  if (nextLiveScore) syncUpsert("live_scores", nextLiveScore, "student_id");
+  if (nextPoints !== null) syncUpdate("students", studentId, { points: nextPoints });
+  if (event) syncInsert("session_events", event);
 }
 
 /** Releases homework + weekly sheet to every student of the group and notifies guardians. */
 export function releaseSessionTasks(groupId: string) {
+  let tasks: HomeworkTask[] = [];
+  let logs: WhatsAppLog[] = [];
   update((state) => {
     const group = state.groups.find((g) => g.id === groupId);
     if (!group) return state;
     const members = state.students.filter((s) => s.group_name === group.name);
     const stamp = Date.now();
 
-    const tasks: HomeworkTask[] = members.map((s, i) => ({
+    tasks = members.map((s, i) => ({
       id: `hw-${stamp}-${i}`,
       center_id: s.center_id,
       student_id: s.id,
@@ -971,7 +1155,7 @@ export function releaseSessionTasks(groupId: string) {
       status: "pending",
     }));
 
-    const logs: WhatsAppLog[] = members.map((s, i) => ({
+    logs = members.map((s, i) => ({
       id: `wa-${stamp}-${i}`,
       center_id: s.center_id,
       student_id: s.id,
@@ -987,15 +1171,18 @@ export function releaseSessionTasks(groupId: string) {
       whatsappLogs: [...logs, ...state.whatsappLogs],
     };
   });
+  syncBulkInsert("homework_tasks", tasks);
+  syncBulkInsert("whatsapp_logs", logs);
 }
 
 /** Teacher dashboard "أضف ملاحظتك" quick note (§6-هـ) — persists to the student's record. */
 export function addTeacherNote(studentId: string, teacherId: string, note: string) {
+  let entry: TeacherNote | null = null;
   update((state) => {
     const student = findStudentById(state, studentId);
     const teacher = state.teachers.find((t) => t.id === teacherId);
     if (!student || !teacher || !note.trim()) return state;
-    const entry: TeacherNote = {
+    entry = {
       id: `tn-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -1008,6 +1195,7 @@ export function addTeacherNote(studentId: string, teacherId: string, note: strin
     };
     return { ...state, teacherNotes: [entry, ...state.teacherNotes] };
   });
+  if (entry) syncInsert("teacher_notes", entry);
 }
 
 /* ---------------- Session mode: lessons (PDF → AI pipeline, §7-د/10) ---------------- */
@@ -1054,6 +1242,7 @@ export function createLesson(
   curriculumLessonId: string | null,
 ): string {
   const id = `lsn-${Date.now()}`;
+  let linkedCurriculumLessonId: string | null = null;
   update((state) => {
     const lesson: Lesson = {
       id,
@@ -1073,15 +1262,22 @@ export function createLesson(
     };
 
     const curriculumLessons = curriculumLessonId
-      ? state.curriculumLessons.map((l) =>
-          l.id === curriculumLessonId
-            ? { ...l, linked_lesson_id: id, status: "in_progress" as const }
-            : l,
-        )
+      ? state.curriculumLessons.map((l) => {
+          if (l.id !== curriculumLessonId) return l;
+          linkedCurriculumLessonId = l.id;
+          return { ...l, linked_lesson_id: id, status: "in_progress" as const };
+        })
       : state.curriculumLessons;
 
     return { ...state, lessons: [lesson, ...state.lessons], curriculumLessons };
   });
+  syncInsert("lessons", getData().lessons.find((l) => l.id === id)!);
+  if (linkedCurriculumLessonId) {
+    syncUpdate("curriculum_lessons", linkedCurriculumLessonId, {
+      linked_lesson_id: id,
+      status: "in_progress",
+    });
+  }
   return id;
 }
 
@@ -1090,6 +1286,7 @@ export function setLessonExtractedText(lessonId: string, text: string) {
     ...state,
     lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, extracted_text: text } : l)),
   }));
+  syncUpdate("lessons", lessonId, { extracted_text: text });
 }
 
 /** Pipeline success — stores the generated slides + questions and flips the lesson to "ready". */
@@ -1099,19 +1296,23 @@ export function completeLessonGeneration(
   questions: Array<Omit<QuizQuestion, "id" | "lesson_id" | "source">>,
   activity: Omit<SuggestedActivity, "id" | "lesson_id">,
 ) {
+  let newSlides: LessonSlide[] = [];
+  let newQuestions: QuizQuestion[] = [];
+  let newActivity: SuggestedActivity | null = null;
+  let newElectronicHomework: ElectronicHomework | null = null;
   update((state) => {
-    const newSlides: LessonSlide[] = slides.map((s, i) => ({
+    newSlides = slides.map((s, i) => ({
       ...s,
       id: `sl-${lessonId}-${i}`,
       lesson_id: lessonId,
     }));
-    const newQuestions: QuizQuestion[] = questions.map((q, i) => ({
+    newQuestions = questions.map((q, i) => ({
       ...q,
       id: `q-${lessonId}-${i}`,
       lesson_id: lessonId,
       source: "ai_generated",
     }));
-    const newActivity: SuggestedActivity = {
+    newActivity = {
       ...activity,
       id: `act-${lessonId}`,
       lesson_id: lessonId,
@@ -1122,27 +1323,31 @@ export function completeLessonGeneration(
      * generated set.
      */
     const lessonGroupId = state.lessons.find((l) => l.id === lessonId)?.group_id;
-    const newElectronicHomeworks = lessonGroupId
-      ? [
-          ...state.electronicHomeworks,
-          {
-            id: `eh-${lessonId}`,
-            lesson_id: lessonId,
-            group_id: lessonGroupId,
-            questions: newQuestions,
-            due_at: "خلال ٣ أيام",
-          },
-        ]
-      : state.electronicHomeworks;
+    let electronicHomeworks = state.electronicHomeworks;
+    if (lessonGroupId) {
+      newElectronicHomework = {
+        id: `eh-${lessonId}`,
+        lesson_id: lessonId,
+        group_id: lessonGroupId,
+        questions: newQuestions,
+        due_at: "خلال ٣ أيام",
+      };
+      electronicHomeworks = [...state.electronicHomeworks, newElectronicHomework];
+    }
     return {
       ...state,
       lessons: state.lessons.map((l) => (l.id === lessonId ? { ...l, ai_status: "ready" } : l)),
       lessonSlides: [...state.lessonSlides, ...newSlides],
       sessionQuestions: [...state.sessionQuestions, ...newQuestions],
       suggestedActivities: [...state.suggestedActivities, newActivity],
-      electronicHomeworks: newElectronicHomeworks,
+      electronicHomeworks,
     };
   });
+  syncUpdate("lessons", lessonId, { ai_status: "ready" });
+  syncBulkInsert("lesson_slides", newSlides);
+  syncBulkInsert("session_questions", newQuestions);
+  if (newActivity) syncInsert("suggested_activities", newActivity);
+  if (newElectronicHomework) syncInsert("electronic_homeworks", newElectronicHomework);
 }
 
 /** §8: a group's electronic homework for its latest-ready lesson, if any. */
@@ -1169,6 +1374,7 @@ export function markLessonFailed(lessonId: string, error: string) {
       l.id === lessonId ? { ...l, ai_status: "failed", ai_error: error } : l,
     ),
   }));
+  syncUpdate("lessons", lessonId, { ai_status: "failed", ai_error: error });
 }
 
 /** "إعادة المحاولة" — reuses the stored extracted_text, no re-upload needed. */
@@ -1179,6 +1385,7 @@ export function retryLessonGeneration(lessonId: string) {
       l.id === lessonId ? { ...l, ai_status: "processing", ai_error: null } : l,
     ),
   }));
+  syncUpdate("lessons", lessonId, { ai_status: "processing", ai_error: null });
 }
 
 /** Logs a timer extension inside session mode (§7-ج). */
@@ -1188,8 +1395,9 @@ export function recordTimerExtension(
   addedSeconds: number,
   reason: string | null,
 ) {
+  let entry: TimerExtension | null = null;
   update((state) => {
-    const entry: TimerExtension = {
+    entry = {
       id: `tx-${Date.now()}`,
       session_id: sessionId,
       step_key: stepKey,
@@ -1199,6 +1407,7 @@ export function recordTimerExtension(
     };
     return { ...state, timerExtensions: [entry, ...state.timerExtensions] };
   });
+  if (entry) syncInsert("timer_extensions", entry);
 }
 
 /**
@@ -1210,6 +1419,7 @@ export function updateLessonSlide(slideId: string, title: string, bullets: strin
     ...state,
     lessonSlides: state.lessonSlides.map((s) => (s.id === slideId ? { ...s, title, bullets } : s)),
   }));
+  syncUpdate("lesson_slides", slideId, { title, bullets });
 }
 
 /** §18-2: same, for a question — text/options/correct answer, saved immediately. */
@@ -1225,12 +1435,14 @@ export function updateQuizQuestion(
       q.id === questionId ? { ...q, text, options, correct_index: correctIndex } : q,
     ),
   }));
+  syncUpdate("session_questions", questionId, { text, options, correct_index: correctIndex });
 }
 
 /** Logs a fair-pick draw (§7-هـ) — feeds `pickFairly`'s weighting on future draws. */
 export function recordRandomPick(groupId: string, studentId: string, sessionId: string) {
+  let entry: RandomPickLog | null = null;
   update((state) => {
-    const entry: RandomPickLog = {
+    entry = {
       id: `rpl-${Date.now()}`,
       group_id: groupId,
       student_id: studentId,
@@ -1239,6 +1451,7 @@ export function recordRandomPick(groupId: string, studentId: string, sessionId: 
     };
     return { ...state, randomPickLogs: [entry, ...state.randomPickLogs] };
   });
+  if (entry) syncInsert("random_pick_logs", entry);
 }
 
 export interface SessionSummaryInput {
@@ -1263,8 +1476,10 @@ export interface SessionSummaryInput {
 
 /** §7-ط — persisted once, when the teacher actually ends the session (not on every step change). */
 export function recordSessionSummary(input: SessionSummaryInput) {
+  let record: SessionRecord | null = null;
+  let doneCurriculumLessonId: string | null = null;
   update((state) => {
-    const record: SessionRecord = {
+    record = {
       id: input.sessionId,
       center_id: CENTER_ID,
       group_id: input.groupId,
@@ -1286,9 +1501,11 @@ export function recordSessionSummary(input: SessionSummaryInput) {
 
     // §9-ب: ending a session that taught a linked lesson marks its curriculum entry "done".
     const curriculumLessons = input.lessonId
-      ? state.curriculumLessons.map((l) =>
-          l.linked_lesson_id === input.lessonId ? { ...l, status: "done" as const } : l,
-        )
+      ? state.curriculumLessons.map((l) => {
+          if (l.linked_lesson_id !== input.lessonId) return l;
+          doneCurriculumLessonId = l.id;
+          return { ...l, status: "done" as const };
+        })
       : state.curriculumLessons;
 
     return {
@@ -1297,6 +1514,8 @@ export function recordSessionSummary(input: SessionSummaryInput) {
       curriculumLessons,
     };
   });
+  if (record) syncInsert("session_records", record);
+  if (doneCurriculumLessonId) syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
 }
 
 export interface AssessmentScoreInput {
@@ -1319,6 +1538,7 @@ export interface AssessmentScoreInput {
  * update (§7-أ: session mode vs. this independent management section).
  */
 export function recordAssessmentScore(input: AssessmentScoreInput) {
+  let entry: AssessmentScore | null = null;
   update((state) => {
     const student = findStudentById(state, input.studentId);
     if (!student) return state;
@@ -1340,7 +1560,7 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
         a.session_id === sessionId &&
         a.lesson_id === lessonId,
     );
-    const entry: AssessmentScore = {
+    entry = {
       id: existing?.id ?? `asc-${Date.now()}`,
       center_id: student.center_id,
       student_id: student.id,
@@ -1354,10 +1574,11 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
       recorded_at: todayLabel(),
     };
     const assessmentScores = existing
-      ? state.assessmentScores.map((a) => (a.id === existing.id ? entry : a))
+      ? state.assessmentScores.map((a) => (a.id === existing.id ? entry! : a))
       : [entry, ...state.assessmentScores];
     return { ...state, assessmentScores };
   });
+  if (entry) syncUpsert("assessment_scores", entry);
 }
 
 /** §8: has this student already completed this lesson's electronic homework? */
@@ -1380,6 +1601,7 @@ export interface BookExerciseTaskInput {
 
 /** "حل تمارين الكتاب" (§1) — upserts by (session, group, context): re-entering pages edits in place. */
 export function recordBookExerciseTask(input: BookExerciseTaskInput) {
+  let entry: BookExerciseTask | null = null;
   update((state) => {
     const group = state.groups.find((g) => g.id === input.groupId);
     if (!group) return state;
@@ -1389,7 +1611,7 @@ export function recordBookExerciseTask(input: BookExerciseTaskInput) {
         t.student_group_id === input.groupId &&
         t.context === input.context,
     );
-    const entry: BookExerciseTask = {
+    entry = {
       id: existing?.id ?? `bet-${Date.now()}`,
       center_id: group.center_id,
       session_id: input.sessionId,
@@ -1399,10 +1621,11 @@ export function recordBookExerciseTask(input: BookExerciseTaskInput) {
       created_at: existing?.created_at ?? todayLabel(),
     };
     const bookExerciseTasks = existing
-      ? state.bookExerciseTasks.map((t) => (t.id === existing.id ? entry : t))
+      ? state.bookExerciseTasks.map((t) => (t.id === existing.id ? entry! : t))
       : [entry, ...state.bookExerciseTasks];
     return { ...state, bookExerciseTasks };
   });
+  if (entry) syncUpsert("book_exercise_tasks", entry);
 }
 
 export function getBookExerciseTask(
@@ -1419,4 +1642,5 @@ export function getBookExerciseTask(
 /** Clears the per-session live scoreboard (start of a new session). */
 export function resetLiveScores() {
   update((state) => ({ ...state, liveScores: [] }));
+  syncDeleteAll("live_scores");
 }

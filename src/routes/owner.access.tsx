@@ -77,27 +77,35 @@ interface FormCardProps {
   hint: string;
   icon: typeof UserPlus;
   submitLabel: string;
-  onCreate: (name: string, phone: string) => CreatedCredentials;
+  onCreate: (name: string, phone: string) => Promise<CreatedCredentials>;
 }
 
 function ProvisionForm({ title, hint, icon: Icon, submitLabel, onCreate }: FormCardProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!name.trim() || !phone.trim()) {
           toast.error("من فضلك أدخل الاسم ورقم الهاتف");
           return;
         }
-        const result = onCreate(name.trim(), phone.trim());
-        setCreated(result);
-        setName("");
-        setPhone("");
-        toast.success(`تم توليد الكود: ${result.identifier}`);
+        setSubmitting(true);
+        try {
+          const result = await onCreate(name.trim(), phone.trim());
+          setCreated(result);
+          setName("");
+          setPhone("");
+          toast.success(`تم توليد الكود: ${result.identifier}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
+        } finally {
+          setSubmitting(false);
+        }
       }}
       className="card-crisp space-y-3 p-5"
     >
@@ -126,9 +134,10 @@ function ProvisionForm({ title, hint, icon: Icon, submitLabel, onCreate }: FormC
       />
       <button
         type="submit"
-        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
+        disabled={submitting}
+        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {submitLabel}
+        {submitting ? "جارٍ الإنشاء…" : submitLabel}
       </button>
 
       {created ? <CredentialCard data={created} /> : null}
@@ -156,13 +165,14 @@ function StudentProvisionForm() {
   const [groupId, setGroupId] = useState("");
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!fullName.trim() || !guardianName.trim() || !guardianPhone.trim()) {
           toast.error("من فضلك أدخل كل البيانات");
@@ -176,26 +186,33 @@ function StudentProvisionForm() {
           toast.error("من فضلك اختر مادة واحدة على الأقل");
           return;
         }
-        const credentials = createStudent(fullName.trim(), guardianPhone.trim());
-        const record = createStudentRecord({
-          code: credentials.identifier,
-          fullName: fullName.trim(),
-          groupId,
-          guardianName: guardianName.trim(),
-          guardianPhone: guardianPhone.trim(),
-          subjectIds,
-        });
-        if (!record) {
-          toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
-          return;
+        setSubmitting(true);
+        try {
+          const credentials = await createStudent(fullName.trim(), guardianPhone.trim());
+          const record = createStudentRecord({
+            code: credentials.identifier,
+            fullName: fullName.trim(),
+            groupId,
+            guardianName: guardianName.trim(),
+            guardianPhone: guardianPhone.trim(),
+            subjectIds,
+          });
+          if (!record) {
+            toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
+            return;
+          }
+          setCreated(credentials);
+          setFullName("");
+          setGuardianName("");
+          setGuardianPhone("");
+          setGroupId("");
+          setSubjectIds([]);
+          toast.success(`تم توليد الكود: ${credentials.identifier}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
+        } finally {
+          setSubmitting(false);
         }
-        setCreated(credentials);
-        setFullName("");
-        setGuardianName("");
-        setGuardianPhone("");
-        setGroupId("");
-        setSubjectIds([]);
-        toast.success(`تم توليد الكود: ${credentials.identifier}`);
       }}
       className="card-crisp space-y-3 p-5"
     >
@@ -274,9 +291,10 @@ function StudentProvisionForm() {
 
       <button
         type="submit"
-        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
+        disabled={submitting}
+        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        توليد كود الطالب
+        {submitting ? "جارٍ الإنشاء…" : "توليد كود الطالب"}
       </button>
 
       {created ? <CredentialCard data={created} /> : null}
@@ -289,8 +307,18 @@ function AccessManagement() {
   const [invite, setInvite] = useState<CreatedCredentials | null>(null);
 
   useEffect(() => {
-    setAccounts(getAccounts());
-    return subscribeAuth(() => setAccounts(getAccounts()));
+    let cancelled = false;
+    const refresh = () => {
+      void getAccounts().then((rows) => {
+        if (!cancelled) setAccounts(rows);
+      });
+    };
+    refresh();
+    const unsubscribe = subscribeAuth(refresh);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -332,10 +360,14 @@ function AccessManagement() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              const result = createVisitorInvite();
-              setInvite(result);
-              toast.success(`تم توليد كود الدعوة: ${result.identifier}`);
+            onClick={async () => {
+              try {
+                const result = await createVisitorInvite();
+                setInvite(result);
+                toast.success(`تم توليد كود الدعوة: ${result.identifier}`);
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الدعوة");
+              }
             }}
             className="rounded-xl bg-navy px-5 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90"
           >
@@ -375,9 +407,13 @@ function AccessManagement() {
                     {a.role === "owner" ? null : (
                       <button
                         type="button"
-                        onClick={() => {
-                          deleteAccount(a.id);
-                          toast.success("تم حذف الحساب");
+                        onClick={async () => {
+                          try {
+                            await deleteAccount(a.id);
+                            toast.success("تم حذف الحساب");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
+                          }
                         }}
                         className="flex items-center gap-1.5 rounded-lg border-2 border-destructive/40 px-3 py-1.5 text-xs font-black text-destructive"
                       >

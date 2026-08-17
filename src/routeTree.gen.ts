@@ -17,6 +17,7 @@ import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
+import { Route as PlatformNewCenterRouteImport } from './routes/platform.new-center'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
 import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
@@ -67,6 +68,11 @@ const ParentIndexRoute = ParentIndexRouteImport.update({
 const ParentMessagesRoute = ParentMessagesRouteImport.update({
   id: '/parent/messages',
   path: '/parent/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformNewCenterRoute = PlatformNewCenterRouteImport.update({
+  id: '/platform/new-center',
+  path: '/platform/new-center',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StaffIndexRoute = StaffIndexRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/parent/messages': typeof ParentMessagesRoute
+  '/platform/new-center': typeof PlatformNewCenterRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/owner/finance'
     | '/owner/students'
     | '/parent/messages'
+    | '/platform/new-center'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -262,6 +274,7 @@ export interface RootRouteChildren {
   OwnerFinanceRoute: typeof OwnerFinanceRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
   ParentMessagesRoute: typeof ParentMessagesRoute
+  PlatformNewCenterRoute: typeof PlatformNewCenterRoute
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/parent/messages'
       fullPath: '/parent/messages'
       preLoaderRoute: typeof ParentMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/new-center': {
+      id: '/platform/new-center'
+      path: '/platform/new-center'
+      fullPath: '/platform/new-center'
+      preLoaderRoute: typeof PlatformNewCenterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/staff/': {
@@ -422,6 +442,7 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerFinanceRoute: OwnerFinanceRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,
   ParentMessagesRoute: ParentMessagesRoute,
+  PlatformNewCenterRoute: PlatformNewCenterRoute,
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,

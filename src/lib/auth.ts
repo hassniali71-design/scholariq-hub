@@ -1,23 +1,31 @@
 import { CURRENT_TENANT, students as seedStudents, teachers as seedTeachers } from "@/lib/mock-data";
+import { createAccount, deleteAccount as deleteAccountFn, fetchAccounts, signIn as signInFn } from "@/lib/auth-functions.server";
 import type { UserRole } from "@/types";
 
 /**
- * Client-side provisioning + session layer (mock).
- * No public sign-up: every account is created by the Owner.
- * Data is persisted in localStorage so the full auth loop can be tested
- * (owner creates a code -> logout -> login with that code).
+ * Client-side provisioning + session layer.
+ *
+ * SUPABASE_MIGRATION_SPEC.md §5: same public API as before, now backed by Supabase behind
+ * `USE_SUPABASE` (mirrors data-store.ts's flag — flip both together). Accounts themselves
+ * moved to the `accounts` table (§2); the `Session` (which role/identifier THIS browser
+ * currently believes it's logged in as) stays in localStorage either way — it's just local
+ * UI state, not a security boundary. The real boundary is server-side: every server function
+ * re-resolves `center_id` from `identifier` itself (src/lib/supabase-server.ts), never trusts
+ * the client. No public sign-up: every account is still created by the Owner (or, for a new
+ * center itself, by the platform admin — §8).
  */
+export const USE_SUPABASE = true;
 
 export interface Account {
   id: string;
   center_id: string;
   role: UserRole;
   full_name: string;
-  phone?: string;
+  phone?: string | null;
   /** Owner: email. Teacher/Staff: code. Student/Parent: student ID. Visitor: invite code. */
   identifier: string;
   /** Owner / Teacher / Staff only. */
-  password?: string;
+  password?: string | null;
   created_at: string;
 }
 
@@ -25,6 +33,8 @@ export interface Session {
   role: UserRole;
   full_name: string;
   identifier: string;
+  /** §8: this account's center_id is the reserved "platform" row — routes to /platform/new-center. */
+  isPlatformAdmin?: boolean;
 }
 
 /**
@@ -86,7 +96,8 @@ function writeAccounts(accounts: Account[]) {
   emit();
 }
 
-function seedAccounts(): Account[] {
+/** Exported so scripts/seed-supabase.ts can reuse the exact same seed logic. */
+export function seedAccounts(): Account[] {
   const c = CURRENT_TENANT.center_id;
   const now = new Date().toISOString();
   const list: Account[] = [
@@ -138,11 +149,16 @@ function seedAccounts(): Account[] {
   return list;
 }
 
-export function getAccounts(): Account[] {
+export async function getAccounts(): Promise<Account[]> {
+  if (USE_SUPABASE) {
+    const identifier = getSession()?.identifier;
+    if (!identifier) return [];
+    return (await fetchAccounts({ data: { identifier } })) as Account[];
+  }
   return readAccounts();
 }
 
-/* ---------------- Code generators ---------------- */
+/* ---------------- Code generators (local-mode only — Supabase mode generates server-side) ---------------- */
 
 function rand(len: number) {
   let out = "";
@@ -174,14 +190,27 @@ export interface CreatedCredentials {
   role: UserRole;
   full_name: string;
   identifier: string;
-  password?: string;
+  password?: string | undefined;
 }
 
 function push(account: Account) {
   writeAccounts([...readAccounts(), account]);
 }
 
-export function createStudent(full_name: string, phone: string): CreatedCredentials {
+function requireIdentifier(): string {
+  const identifier = getSession()?.identifier;
+  if (!identifier) throw new Error("لازم تسجّل الدخول الأول");
+  return identifier;
+}
+
+export async function createStudent(full_name: string, phone: string): Promise<CreatedCredentials> {
+  if (USE_SUPABASE) {
+    const result = await createAccount({
+      data: { identifier: requireIdentifier(), role: "student", full_name, phone },
+    });
+    emit();
+    return result;
+  }
   const identifier = uniqueIdentifier("STD", 5);
   push({
     id: `acc-${Date.now()}`,
@@ -195,7 +224,14 @@ export function createStudent(full_name: string, phone: string): CreatedCredenti
   return { role: "student", full_name, identifier };
 }
 
-export function createTeacher(full_name: string, phone: string): CreatedCredentials {
+export async function createTeacher(full_name: string, phone: string): Promise<CreatedCredentials> {
+  if (USE_SUPABASE) {
+    const result = await createAccount({
+      data: { identifier: requireIdentifier(), role: "teacher", full_name, phone },
+    });
+    emit();
+    return result;
+  }
   const identifier = uniqueIdentifier("TCH", 4);
   const password = generatePassword();
   push({
@@ -211,7 +247,14 @@ export function createTeacher(full_name: string, phone: string): CreatedCredenti
   return { role: "teacher", full_name, identifier, password };
 }
 
-export function createStaff(full_name: string, phone: string): CreatedCredentials {
+export async function createStaff(full_name: string, phone: string): Promise<CreatedCredentials> {
+  if (USE_SUPABASE) {
+    const result = await createAccount({
+      data: { identifier: requireIdentifier(), role: "staff", full_name, phone },
+    });
+    emit();
+    return result;
+  }
   const identifier = uniqueIdentifier("STF", 4);
   const password = generatePassword();
   push({
@@ -227,7 +270,14 @@ export function createStaff(full_name: string, phone: string): CreatedCredential
   return { role: "staff", full_name, identifier, password };
 }
 
-export function createVisitorInvite(): CreatedCredentials {
+export async function createVisitorInvite(): Promise<CreatedCredentials> {
+  if (USE_SUPABASE) {
+    const result = await createAccount({
+      data: { identifier: requireIdentifier(), role: "visitor", full_name: "زائر مدعو" },
+    });
+    emit();
+    return result;
+  }
   const identifier = `VIS-${randAlpha(6)}`;
   push({
     id: `acc-${Date.now()}`,
@@ -240,7 +290,12 @@ export function createVisitorInvite(): CreatedCredentials {
   return { role: "visitor", full_name: "زائر مدعو", identifier };
 }
 
-export function deleteAccount(id: string) {
+export async function deleteAccount(id: string): Promise<void> {
+  if (USE_SUPABASE) {
+    await deleteAccountFn({ data: { identifier: requireIdentifier(), accountId: id } });
+    emit();
+    return;
+  }
   writeAccounts(readAccounts().filter((a) => a.id !== id));
 }
 
@@ -271,13 +326,22 @@ export interface LoginInput {
 
 export type LoginResult = { ok: true; session: Session } | { ok: false; error: string };
 
-export function signIn({ role, identifier, password }: LoginInput): LoginResult {
+export async function signIn({ role, identifier, password }: LoginInput): Promise<LoginResult> {
   const id = identifier.trim();
   if (!id) return { ok: false, error: "من فضلك أدخل بيانات الدخول" };
 
   const needsPassword = role === "owner" || role === "teacher" || role === "staff";
   if (needsPassword && !password?.trim()) {
     return { ok: false, error: "كلمة السر مطلوبة" };
+  }
+
+  if (USE_SUPABASE) {
+    const result = await signInFn({ data: { role, identifier: id, password } });
+    if (result.ok) {
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
+      emit();
+    }
+    return result;
   }
 
   // Parent authenticates with the student ID of their child.
