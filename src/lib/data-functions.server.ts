@@ -69,6 +69,7 @@ async function fetchAllTablesForCenter(centerId: string) {
     const scoped = (table: TableName) => supabase.from(table).select("*").eq("center_id", centerId);
 
     const [
+      centerRow,
       students,
       teachers,
       groups,
@@ -98,6 +99,7 @@ async function fetchAllTablesForCenter(centerId: string) {
       suggestedActivities,
       electronicHomeworks,
     ] = await Promise.all([
+      supabase.from("centers").select("id, name, branch").eq("id", centerId).single(),
       scoped("students"),
       scoped("teachers"),
       scoped("groups"),
@@ -159,6 +161,9 @@ async function fetchAllTablesForCenter(centerId: string) {
       electronicHomeworks,
     };
 
+    if (centerRow.error) {
+      throw new Error(`فشل تحميل بيانات المركز: ${centerRow.error.message}`);
+    }
     for (const [key, result] of Object.entries(results)) {
       if (result.error) {
         throw new Error(`فشل تحميل ${key}: ${result.error.message}`);
@@ -167,8 +172,13 @@ async function fetchAllTablesForCenter(centerId: string) {
 
     return {
       centerId,
+      // §8: every client sees their own center's real name/branch, not the seeded demo tenant's.
+      center: centerRow.data,
       ...Object.fromEntries(Object.entries(results).map(([key, result]) => [key, result.data ?? []])),
-    } as { centerId: string } & Record<keyof typeof results, unknown[]>;
+    } as { centerId: string; center: { id: string; name: string; branch: string } } & Record<
+      keyof typeof results,
+      unknown[]
+    >;
 }
 
 export const fetchCenterData = createServerFn({ method: "GET", strict: { output: false } })

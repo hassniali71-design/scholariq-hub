@@ -82,8 +82,6 @@ import type {
  */
 export const USE_SUPABASE = true;
 
-const CENTER_ID = CURRENT_TENANT.center_id;
-
 /* ---------------- Supabase sync helpers ---------------- */
 
 function currentIdentifier(): string | null {
@@ -203,7 +201,20 @@ export interface ShiftClosure {
   closed_at: string;
 }
 
+export interface CenterInfo {
+  id: string;
+  name: string;
+  branch: string;
+}
+
 export interface DataState {
+  /**
+   * The actual tenant this data belongs to — read dynamically after hydration (§8: every
+   * client onboarded via /platform/new-center must see their own center's name everywhere,
+   * not the seeded demo tenant's). Defaults to the seed tenant only as the SSR/pre-hydration
+   * placeholder, same as every other field here.
+   */
+  center: CenterInfo;
   students: Student[];
   teachers: Teacher[];
   groups: Group[];
@@ -287,6 +298,7 @@ function buildSessionEvent(
 function seedState(): DataState {
   const students = seedStudents.map((s) => ({ ...s }));
   return {
+    center: { id: CURRENT_TENANT.center_id, name: CURRENT_TENANT.name, branch: CURRENT_TENANT.branch },
     students,
     teachers: seedTeachers.map((t) => ({ ...t })),
     groups: seedGroups.map((g) => ({ ...g })),
@@ -363,8 +375,11 @@ function bootstrapFromSupabase() {
   hydrating = true;
   fetchCenterData({ data: { identifier } })
     .then((result) => {
-      const { centerId: _centerId, ...collections } = result as { centerId: string } & Record<string, unknown[]>;
-      cache = { ...seedState(), ...collections } as DataState;
+      const { centerId: _centerId, center, ...collections } = result as {
+        centerId: string;
+        center: CenterInfo;
+      } & Record<string, unknown[]>;
+      cache = { ...seedState(), ...collections, center } as DataState;
       cache.leaderboard = buildLeaderboard(cache.students);
       hydratedForIdentifier = identifier;
       emit();
@@ -497,7 +512,7 @@ export function createStudentRecord(input: CreateStudentInput): Student | null {
 
   const student: Student = {
     id: `st-${Date.now()}`,
-    center_id: CENTER_ID,
+    center_id: state.center.id,
     code: input.code,
     full_name: input.fullName,
     grade: group.grade,
@@ -524,6 +539,44 @@ export function createStudentRecord(input: CreateStudentInput): Student | null {
   syncUpdate("groups", group.id, { enrolled: group.enrolled + 1 });
 
   return student;
+}
+
+export interface CreateTeacherInput {
+  /** The login identifier from `auth.ts`'s `createTeacher` (e.g. "TCH-4073") — must match so `resolveCurrentTeacher` finds this record. */
+  userId: string;
+  fullName: string;
+  subjectId: string;
+}
+
+/**
+ * Same fix as `createStudentRecord` above, for teachers: "إضافة مدرس" used to only create an
+ * `auth.ts` login account — no `Teacher` record ever got created, so a newly-provisioned
+ * teacher's account had nothing for `resolveCurrentTeacher` to match against and silently
+ * fell back to `teachers[0]`. Returns null if the subject id doesn't exist.
+ */
+export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
+  const state = getData();
+  const subject = state.subjects.find((s) => s.id === input.subjectId);
+  if (!subject) return null;
+
+  const teacher: Teacher = {
+    id: `tc-${Date.now()}`,
+    center_id: state.center.id,
+    user_id: input.userId,
+    full_name: input.fullName,
+    subject: subject.name,
+    subject_id: subject.id,
+    groups: 0,
+    students: 0,
+    timer_compliance: 0,
+    sla_breaches: 0,
+    monthly_revenue: 0,
+  };
+
+  update((s) => ({ ...s, teachers: [...s.teachers, teacher] }));
+  syncInsert("teachers", teacher);
+
+  return teacher;
 }
 
 /**
@@ -1017,7 +1070,7 @@ export function closeShift(countedAmount: number) {
     const expected = state.payments.reduce((sum, p) => sum + p.amount, 0);
     closure = {
       id: `sh-${Date.now()}`,
-      center_id: CENTER_ID,
+      center_id: state.center.id,
       expected,
       counted: countedAmount,
       diff: countedAmount - expected,
@@ -1246,7 +1299,7 @@ export function createLesson(
   update((state) => {
     const lesson: Lesson = {
       id,
-      center_id: CENTER_ID,
+      center_id: state.center.id,
       group_id: groupId,
       subject_id: subjectId,
       title: sourceFileName.replace(/\.pdf$/i, ""),
@@ -1481,7 +1534,7 @@ export function recordSessionSummary(input: SessionSummaryInput) {
   update((state) => {
     record = {
       id: input.sessionId,
-      center_id: CENTER_ID,
+      center_id: state.center.id,
       group_id: input.groupId,
       lesson_id: input.lessonId,
       teacher_id: input.teacherId,

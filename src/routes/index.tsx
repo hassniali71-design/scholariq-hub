@@ -5,7 +5,6 @@ import { toast } from "sonner";
 
 import { ROLES, ROLE_ORDER } from "@/config/roles";
 import { DEMO_OWNER, signIn } from "@/lib/auth";
-import { CURRENT_TENANT } from "@/lib/mock-data";
 import type { UserRole } from "@/types";
 
 export const Route = createFileRoute("/")({
@@ -89,8 +88,11 @@ function LoginGate() {
               <GraduationCap className="size-9" />
             </span>
             <div className="text-center">
-              <p className="text-xl font-black">{CURRENT_TENANT.name}</p>
-              <p className="text-xs font-bold text-white/70">{CURRENT_TENANT.branch}</p>
+              {/* This login page is shared by every client (SUPABASE_MIGRATION_SPEC.md §8 —
+                  one URL for all centers), so it can't show a specific tenant's name before
+                  the identifier/password resolve which one — that only becomes known after
+                  signing in (see AppShell, which shows the real center dynamically). */}
+              <p className="text-xl font-black">منصة إدارة السناتر التعليمية</p>
             </div>
             <p className="rounded-xl bg-white/10 px-3 py-1.5 text-[11px] font-black text-white/80">
               نظام ERP و LMS متكامل — دخول آمن بدون تسجيل ذاتي

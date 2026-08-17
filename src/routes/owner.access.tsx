@@ -16,7 +16,7 @@ import {
   type Account,
   type CreatedCredentials,
 } from "@/lib/auth";
-import { createStudentRecord, getSubjectsForGrade, useDataStore } from "@/lib/data-store";
+import { createStudentRecord, createTeacherRecord, getSubjectsForGrade, useDataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/owner/access")({
   head: () => ({
@@ -302,6 +302,109 @@ function StudentProvisionForm() {
   );
 }
 
+/**
+ * Same fix as `StudentProvisionForm` above, for teachers: the generic `ProvisionForm`
+ * (name + phone only) used to create an `auth.ts` login account with no `Teacher` record
+ * behind it, so `resolveCurrentTeacher` had nothing to match the new account against and
+ * silently fell back to `teachers[0]`. A teacher needs one more field the generic form
+ * doesn't have — which subject they teach — so this is a dedicated form, not a `ProvisionForm`
+ * instance, same reasoning as the student one.
+ */
+function TeacherProvisionForm() {
+  const state = useDataStore();
+  const { subjects } = state;
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [created, setCreated] = useState<CreatedCredentials | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!fullName.trim() || !phone.trim()) {
+          toast.error("من فضلك أدخل الاسم ورقم الهاتف");
+          return;
+        }
+        if (!subjectId) {
+          toast.error("من فضلك اختر المادة");
+          return;
+        }
+        setSubmitting(true);
+        try {
+          const credentials = await createTeacher(fullName.trim(), phone.trim());
+          const record = createTeacherRecord({
+            userId: credentials.identifier,
+            fullName: fullName.trim(),
+            subjectId,
+          });
+          if (!record) {
+            toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
+            return;
+          }
+          setCreated(credentials);
+          setFullName("");
+          setPhone("");
+          setSubjectId("");
+          toast.success(`تم توليد الكود: ${credentials.identifier}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
+        } finally {
+          setSubmitting(false);
+        }
+      }}
+      className="card-crisp space-y-3 p-5"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Users className="size-5" />
+        </span>
+        <div>
+          <p className="text-lg font-black text-foreground">إضافة مدرس</p>
+          <p className="text-xs font-bold text-muted-foreground">يتم توليد كود المدرس وكلمة السر</p>
+        </div>
+      </div>
+
+      <input
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        placeholder="اسم المدرس بالكامل"
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="رقم الهاتف"
+        inputMode="tel"
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+      />
+      <select
+        value={subjectId}
+        onChange={(e) => setSubjectId(e.target.value)}
+        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+      >
+        <option value="">اختر المادة</option>
+        {subjects.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {submitting ? "جارٍ الإنشاء…" : "توليد بيانات المدرس"}
+      </button>
+
+      {created ? <CredentialCard data={created} /> : null}
+    </form>
+  );
+}
+
 function AccessManagement() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [invite, setInvite] = useState<CreatedCredentials | null>(null);
@@ -329,13 +432,7 @@ function AccessManagement() {
     >
       <div className="grid gap-4 lg:grid-cols-3">
         <StudentProvisionForm />
-        <ProvisionForm
-          title="إضافة مدرس"
-          hint="يتم توليد كود المدرس وكلمة السر"
-          icon={Users}
-          submitLabel="توليد بيانات المدرس"
-          onCreate={createTeacher}
-        />
+        <TeacherProvisionForm />
         <ProvisionForm
           title="إضافة موظف"
           hint="يتم توليد كود الموظف وكلمة السر"

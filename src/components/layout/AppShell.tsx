@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { ROLES } from "@/config/roles";
-import { CURRENT_TENANT } from "@/lib/mock-data";
+import { useDataStore } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
@@ -20,6 +20,7 @@ interface AppShellProps {
 
 export function AppShell({ role, title, description, actions, children }: AppShellProps) {
   const config = ROLES[role];
+  const { center } = useDataStore();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
@@ -59,8 +60,8 @@ export function AppShell({ role, title, description, actions, children }: AppShe
             <GraduationCap className="size-6" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-base font-black">{CURRENT_TENANT.name}</p>
-            <p className="truncate text-xs font-bold text-white/70">{CURRENT_TENANT.branch}</p>
+            <p className="truncate text-base font-black">{center.name}</p>
+            <p className="truncate text-xs font-bold text-white/70">{center.branch}</p>
           </div>
         </div>
 
@@ -92,7 +93,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
         <div className="border-t border-white/15 p-4">
           <div className="mb-3 rounded-xl bg-white/10 p-3">
             <p className="text-[11px] font-bold text-white/60">معرّف السنتر (RLS)</p>
-            <p className="font-mono text-sm font-black">{CURRENT_TENANT.center_id}</p>
+            <p className="font-mono text-sm font-black">{center.id}</p>
           </div>
           <div className="mb-2 px-1">
             <p className="truncate text-sm font-black text-white">{session.full_name}</p>
