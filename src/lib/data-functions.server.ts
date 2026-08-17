@@ -99,7 +99,7 @@ async function fetchAllTablesForCenter(centerId: string) {
       suggestedActivities,
       electronicHomeworks,
     ] = await Promise.all([
-      supabase.from("centers").select("id, name, branch").eq("id", centerId).single(),
+      supabase.from("centers").select("id, name, branch, accent_color, slug").eq("id", centerId).single(),
       scoped("students"),
       scoped("teachers"),
       scoped("groups"),
@@ -172,10 +172,14 @@ async function fetchAllTablesForCenter(centerId: string) {
 
     return {
       centerId,
-      // §8: every client sees their own center's real name/branch, not the seeded demo tenant's.
+      // §8/§11: every client sees their own center's real name/branch/accent color, not the
+      // seeded demo tenant's.
       center: centerRow.data,
       ...Object.fromEntries(Object.entries(results).map(([key, result]) => [key, result.data ?? []])),
-    } as { centerId: string; center: { id: string; name: string; branch: string } } & Record<
+    } as {
+      centerId: string;
+      center: { id: string; name: string; branch: string; accent_color: string | null; slug: string | null };
+    } & Record<
       keyof typeof results,
       unknown[]
     >;
@@ -186,6 +190,24 @@ export const fetchCenterData = createServerFn({ method: "GET", strict: { output:
   .handler(async ({ data }) => {
     const centerId = await resolveCenterId(data.identifier);
     return fetchAllTablesForCenter(centerId);
+  });
+
+/**
+ * SUPABASE_MIGRATION_SPEC.md §11-ب — /login/$slug's pre-auth lookup. Deliberately public (no
+ * identifier, no resolveCenterId): only ever returns name + accent_color, which the spec
+ * itself calls out as non-sensitive and safe to show before sign-in (same idea as a company
+ * showing its own logo on its login page). Never touches accounts or any business table.
+ */
+export const fetchCenterBySlug = createServerFn({ method: "GET" })
+  .validator((data: { slug: string }) => data)
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseAdmin();
+    const { data: center } = await supabase
+      .from("centers")
+      .select("name, accent_color")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    return center as { name: string; accent_color: string | null } | null;
   });
 
 /**

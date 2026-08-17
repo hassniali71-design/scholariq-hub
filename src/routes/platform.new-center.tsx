@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { BadgeCheck, Building2, Copy, Download, LogOut } from "lucide-react";
+import { BadgeCheck, Building2, Check, Copy, Download, LogOut } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -7,6 +7,8 @@ import { createCenter } from "@/lib/auth-functions.server";
 import { getSession, signOut } from "@/lib/auth";
 import { fetchCenterDataForAdmin } from "@/lib/data-functions.server";
 import { downloadCenterExcel } from "@/lib/export-excel";
+import { TENANT_ACCENT_COLORS } from "@/lib/tenant-colors";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/platform/new-center")({
   /**
@@ -37,6 +39,7 @@ interface CreatedCenter {
   centerId: string;
   identifier: string;
   password: string;
+  slug: string;
 }
 
 function copy(text: string) {
@@ -49,6 +52,7 @@ function NewCenterPage() {
   const [centerName, setCenterName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [accentColor, setAccentColor] = useState<string>(TENANT_ACCENT_COLORS[0].hex);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<CreatedCenter | null>(null);
 
@@ -66,12 +70,19 @@ function NewCenterPage() {
     setSubmitting(true);
     try {
       const result = await createCenter({
-        data: { identifier, centerName: centerName.trim(), phone: phone.trim(), address: address.trim() },
+        data: {
+          identifier,
+          centerName: centerName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          accentColor,
+        },
       });
       setCreated(result);
       setCenterName("");
       setPhone("");
       setAddress("");
+      setAccentColor(TENANT_ACCENT_COLORS[0].hex);
       toast.success("تم إنشاء العميل الجديد بنجاح");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء العميل");
@@ -142,6 +153,27 @@ function NewCenterPage() {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <label className="block text-sm font-extrabold text-foreground">لون السايدبار المميز</label>
+            <div className="flex flex-wrap gap-2">
+              {TENANT_ACCENT_COLORS.map((color) => (
+                <button
+                  key={color.key}
+                  type="button"
+                  onClick={() => setAccentColor(color.hex)}
+                  title={color.label}
+                  style={{ backgroundColor: color.hex }}
+                  className={cn(
+                    "flex size-11 items-center justify-center rounded-xl border-2 transition-transform",
+                    accentColor === color.hex ? "scale-110 border-foreground" : "border-transparent",
+                  )}
+                >
+                  {accentColor === color.hex ? <Check className="size-5 text-white" /> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={submitting}
@@ -171,6 +203,24 @@ function NewCenterPage() {
                 className="flex items-center gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 font-mono text-sm font-black text-foreground"
               >
                 <Copy className="size-4" /> {created.password}
+              </button>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-muted-foreground">
+                رابط الدخول المخصص لهذا العميل — سلّمه ده بدل الرابط العام:
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  copy(`${typeof window !== "undefined" ? window.location.origin : ""}/login/${created.slug}`)
+                }
+                dir="ltr"
+                className="flex w-full items-center justify-between gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 text-left font-mono text-xs font-black text-foreground"
+              >
+                <span className="truncate">
+                  {typeof window !== "undefined" ? window.location.origin : ""}/login/{created.slug}
+                </span>
+                <Copy className="size-4 shrink-0" />
               </button>
             </div>
           </div>

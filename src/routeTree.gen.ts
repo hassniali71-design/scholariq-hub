@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginSlugRouteImport } from './routes/login.$slug'
 import { Route as OwnerIndexRouteImport } from './routes/owner.index'
 import { Route as OwnerAccessRouteImport } from './routes/owner.access'
 import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
@@ -33,6 +34,11 @@ import { Route as TeacherSessionGroupIdRouteImport } from './routes/teacher.sess
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginSlugRoute = LoginSlugRouteImport.update({
+  id: '/login/$slug',
+  path: '/login/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerIndexRoute = OwnerIndexRouteImport.update({
@@ -133,6 +139,7 @@ const TeacherSessionGroupIdRoute = TeacherSessionGroupIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
@@ -269,6 +281,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginSlugRoute: typeof LoginSlugRoute
   OwnerAccessRoute: typeof OwnerAccessRoute
   OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/$slug': {
+      id: '/login/$slug'
+      path: '/login/$slug'
+      fullPath: '/login/$slug'
+      preLoaderRoute: typeof LoginSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/': {
@@ -437,6 +457,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginSlugRoute: LoginSlugRoute,
   OwnerAccessRoute: OwnerAccessRoute,
   OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,

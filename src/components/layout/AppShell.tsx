@@ -6,6 +6,7 @@ import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { ROLES } from "@/config/roles";
 import { useDataStore } from "@/lib/data-store";
+import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
@@ -54,7 +55,11 @@ export function AppShell({ role, title, description, actions, children }: AppShe
 
   return (
     <div dir="rtl" className="flex min-h-screen bg-canvas">
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col bg-navy text-navy-foreground md:flex">
+      {/* §11-أ: tenant accent — sidebar background only, independent of the 5 subject colors. */}
+      <aside
+        className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col text-navy-foreground md:flex"
+        style={{ backgroundColor: center.accent_color ?? DEFAULT_TENANT_ACCENT }}
+      >
         <div className="flex items-center gap-3 border-b border-white/15 px-6 py-6">
           <span className="flex size-11 items-center justify-center rounded-xl bg-white/15">
             <GraduationCap className="size-6" />

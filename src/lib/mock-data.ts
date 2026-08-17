@@ -58,6 +58,9 @@ export const subjects: Subject[] = [
  * 1st/2nd/3rd primary instead of 1st/2nd/3rd secondary. gd-4/gd-5/gd-6 are new —
  * a plain reference table, not hardcoded to 6: a 7th+ grade (prep stage) later is
  * a seed-data addition only, matching the existing 4th-6th primary pattern.
+ *
+ * SUPABASE_MIGRATION_SPEC.md §11-ج: gd-7/8/9 (prep stage) added the same way —
+ * pure data extension, same id/order pattern, no structural change.
  */
 export const grades: Grade[] = [
   { id: "gd-1", center_id: c, name: "الأول الابتدائي", order: 1 },
@@ -66,6 +69,9 @@ export const grades: Grade[] = [
   { id: "gd-4", center_id: c, name: "الرابع الابتدائي", order: 4 },
   { id: "gd-5", center_id: c, name: "الخامس الابتدائي", order: 5 },
   { id: "gd-6", center_id: c, name: "السادس الابتدائي", order: 6 },
+  { id: "gd-7", center_id: c, name: "الأول الإعدادي", order: 7 },
+  { id: "gd-8", center_id: c, name: "الثاني الإعدادي", order: 8 },
+  { id: "gd-9", center_id: c, name: "الثالث الإعدادي", order: 9 },
 ];
 
 /**

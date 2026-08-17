@@ -23,6 +23,7 @@ import {
   teachers as seedTeachers,
   whatsappLogs as seedWhatsapp,
 } from "@/lib/mock-data";
+import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
 import {
   deleteRows,
   fetchCenterData,
@@ -205,6 +206,10 @@ export interface CenterInfo {
   id: string;
   name: string;
   branch: string;
+  /** §11-أ — sidebar-only accent, null falls back to the default navy in AppShell. */
+  accent_color: string | null;
+  /** §11-ب — this center's /login/$slug path segment, null if never assigned one. */
+  slug: string | null;
 }
 
 export interface DataState {
@@ -298,7 +303,13 @@ function buildSessionEvent(
 function seedState(): DataState {
   const students = seedStudents.map((s) => ({ ...s }));
   return {
-    center: { id: CURRENT_TENANT.center_id, name: CURRENT_TENANT.name, branch: CURRENT_TENANT.branch },
+    center: {
+      id: CURRENT_TENANT.center_id,
+      name: CURRENT_TENANT.name,
+      branch: CURRENT_TENANT.branch,
+      accent_color: DEFAULT_TENANT_ACCENT,
+      slug: null,
+    },
     students,
     teachers: seedTeachers.map((t) => ({ ...t })),
     groups: seedGroups.map((g) => ({ ...g })),

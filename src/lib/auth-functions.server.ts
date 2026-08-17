@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { gradeSubjects as seedGradeSubjects, grades as seedGrades, subjects as seedSubjects } from "@/lib/mock-data";
 import { getSupabaseAdmin, resolveCenterId } from "@/lib/supabase-server";
+import { TENANT_ACCENT_COLORS } from "@/lib/tenant-colors";
 import type { UserRole } from "@/types";
 
 /**
@@ -44,6 +46,28 @@ async function uniqueIdentifier(prefix: string, digits: number) {
     if (!data) return candidate;
   }
   throw new Error("تعذّر توليد كود فريد — حاول مرة أخرى");
+}
+
+/** §11-ب — keeps Arabic letters (this is an Arabic-first product; see the admin-identifier slug just below for the same precedent), strips everything else, spaces become hyphens. */
+function slugify(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9؀-ۿ\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function uniqueSlug(centerName: string): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  const base = slugify(centerName) || "center";
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const candidate = attempt === 0 ? base : `${base}-${rand(4)}`;
+    const { data } = await supabase.from("centers").select("id").eq("slug", candidate).maybeSingle();
+    if (!data) return candidate;
+  }
+  throw new Error("تعذّر توليد رابط فريد — حاول مرة أخرى");
 }
 
 export const signIn = createServerFn({ method: "POST" })
@@ -162,6 +186,8 @@ export const createCenter = createServerFn({ method: "POST" })
       centerName: string;
       phone: string;
       address: string;
+      /** §11-أ — one of TENANT_ACCENT_COLORS's hex values, never free text. */
+      accentColor: string;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -169,20 +195,26 @@ export const createCenter = createServerFn({ method: "POST" })
     if (callerCenterId !== PLATFORM_CENTER_ID) {
       throw new Error("هذا الحساب غير مصرَّح له بإضافة عملاء جدد");
     }
+    if (!TENANT_ACCENT_COLORS.some((c) => c.hex === data.accentColor)) {
+      throw new Error("لون غير معروف — اختر من القائمة المتاحة");
+    }
 
     const supabase = getSupabaseAdmin();
     const newCenterId = `ctr-${Date.now()}`;
+    const centerSlug = await uniqueSlug(data.centerName);
     const { error: centerError } = await supabase.from("centers").insert({
       id: newCenterId,
       name: data.centerName,
       branch: data.address,
+      accent_color: data.accentColor,
+      slug: centerSlug,
     });
     if (centerError) throw new Error(centerError.message);
 
     // §8-2: username = first.second_name + random digits (e.g. "ahmed.mahmoud47568").
     const nameParts = data.centerName.trim().split(/\s+/).filter(Boolean);
-    const slug = (nameParts[0] ?? "admin").toLowerCase().replace(/[^a-z؀-ۿ]/g, "");
-    const identifier = `${slug}.admin${rand(5)}`;
+    const adminSlug = (nameParts[0] ?? "admin").toLowerCase().replace(/[^a-z؀-ۿ]/g, "");
+    const identifier = `${adminSlug}.admin${rand(5)}`;
     const password = `${randAlpha(5)}${rand(3)}`;
 
     const { error: accountError } = await supabase.from("accounts").insert({
@@ -197,5 +229,47 @@ export const createCenter = createServerFn({ method: "POST" })
     });
     if (accountError) throw new Error(accountError.message);
 
-    return { centerId: newCenterId, identifier, password };
+    /**
+     * Not in §8's literal text, but its own next line says the new client immediately starts
+     * adding teachers/students under their center_id "بدون أي إجراء إضافي" — with zero grades
+     * or subjects seeded, the add-student/add-teacher screens would have nothing to select
+     * from. Grades and subjects are standard reference data (the same Egyptian grade levels
+     * every center in this system uses, per §11-ج), not something each client configures from
+     * scratch, so they're seeded here the same way the demo center's are — everything else
+     * (teachers, students, groups, real curriculum content) is still entirely the client's own.
+     */
+    const subjectIdMap = new Map(seedSubjects.map((s) => [s.id, `${newCenterId}-${s.id}`]));
+    const gradeIdMap = new Map(seedGrades.map((g) => [g.id, `${newCenterId}-${g.id}`]));
+
+    const { error: subjectsError } = await supabase.from("subjects").insert(
+      seedSubjects.map((s) => ({
+        id: subjectIdMap.get(s.id),
+        center_id: newCenterId,
+        name: s.name,
+        theme_key: s.theme_key,
+      })),
+    );
+    if (subjectsError) throw new Error(subjectsError.message);
+
+    const { error: gradesError } = await supabase.from("grades").insert(
+      seedGrades.map((g) => ({
+        id: gradeIdMap.get(g.id),
+        center_id: newCenterId,
+        name: g.name,
+        order: g.order,
+      })),
+    );
+    if (gradesError) throw new Error(gradesError.message);
+
+    const { error: gradeSubjectsError } = await supabase.from("grade_subjects").insert(
+      seedGradeSubjects.map((gs) => ({
+        id: `${newCenterId}-${gs.id}`,
+        center_id: newCenterId,
+        grade_id: gradeIdMap.get(gs.grade_id),
+        subject_id: subjectIdMap.get(gs.subject_id),
+      })),
+    );
+    if (gradeSubjectsError) throw new Error(gradeSubjectsError.message);
+
+    return { centerId: newCenterId, identifier, password, slug: centerSlug };
   });
