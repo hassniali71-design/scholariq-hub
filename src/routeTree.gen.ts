@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LoginSlugRouteImport } from './routes/login.$slug'
 import { Route as OwnerIndexRouteImport } from './routes/owner.index'
 import { Route as OwnerAccessRouteImport } from './routes/owner.access'
@@ -37,10 +38,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginSlugRoute = LoginSlugRouteImport.update({
-  id: '/login/$slug',
-  path: '/login/$slug',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LoginSlugRoute = LoginSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => LoginRoute,
 } as any)
 const OwnerIndexRoute = OwnerIndexRouteImport.update({
   id: '/owner/',
@@ -145,6 +151,7 @@ const TeacherSessionGroupIdRoute = TeacherSessionGroupIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
@@ -194,6 +202,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
     | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/login'
     | '/login/$slug'
     | '/owner/access'
     | '/owner/compliance'
@@ -293,7 +305,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  LoginSlugRoute: typeof LoginSlugRoute
+  LoginRoute: typeof LoginRouteWithChildren
   OwnerAccessRoute: typeof OwnerAccessRoute
   OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
@@ -325,12 +337,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login/$slug': {
       id: '/login/$slug'
-      path: '/login/$slug'
+      path: '/$slug'
       fullPath: '/login/$slug'
       preLoaderRoute: typeof LoginSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof LoginRoute
     }
     '/owner/': {
       id: '/owner/'
@@ -475,9 +494,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface LoginRouteChildren {
+  LoginSlugRoute: typeof LoginSlugRoute
+}
+
+const LoginRouteChildren: LoginRouteChildren = {
+  LoginSlugRoute: LoginSlugRoute,
+}
+
+const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  LoginSlugRoute: LoginSlugRoute,
+  LoginRoute: LoginRouteWithChildren,
   OwnerAccessRoute: OwnerAccessRoute,
   OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,

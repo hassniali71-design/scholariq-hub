@@ -1,22 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { LoginCard } from "@/components/auth/LoginCard";
+import { PlatformLoginCard } from "@/components/auth/PlatformLoginCard";
 
+/**
+ * The root URL is now the platform operator's own login — not the client-facing generic
+ * one (that moved to `/login`). Bookmarking the base Cloudflare URL always lands on this.
+ */
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "تسجيل الدخول — منصة إدارة السناتر التعليمية" },
-      {
-        name: "description",
-        content:
-          "بوابة دخول موحدة وآمنة للمالك والسكرتارية والمدرسين والطلاب وأولياء الأمور والزوار.",
-      },
-      { property: "og:title", content: "تسجيل الدخول — منصة إدارة السناتر التعليمية" },
-      {
-        property: "og:description",
-        content: "بوابة دخول موحدة وآمنة لجميع أدوار السنتر التعليمي بدون تسجيل ذاتي.",
-      },
+      { title: "دخول إدارة المنصة" },
+      { name: "description", content: "دخول خاص بمشغّل المنصة — ليس للعملاء." },
     ],
   }),
-  component: () => <LoginCard />,
+  component: () => <PlatformLoginCard />,
 });

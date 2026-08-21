@@ -23,7 +23,7 @@ export const Route = createFileRoute("/platform/new-center")({
     if (typeof window !== "undefined") {
       const session = getSession();
       if (!session?.isPlatformAdmin) {
-        throw redirect({ to: "/platform/login" });
+        throw redirect({ to: "/" });
       }
     }
   },
@@ -109,7 +109,7 @@ function NewCenterPage() {
           type="button"
           onClick={() => {
             signOut();
-            void navigate({ to: "/platform/login" });
+            void navigate({ to: "/" });
           }}
           className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"
         >
