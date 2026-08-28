@@ -1015,7 +1015,25 @@ export function updateAttendanceForSession(
       : [record, ...state.attendanceRecords];
     return { ...state, attendanceRecords };
   });
-  if (record) syncUpsert("attendance_records", record);
+  if (record) {
+    const r = record as AttendanceRecord;
+    syncUpsert("attendance_records", r);
+    logActivity(
+      "attendance",
+      `${r.status === "absent" ? "غياب" : r.status === "late" ? "تأخير" : "حضور"}: ${r.student_name}`,
+      r.group_name,
+      r.student_name,
+      null,
+    );
+    if (r.status !== "present") {
+      pushNotification(
+        r.status === "absent" ? "absence" : "late",
+        r.status === "absent" ? "critical" : "warning",
+        r.status === "absent" ? `غياب: ${r.student_name}` : `تأخير: ${r.student_name}`,
+        r.group_name,
+      );
+    }
+  }
 }
 
 export function recordPayment(
@@ -1073,6 +1091,16 @@ export function recordPayment(
       payment_status: updatedPaymentStatus,
     });
   }
+  if (payment) {
+    const p = payment as PaymentRecord;
+    logActivity("payment", `دفعة من ${p.student_name}`, p.item, p.student_code, p.amount);
+    pushNotification(
+      "payment",
+      "info",
+      `تحصيل ${p.amount} ج.م — ${p.student_name}`,
+      `${p.item} · ${p.student_code}`,
+    );
+  }
 }
 
 export function deliverBooklet(bookletId: string) {
@@ -1106,7 +1134,11 @@ export function closeShift(countedAmount: number) {
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  if (closure) syncInsert("shift_closures", closure);
+  if (closure) {
+    const c = closure as ShiftClosure;
+    syncInsert("shift_closures", c);
+    logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
+  }
 }
 
 function ensureLiveScore(state: DataState, student: Student): LiveScore {
