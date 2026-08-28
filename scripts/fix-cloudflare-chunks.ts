@@ -59,7 +59,15 @@ function fixFile(path: string): boolean {
   return true;
 }
 
-const root = join(import.meta.dir, "..", ".output", "server");
+const candidates = [
+  join(import.meta.dir, "..", "dist", "server"),
+  join(import.meta.dir, "..", ".output", "server"),
+];
+const root = candidates.find((dir) => existsSync(dir));
+if (!root) {
+  console.log("fix-cloudflare-chunks: no server output directory found, skipping.");
+  process.exit(0);
+}
 const files = walk(root);
 let fixedCount = 0;
 for (const file of files) {
