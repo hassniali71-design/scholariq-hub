@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { gradeSubjects as seedGradeSubjects, grades as seedGrades, subjects as seedSubjects } from "@/lib/mock-data";
+import {
+  gradeSubjects as seedGradeSubjects,
+  grades as seedGrades,
+  subjects as seedSubjects,
+} from "@/lib/mock-data";
 import { getSupabaseAdmin, resolveCenterId } from "@/lib/supabase-server";
 import { TENANT_ACCENT_COLORS } from "@/lib/tenant-colors";
 import type { UserRole } from "@/types";
@@ -18,6 +22,8 @@ interface AccountRow {
   identifier: string;
   password: string | null;
   created_at: string;
+  /** PLATFORM_CLIENT_MANAGEMENT_SPEC.md §3-4 — set on every successful signIn (below). */
+  last_login_at?: string | null;
 }
 
 /** §8's onboarding screen — reserved, not a real client. Seeded once, see supabase/seed/. */
@@ -42,7 +48,11 @@ async function uniqueIdentifier(prefix: string, digits: number) {
   const supabase = getSupabaseAdmin();
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const candidate = `${prefix}-${rand(digits)}`;
-    const { data } = await supabase.from("accounts").select("id").eq("identifier", candidate).maybeSingle();
+    const { data } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("identifier", candidate)
+      .maybeSingle();
     if (!data) return candidate;
   }
   throw new Error("تعذّر توليد كود فريد — حاول مرة أخرى");
@@ -64,7 +74,11 @@ async function uniqueSlug(centerName: string): Promise<string> {
   const base = slugify(centerName) || "center";
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const candidate = attempt === 0 ? base : `${base}-${rand(4)}`;
-    const { data } = await supabase.from("centers").select("id").eq("slug", candidate).maybeSingle();
+    const { data } = await supabase
+      .from("centers")
+      .select("id")
+      .eq("slug", candidate)
+      .maybeSingle();
     if (!data) return candidate;
   }
   throw new Error("تعذّر توليد رابط فريد — حاول مرة أخرى");
@@ -95,6 +109,27 @@ export const signIn = createServerFn({ method: "POST" })
     if (needsPassword && account.password !== data.password?.trim()) {
       return { ok: false as const, error: "كلمة السر غير صحيحة" };
     }
+
+    /**
+     * PLATFORM_CLIENT_MANAGEMENT_SPEC.md §2 — checked only after credentials verify, so a
+     * paused center's status is never revealed to someone without a valid login for it.
+     * "platform" itself is never paused (no UI exposes that toggle for it), so this never
+     * blocks the platform admin's own login.
+     */
+    const { data: center } = await supabase
+      .from("centers")
+      .select("status")
+      .eq("id", account.center_id)
+      .maybeSingle();
+    if (center?.status === "paused") {
+      return { ok: false as const, error: "الاشتراك متوقف حالياً، تواصل مع الدعم" };
+    }
+
+    // Best-effort — a failed timestamp write must never block a valid login.
+    await supabase
+      .from("accounts")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", account.id);
 
     return {
       ok: true as const,
@@ -139,7 +174,9 @@ export const createAccount = createServerFn({ method: "POST" })
     const needsPassword = data.role === "teacher" || data.role === "staff";
 
     const newIdentifier =
-      data.role === "visitor" ? `VIS-${randAlpha(6)}` : await uniqueIdentifier(prefixByRole[data.role], digitsByRole[data.role]);
+      data.role === "visitor"
+        ? `VIS-${randAlpha(6)}`
+        : await uniqueIdentifier(prefixByRole[data.role], digitsByRole[data.role]);
     const password = needsPassword ? generatePassword() : undefined;
 
     const row: AccountRow = {
@@ -202,12 +239,21 @@ export const createCenter = createServerFn({ method: "POST" })
     const supabase = getSupabaseAdmin();
     const newCenterId = `ctr-${Date.now()}`;
     const centerSlug = await uniqueSlug(data.centerName);
+    // PLATFORM_CLIENT_MANAGEMENT_SPEC.md §1 — joined_at defaults to now() at the DB level too,
+    // but expires_at (joined_at + 1 year) has no DB-side default, so it's computed explicitly
+    // here from the same timestamp to keep the two in exact sync.
+    const joinedAt = new Date();
+    const expiresAt = new Date(joinedAt);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
     const { error: centerError } = await supabase.from("centers").insert({
       id: newCenterId,
       name: data.centerName,
       branch: data.address,
       accent_color: data.accentColor,
       slug: centerSlug,
+      joined_at: joinedAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      status: "active",
     });
     if (centerError) throw new Error(centerError.message);
 

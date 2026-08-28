@@ -30,3 +30,22 @@ export function formatClock(seconds: number): string {
   const s = (safe % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
+
+const arDate = new Intl.DateTimeFormat("ar-EG", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  numberingSystem: "latn",
+});
+const arTime = new Intl.DateTimeFormat("ar-EG", {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  numberingSystem: "latn",
+});
+
+/** PLATFORM_CLIENT_MANAGEMENT_SPEC.md §2 — "12 أغسطس 2026 — 3:52 م" style, latin digits (same tofu-avoidance reasoning as `ar` above). */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${arDate.format(d)} — ${arTime.format(d)}`;
+}

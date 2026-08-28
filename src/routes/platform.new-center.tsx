@@ -1,11 +1,12 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { BadgeCheck, Building2, Check, Copy, Download, LogOut } from "lucide-react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { BadgeCheck, Check, Copy, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { BrandLogo } from "@/components/BrandLogo";
+import { PlatformHeader } from "@/components/platform/PlatformHeader";
 import { createCenter } from "@/lib/auth-functions.server";
-import { getSession, signOut } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { fetchCenterDataForAdmin } from "@/lib/data-functions.server";
 import { downloadCenterExcel } from "@/lib/export-excel";
 import { TENANT_ACCENT_COLORS } from "@/lib/tenant-colors";
@@ -49,7 +50,6 @@ function copy(text: string) {
 }
 
 function NewCenterPage() {
-  const navigate = useNavigate();
   const [centerName, setCenterName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -95,27 +95,11 @@ function NewCenterPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-canvas">
       <BrandLogo />
-      <header className="flex items-center justify-between border-b-2 border-border bg-navy px-6 py-4 text-navy-foreground">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-white/15">
-            <Building2 className="size-5" />
-          </span>
-          <div>
-            <p className="text-lg font-black">إدارة المنصة — إضافة عميل جديد</p>
-            <p className="text-xs font-bold text-white/70">هذه الشاشة لصاحب المنصة فقط، وليست جزءاً من لوحات العملاء</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            signOut();
-            void navigate({ to: "/" });
-          }}
-          className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"
-        >
-          <LogOut className="size-4" /> تسجيل خروج
-        </button>
-      </header>
+      <PlatformHeader
+        title="إدارة المنصة — إضافة عميل جديد"
+        subtitle="هذه الشاشة لصاحب المنصة فقط، وليست جزءاً من لوحات العملاء"
+        active="new-center"
+      />
 
       <main className="mx-auto max-w-lg px-6 py-10">
         <form onSubmit={handleSubmit} className="card-crisp space-y-4 p-6">
@@ -156,7 +140,9 @@ function NewCenterPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-extrabold text-foreground">لون السايدبار المميز</label>
+            <label className="block text-sm font-extrabold text-foreground">
+              لون السايدبار المميز
+            </label>
             <div className="flex flex-wrap gap-2">
               {TENANT_ACCENT_COLORS.map((color) => (
                 <button
@@ -167,7 +153,9 @@ function NewCenterPage() {
                   style={{ backgroundColor: color.hex }}
                   className={cn(
                     "flex size-11 items-center justify-center rounded-xl border-2 transition-transform",
-                    accentColor === color.hex ? "scale-110 border-foreground" : "border-transparent",
+                    accentColor === color.hex
+                      ? "scale-110 border-foreground"
+                      : "border-transparent",
                   )}
                 >
                   {accentColor === color.hex ? <Check className="size-5 text-white" /> : null}
@@ -214,7 +202,9 @@ function NewCenterPage() {
               <button
                 type="button"
                 onClick={() =>
-                  copy(`${typeof window !== "undefined" ? window.location.origin : ""}/login/${created.slug}`)
+                  copy(
+                    `${typeof window !== "undefined" ? window.location.origin : ""}/login/${created.slug}`,
+                  )
                 }
                 dir="ltr"
                 className="flex w-full items-center justify-between gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 text-left font-mono text-xs font-black text-foreground"
@@ -274,7 +264,9 @@ function ExportCenterTool() {
 
   return (
     <div className="card-crisp mt-10 space-y-3 p-6">
-      <h2 className="text-lg font-black text-foreground">أداة إدارية — تصدير بيانات عميل واحد بعينه</h2>
+      <h2 className="text-lg font-black text-foreground">
+        أداة إدارية — تصدير بيانات عميل واحد بعينه
+      </h2>
       <p className="text-sm font-bold text-muted-foreground">
         لاسترجاع سريع لعميل واحد متأثر بمشكلة، بدون الحاجة لاسترجاع قاعدة البيانات كاملة. أدخل الـ
         center_id الخاص به.
