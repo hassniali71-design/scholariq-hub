@@ -21,6 +21,20 @@ type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 let client: AnySupabaseClient | null = null;
 
+/**
+ * The hosting platform reserves the `SUPABASE_` prefix for its own managed backend, so this
+ * project's own (external) Supabase credentials are stored as `ERP_SUPABASE_*`. The bare
+ * `SUPABASE_*` names stay supported as a fallback for local `.env` files and the CLI scripts
+ * under scripts/, which still read them.
+ */
+export function readSupabaseEnv() {
+  return {
+    url: process.env["ERP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"],
+    serviceRoleKey:
+      process.env["ERP_SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_SERVICE_ROLE_KEY"],
+  };
+}
+
 export function getSupabaseAdmin(): AnySupabaseClient {
   assertServerOnly();
   if (client) return client;
