@@ -1,4 +1,15 @@
-import * as XLSX from "xlsx";
+// xlsx is CommonJS-only and breaks the edge/server bundle when imported at module scope.
+// It is loaded lazily inside the browser-only download path instead.
+type XLSXModule = typeof import("xlsx");
+
+let xlsxPromise: Promise<XLSXModule> | undefined;
+
+async function loadXlsx(): Promise<XLSXModule> {
+  if (!xlsxPromise) {
+    xlsxPromise = import("xlsx").then((m) => (m as unknown as { default?: XLSXModule }).default ?? m);
+  }
+  return xlsxPromise;
+}
 
 import type {
   AttendanceRecord,
@@ -26,11 +37,14 @@ export interface CenterExportData {
   homeworkTasks: HomeworkTask[];
 }
 
+let XLSX: XLSXModule = undefined as unknown as XLSXModule;
+
 function sheetFromRows<T extends Record<string, unknown>>(rows: T[]) {
   return XLSX.utils.json_to_sheet(rows);
 }
 
-export function buildCenterWorkbook(data: CenterExportData): XLSX.WorkBook {
+export async function buildCenterWorkbook(data: CenterExportData) {
+  XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
 
   XLSX.utils.book_append_sheet(
@@ -148,8 +162,8 @@ export function buildCenterWorkbook(data: CenterExportData): XLSX.WorkBook {
   return wb;
 }
 
-export function downloadCenterExcel(data: CenterExportData) {
-  const wb = buildCenterWorkbook(data);
+export async function downloadCenterExcel(data: CenterExportData) {
+  const wb = await buildCenterWorkbook(data);
   const stamp = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `${data.centerName}-${stamp}.xlsx`, { bookType: "xlsx" });
 }

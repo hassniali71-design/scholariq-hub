@@ -16,7 +16,7 @@
  * them cross-chunk, so there is nothing left to race. Run automatically after `bun run
  * build` via the `postbuild` script — see package.json.
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const HELPER_DEFS: Record<string, string> = {
@@ -59,7 +59,15 @@ function fixFile(path: string): boolean {
   return true;
 }
 
-const root = join(import.meta.dir, "..", ".output", "server");
+const candidates = [
+  join(import.meta.dir, "..", "dist", "server"),
+  join(import.meta.dir, "..", ".output", "server"),
+];
+const root = candidates.find((dir) => existsSync(dir));
+if (!root) {
+  console.log("fix-cloudflare-chunks: no server output directory found, skipping.");
+  process.exit(0);
+}
 const files = walk(root);
 let fixedCount = 0;
 for (const file of files) {
