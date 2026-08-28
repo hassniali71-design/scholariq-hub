@@ -205,13 +205,14 @@ async function fetchAllTablesForCenter(centerId: string) {
       notifications,
       activityLog,
       staffPermissions,
-    } as {
+    } as unknown as {
       centerId: string;
       center: { id: string; name: string; branch: string; accent_color: string | null; slug: string | null };
-    } & Record<
-      keyof typeof results,
-      unknown[]
-    >;
+    } & Record<keyof typeof results, unknown[]> &
+      Record<
+        "financeSettings" | "safeHandovers" | "notifications" | "activityLog" | "staffPermissions",
+        unknown[]
+      >;
 }
 
 export const fetchCenterData = createServerFn({ method: "GET", strict: { output: false } })
