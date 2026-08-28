@@ -319,3 +319,23 @@ export const createCenter = createServerFn({ method: "POST" })
 
     return { centerId: newCenterId, identifier, password, slug: centerSlug };
   });
+
+/** تعديل بيانات حساب موجود (الاسم / الكود / كلمة السر) — مقيَّد بمركز المستدعي. */
+export const updateAccountRow = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      accountId: string;
+      patch: { full_name?: string; identifier?: string; password?: string | null; phone?: string | null };
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("accounts")
+      .update(data.patch)
+      .eq("id", data.accountId)
+      .eq("center_id", centerId);
+    if (error) throw new Error(error.message);
+  });

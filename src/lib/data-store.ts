@@ -33,14 +33,17 @@ import {
   type TableName,
 } from "@/lib/data-functions.server";
 import type {
+  ActivityEntry,
   AssessmentScore,
   AttendanceRecord,
   AttendanceStatus,
   BookExerciseTask,
   BookletItem,
+  CenterNotification,
   CurriculumLesson,
   CurriculumUnit,
   ElectronicHomework,
+  FinanceSettings,
   Grade,
   GradeSubject,
   Group,
@@ -54,9 +57,12 @@ import type {
   QuizQuestion,
   QuizResult,
   RandomPickLog,
+  SafeHandover,
   SessionEvent,
   SessionRecord,
   SessionStepKey,
+  StaffPermissionKey,
+  StaffPermissionRecord,
   Student,
   Subject,
   SuggestedActivity,
@@ -249,6 +255,12 @@ export interface DataState {
   bookExerciseTasks: BookExerciseTask[];
   suggestedActivities: SuggestedActivity[];
   electronicHomeworks: ElectronicHomework[];
+  /* برج تحكم المالك */
+  financeSettings: FinanceSettings[];
+  safeHandovers: SafeHandover[];
+  notifications: CenterNotification[];
+  activityLog: ActivityEntry[];
+  staffPermissions: StaffPermissionRecord[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -339,6 +351,11 @@ function seedState(): DataState {
     bookExerciseTasks: [],
     suggestedActivities: [],
     electronicHomeworks: [],
+    financeSettings: [],
+    safeHandovers: [],
+    notifications: [],
+    activityLog: [],
+    staffPermissions: [],
   };
 }
 
@@ -998,7 +1015,25 @@ export function updateAttendanceForSession(
       : [record, ...state.attendanceRecords];
     return { ...state, attendanceRecords };
   });
-  if (record) syncUpsert("attendance_records", record);
+  if (record) {
+    const r = record as AttendanceRecord;
+    syncUpsert("attendance_records", r);
+    logActivity(
+      "attendance",
+      `${r.status === "absent" ? "غياب" : r.status === "late" ? "تأخير" : "حضور"}: ${r.student_name}`,
+      r.group_name,
+      r.student_name,
+      null,
+    );
+    if (r.status !== "present") {
+      pushNotification(
+        r.status === "absent" ? "absence" : "late",
+        r.status === "absent" ? "critical" : "warning",
+        r.status === "absent" ? `غياب: ${r.student_name}` : `تأخير: ${r.student_name}`,
+        r.group_name,
+      );
+    }
+  }
 }
 
 export function recordPayment(
@@ -1056,6 +1091,16 @@ export function recordPayment(
       payment_status: updatedPaymentStatus,
     });
   }
+  if (payment) {
+    const p = payment as PaymentRecord;
+    logActivity("payment", `دفعة من ${p.student_name}`, p.item, p.student_code, p.amount);
+    pushNotification(
+      "payment",
+      "info",
+      `تحصيل ${p.amount} ج.م — ${p.student_name}`,
+      `${p.item} · ${p.student_code}`,
+    );
+  }
 }
 
 export function deliverBooklet(bookletId: string) {
@@ -1089,7 +1134,11 @@ export function closeShift(countedAmount: number) {
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  if (closure) syncInsert("shift_closures", closure);
+  if (closure) {
+    const c = closure as ShiftClosure;
+    syncInsert("shift_closures", c);
+    logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
+  }
 }
 
 function ensureLiveScore(state: DataState, student: Student): LiveScore {
@@ -1707,4 +1756,171 @@ export function getBookExerciseTask(
 export function resetLiveScores() {
   update((state) => ({ ...state, liveScores: [] }));
   syncDeleteAll("live_scores");
+}
+
+
+/* ---------------- برج تحكم المالك (Owner Control Tower) ---------------- */
+
+export const DEFAULT_FINANCE_SETTINGS: Omit<FinanceSettings, "id" | "center_id" | "updated_at"> = {
+  billing_mode: "monthly",
+  monthly_fee: 0,
+  per_session_fee: 0,
+  season_fee: 0,
+  season_sessions: 0,
+  staff_salary_basis: "fixed",
+  staff_salary_value: 0,
+};
+
+export function getFinanceSettings(state: DataState): FinanceSettings {
+  return (
+    state.financeSettings[0] ?? {
+      id: `fs-${state.center.id}`,
+      center_id: state.center.id,
+      updated_at: "",
+      ...DEFAULT_FINANCE_SETTINGS,
+    }
+  );
+}
+
+export function saveFinanceSettings(
+  patch: Partial<Omit<FinanceSettings, "id" | "center_id" | "updated_at">>,
+) {
+  let row: FinanceSettings | null = null;
+  update((state) => {
+    row = {
+      ...getFinanceSettings(state),
+      ...patch,
+      id: `fs-${state.center.id}`,
+      center_id: state.center.id,
+      updated_at: new Date().toISOString(),
+    };
+    return { ...state, financeSettings: [row] };
+  });
+  if (row) syncUpsert("center_finance_settings", row, "center_id");
+}
+
+/** سجل النشاط الموحّد — كل حدث مهم يمر من هنا. */
+export function logActivity(
+  kind: string,
+  title: string,
+  detail?: string | null,
+  actor?: string | null,
+  amount?: number | null,
+) {
+  let entry: ActivityEntry | null = null;
+  update((state) => {
+    entry = {
+      id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      center_id: state.center.id,
+      kind,
+      title,
+      detail: detail ?? null,
+      actor: actor ?? null,
+      amount: amount ?? null,
+      created_at: new Date().toISOString(),
+    };
+    return { ...state, activityLog: [entry, ...state.activityLog] };
+  });
+  if (entry) syncInsert("activity_log", entry);
+}
+
+export function pushNotification(
+  kind: string,
+  severity: CenterNotification["severity"],
+  title: string,
+  body?: string | null,
+) {
+  let row: CenterNotification | null = null;
+  update((state) => {
+    row = {
+      id: `ntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      center_id: state.center.id,
+      kind,
+      severity,
+      title,
+      body: body ?? null,
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+    return { ...state, notifications: [row, ...state.notifications] };
+  });
+  if (row) syncInsert("notifications", row);
+}
+
+export function markNotificationRead(id: string) {
+  const readAt = new Date().toISOString();
+  update((state) => ({
+    ...state,
+    notifications: state.notifications.map((n) => (n.id === id ? { ...n, read_at: readAt } : n)),
+  }));
+  syncUpdate("notifications", id, { read_at: readAt });
+}
+
+export function markAllNotificationsRead() {
+  const readAt = new Date().toISOString();
+  const ids = getData().notifications.filter((n) => !n.read_at).map((n) => n.id);
+  update((state) => ({
+    ...state,
+    notifications: state.notifications.map((n) => (n.read_at ? n : { ...n, read_at: readAt })),
+  }));
+  ids.forEach((id) => syncUpdate("notifications", id, { read_at: readAt }));
+}
+
+/** سجل تسليم واستلام الخزنة. */
+export function recordSafeHandover(input: {
+  staffName: string;
+  staffIdentifier?: string | null;
+  amount: number;
+  note?: string | null;
+}) {
+  let row: SafeHandover | null = null;
+  update((state) => {
+    row = {
+      id: `sfh-${Date.now()}`,
+      center_id: state.center.id,
+      staff_name: input.staffName,
+      staff_identifier: input.staffIdentifier ?? null,
+      amount: input.amount,
+      note: input.note ?? null,
+      received_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    return { ...state, safeHandovers: [row, ...state.safeHandovers] };
+  });
+  if (row) {
+    syncInsert("safe_handovers", row);
+    logActivity(
+      "safe_handover",
+      `استلام خزنة من ${input.staffName}`,
+      input.note ?? null,
+      input.staffName,
+      input.amount,
+    );
+  }
+}
+
+export function getStaffPermissions(state: DataState, identifier: string): StaffPermissionKey[] {
+  return state.staffPermissions.find((p) => p.account_identifier === identifier)?.permissions ?? [];
+}
+
+export function setStaffPermissions(
+  identifier: string,
+  fullName: string,
+  permissions: StaffPermissionKey[],
+) {
+  let row: StaffPermissionRecord | null = null;
+  update((state) => {
+    const existing = state.staffPermissions.find((p) => p.account_identifier === identifier);
+    row = {
+      id: existing?.id ?? `perm-${identifier}`,
+      center_id: state.center.id,
+      account_identifier: identifier,
+      full_name: fullName,
+      permissions,
+      updated_at: new Date().toISOString(),
+    };
+    const rest = state.staffPermissions.filter((p) => p.account_identifier !== identifier);
+    return { ...state, staffPermissions: [...rest, row] };
+  });
+  if (row) syncUpsert("staff_permissions", row, "account_identifier");
 }

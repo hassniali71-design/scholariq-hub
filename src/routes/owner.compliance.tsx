@@ -51,6 +51,20 @@ function CompliancePage() {
   );
   const breaches = teachers.reduce((s, t) => s + t.sla_breaches, 0);
 
+  /** طلاب كل مدرس = المشتركون في مادته — منها متوسط الدرجات ونسبة الحضور الحقيقية. */
+  const teacherStats = new Map(
+    teachers.map((t) => {
+      const list = state.students.filter((s) => s.subject_ids.includes(t.subject_id));
+      const avgScore = list.length
+        ? Math.round(list.reduce((s, st) => s + st.avg_score, 0) / list.length)
+        : 0;
+      const attendance = list.length
+        ? Math.round(list.reduce((s, st) => s + st.attendance_rate, 0) / list.length)
+        : 0;
+      return [t.id, { count: list.length, avgScore, attendance }];
+    }),
+  );
+
   return (
     <AppShell
       role="owner"
@@ -133,6 +147,20 @@ function CompliancePage() {
                       <span className="kpi-number text-2xl">{formatPercent(value)}</span>
                     </div>
                   </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <MiniStat
+                      label="متوسط درجات طلابه"
+                      value={formatPercent(teacherStats.get(t.id)?.avgScore ?? 0)}
+                    />
+                    <MiniStat
+                      label="نسبة حضور طلابه"
+                      value={formatPercent(teacherStats.get(t.id)?.attendance ?? 0)}
+                    />
+                    <MiniStat
+                      label="عدد طلابه الفعلي"
+                      value={formatNumber(teacherStats.get(t.id)?.count ?? 0)}
+                    />
+                  </div>
                   <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-muted">
                     <div
                       className={
@@ -151,5 +179,14 @@ function CompliancePage() {
         </div>
       </Panel>
     </AppShell>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border-2 border-border bg-canvas p-3">
+      <p className="text-sm font-bold text-muted-foreground">{label}</p>
+      <p className="kpi-number text-xl">{value}</p>
+    </div>
   );
 }

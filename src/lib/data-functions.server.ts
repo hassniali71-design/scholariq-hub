@@ -42,6 +42,11 @@ const TABLES = [
   "book_exercise_tasks",
   "suggested_activities",
   "electronic_homeworks",
+  "center_finance_settings",
+  "safe_handovers",
+  "notifications",
+  "activity_log",
+  "staff_permissions",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -161,6 +166,25 @@ async function fetchAllTablesForCenter(centerId: string) {
       electronicHomeworks,
     };
 
+    // برج تحكم المالك (migration db/0009): tolerant fetch — لو الجداول الجديدة لسه ماتعملتش
+    // في قاعدة البيانات، الصفحات تشتغل عادي بقوائم فاضية بدل ما التطبيق كله يقع.
+    const optional = async (table: TableName) => {
+      const { data, error } = await scoped(table);
+      if (error) {
+        console.warn(`[data] optional table ${table} unavailable: ${error.message}`);
+        return [] as unknown[];
+      }
+      return (data ?? []) as unknown[];
+    };
+    const [financeSettings, safeHandovers, notifications, activityLog, staffPermissions] =
+      await Promise.all([
+        optional("center_finance_settings"),
+        optional("safe_handovers"),
+        optional("notifications"),
+        optional("activity_log"),
+        optional("staff_permissions"),
+      ]);
+
     if (centerRow.error) {
       throw new Error(`فشل تحميل بيانات المركز: ${centerRow.error.message}`);
     }
@@ -176,13 +200,19 @@ async function fetchAllTablesForCenter(centerId: string) {
       // seeded demo tenant's.
       center: centerRow.data,
       ...Object.fromEntries(Object.entries(results).map(([key, result]) => [key, result.data ?? []])),
-    } as {
+      financeSettings,
+      safeHandovers,
+      notifications,
+      activityLog,
+      staffPermissions,
+    } as unknown as {
       centerId: string;
       center: { id: string; name: string; branch: string; accent_color: string | null; slug: string | null };
-    } & Record<
-      keyof typeof results,
-      unknown[]
-    >;
+    } & Record<keyof typeof results, unknown[]> &
+      Record<
+        "financeSettings" | "safeHandovers" | "notifications" | "activityLog" | "staffPermissions",
+        unknown[]
+      >;
 }
 
 export const fetchCenterData = createServerFn({ method: "GET", strict: { output: false } })

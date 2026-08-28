@@ -429,3 +429,82 @@ export interface PerformancePoint {
   subject: string;
   avg: number;
 }
+
+/* ---------------- برج تحكم المالك (Owner Control Tower) ---------------- */
+
+export type BillingMode = "monthly" | "per_session" | "season";
+export type StaffSalaryBasis = "fixed" | "per_session" | "revenue_share";
+
+/** إعداد النظام المالي الذي يختاره كل مركز — أساس كل حسابات الرسوم والرواتب بعده. */
+export interface FinanceSettings {
+  id: UUID;
+  center_id: UUID;
+  billing_mode: BillingMode;
+  monthly_fee: number;
+  per_session_fee: number;
+  season_fee: number;
+  season_sessions: number;
+  staff_salary_basis: StaffSalaryBasis;
+  staff_salary_value: number;
+  updated_at: string;
+}
+
+/** سجل تسليم واستلام الخزنة: المدير استلم مبلغ من موظف معيّن بتاريخه. */
+export interface SafeHandover {
+  id: UUID;
+  center_id: UUID;
+  staff_name: string;
+  staff_identifier: string | null;
+  amount: number;
+  note: string | null;
+  received_at: string;
+  created_at: string;
+}
+
+export type NotificationSeverity = "info" | "warning" | "critical";
+
+export interface CenterNotification {
+  id: UUID;
+  center_id: UUID;
+  kind: string;
+  severity: NotificationSeverity;
+  title: string;
+  body: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+/** سجل النشاط الموحّد (Timeline) — كل الأحداث المهمة في مكان واحد. */
+export interface ActivityEntry {
+  id: UUID;
+  center_id: UUID;
+  kind: string;
+  title: string;
+  detail: string | null;
+  actor: string | null;
+  amount: number | null;
+  created_at: string;
+}
+
+/** الصلاحيات المتاحة للموظفين — مفاتيح ثابتة تُخزَّن كمصفوفة في staff_permissions.permissions. */
+export const STAFF_PERMISSION_KEYS = [
+  "attendance_gate",
+  "cashier",
+  "booklets",
+  "shift_close",
+  "view_students",
+  "edit_students",
+  "view_finance",
+  "safe_handover",
+] as const;
+
+export type StaffPermissionKey = (typeof STAFF_PERMISSION_KEYS)[number];
+
+export interface StaffPermissionRecord {
+  id: UUID;
+  center_id: UUID;
+  account_identifier: string;
+  full_name: string;
+  permissions: StaffPermissionKey[];
+  updated_at: string;
+}

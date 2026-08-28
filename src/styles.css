@@ -168,6 +168,15 @@
 
   html {
     font-family: var(--font-sans);
+    /* تكبير عام للخط في كل الصفحات — كل مقاسات Tailwind بالـ rem فبتكبر معاه.
+       الصفحة بتاخد طولها الطبيعي ويظهر Scroll عادي بدل تصغير العناصر. */
+    font-size: 17.5px;
+  }
+
+  @media (max-width: 640px) {
+    html {
+      font-size: 16.5px;
+    }
   }
 
   body {
@@ -188,6 +197,13 @@
   button {
     font-weight: 800;
   }
+}
+
+/* أي نافذة منبثقة: ارتفاع محدود بالشاشة + Scroll داخلي واضح بدل ما المستخدم يعمل Zoom Out. */
+@utility modal-scroll {
+  max-height: 85dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 @utility card-crisp {

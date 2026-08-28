@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Copy, Eye, GraduationCap, Trash2, UserPlus, Users } from "lucide-react";
+import { BadgeCheck, Copy, Eye, GraduationCap, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,10 +13,19 @@ import {
   deleteAccount,
   getAccounts,
   subscribeAuth,
+  updateAccount,
   type Account,
   type CreatedCredentials,
 } from "@/lib/auth";
-import { createStudentRecord, createTeacherRecord, getSubjectsForGrade, useDataStore } from "@/lib/data-store";
+import {
+  createStudentRecord,
+  createTeacherRecord,
+  getStaffPermissions,
+  getSubjectsForGrade,
+  setStaffPermissions,
+  useDataStore,
+} from "@/lib/data-store";
+import { STAFF_PERMISSION_KEYS, type StaffPermissionKey } from "@/types";
 
 export const Route = createFileRoute("/owner/access")({
   head: () => ({
@@ -474,6 +483,8 @@ function AccessManagement() {
         {invite ? <CredentialCard data={invite} /> : null}
       </div>
 
+      <StaffPermissionsPanel accounts={accounts} />
+
       <div className="card-crisp overflow-hidden">
         <div className="border-b-2 border-border px-5 py-4">
           <p className="text-lg font-black text-foreground">
@@ -493,38 +504,189 @@ function AccessManagement() {
             </thead>
             <tbody>
               {accounts.map((a) => (
-                <tr key={a.id} className="border-t-2 border-border text-sm font-extrabold">
-                  <td className="px-5 py-3 text-foreground">{a.full_name}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{ROLES[a.role].title}</td>
-                  <td className="px-5 py-3 font-mono text-foreground">{a.identifier}</td>
-                  <td className="px-5 py-3 font-mono text-muted-foreground">
-                    {a.password ?? "—"}
-                  </td>
-                  <td className="px-5 py-3">
-                    {a.role === "owner" ? null : (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await deleteAccount(a.id);
-                            toast.success("تم حذف الحساب");
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
-                          }
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg border-2 border-destructive/40 px-3 py-1.5 text-xs font-black text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                        حذف
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                <AccountRow key={a.id} account={a} />
               ))}
             </tbody>
           </table>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/** صف حساب واحد — عرض + تعديل (الاسم / الكود / كلمة السر) + حذف. */
+function AccountRow({ account }: { account: Account }) {
+  const [editing, setEditing] = useState(false);
+  const [fullName, setFullName] = useState(account.full_name);
+  const [identifier, setIdentifier] = useState(account.identifier);
+  const [password, setPassword] = useState(account.password ?? "");
+
+  const inputClass =
+    "w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-base font-extrabold text-foreground outline-none focus:border-primary";
+
+  if (editing) {
+    return (
+      <tr className="border-t-2 border-border text-base font-extrabold">
+        <td className="px-5 py-3">
+          <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </td>
+        <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
+        <td className="px-5 py-3">
+          <input className={inputClass} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+        </td>
+        <td className="px-5 py-3">
+          <input className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} />
+        </td>
+        <td className="px-5 py-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await updateAccount(account.id, {
+                    full_name: fullName.trim(),
+                    identifier: identifier.trim(),
+                    password: password.trim() || null,
+                  });
+                  setEditing(false);
+                  toast.success("تم حفظ التعديل");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "تعذّر حفظ التعديل");
+                }
+              }}
+              className="rounded-lg bg-navy px-3 py-2 text-sm font-black text-navy-foreground"
+            >
+              حفظ
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-lg border-2 border-border px-3 py-2 text-sm font-black text-foreground"
+            >
+              إلغاء
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="border-t-2 border-border text-base font-extrabold">
+      <td className="px-5 py-3 text-foreground">{account.full_name}</td>
+      <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
+      <td className="px-5 py-3 font-mono text-foreground">{account.identifier}</td>
+      <td className="px-5 py-3 font-mono text-muted-foreground">{account.password ?? "—"}</td>
+      <td className="px-5 py-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-sm font-black text-foreground hover:border-primary"
+          >
+            <Pencil className="size-4" />
+            تعديل
+          </button>
+          {account.role === "owner" ? null : (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await deleteAccount(account.id);
+                  toast.success("تم حذف الحساب");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border-2 border-destructive/40 px-3 py-1.5 text-sm font-black text-destructive"
+            >
+              <Trash2 className="size-4" />
+              حذف
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+const PERMISSION_LABELS: Record<StaffPermissionKey, string> = {
+  attendance_gate: "تشغيل بوابة الحضور",
+  cashier: "التحصيل من الكاشير",
+  booklets: "إدارة مخزون الملازم",
+  shift_close: "تقفيل الوردية",
+  view_students: "الاطلاع على بيانات الطلاب",
+  edit_students: "تعديل بيانات الطلاب",
+  view_finance: "الاطلاع على الأرقام المالية",
+  safe_handover: "تسليم الخزنة للمدير",
+};
+
+/** صلاحيات حقيقية ومحددة لكل موظف — مين يقدر يعمل إيه بالظبط. */
+function StaffPermissionsPanel({ accounts }: { accounts: Account[] }) {
+  const state = useDataStore();
+  const staff = accounts.filter((a) => a.role === "staff");
+
+  return (
+    <div className="card-crisp space-y-4 p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <ShieldCheck className="size-5" />
+        </span>
+        <div>
+          <p className="text-lg font-black text-foreground">صلاحيات الموظفين</p>
+          <p className="text-sm font-bold text-muted-foreground">
+            حدّد بالظبط كل موظف يقدر يفتح ويعمل إيه داخل النظام
+          </p>
+        </div>
+      </div>
+
+      {staff.length === 0 ? (
+        <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-base font-bold text-muted-foreground">
+          لا يوجد موظفون بعد — أضف موظفاً من الفورم بالأعلى لتظهر صلاحياته هنا.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {staff.map((a) => {
+            const current = getStaffPermissions(state, a.identifier);
+            return (
+              <div key={a.id} className="rounded-xl border-2 border-border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-base font-black text-foreground">{a.full_name}</p>
+                  <span className="font-mono text-sm font-black text-muted-foreground">
+                    {a.identifier}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {STAFF_PERMISSION_KEYS.map((key) => {
+                    const checked = current.includes(key);
+                    return (
+                      <label
+                        key={key}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black ${
+                          checked ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? current.filter((k) => k !== key)
+                              : [...current, key];
+                            setStaffPermissions(a.identifier, a.full_name, next);
+                          }}
+                          className="size-4"
+                        />
+                        {PERMISSION_LABELS[key]}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
