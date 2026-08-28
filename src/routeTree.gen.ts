@@ -17,6 +17,7 @@ import { Route as OwnerAccessRouteImport } from './routes/owner.access'
 import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
 import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
+import { Route as OwnerTreasuryRouteImport } from './routes/owner.treasury'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
 import { Route as PlatformClientsRouteImport } from './routes/platform.clients'
@@ -72,6 +73,11 @@ const OwnerFinanceRoute = OwnerFinanceRouteImport.update({
 const OwnerStudentsRoute = OwnerStudentsRouteImport.update({
   id: '/owner/students',
   path: '/owner/students',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerTreasuryRoute = OwnerTreasuryRouteImport.update({
+  id: '/owner/treasury',
+  path: '/owner/treasury',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParentIndexRoute = ParentIndexRouteImport.update({
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
+    | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
     | '/platform/login'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
+    | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
     | '/platform/login'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/owner/compliance'
     | '/owner/finance'
     | '/owner/students'
+    | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
     | '/platform/login'
@@ -322,6 +334,7 @@ export interface RootRouteChildren {
   OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
+  OwnerTreasuryRoute: typeof OwnerTreasuryRoute
   ParentMessagesRoute: typeof ParentMessagesRoute
   PlatformClientsRoute: typeof PlatformClientsRoute
   PlatformLoginRoute: typeof PlatformLoginRoute
@@ -397,6 +410,13 @@ declare module '@tanstack/react-router' {
       path: '/owner/students'
       fullPath: '/owner/students'
       preLoaderRoute: typeof OwnerStudentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/treasury': {
+      id: '/owner/treasury'
+      path: '/owner/treasury'
+      fullPath: '/owner/treasury'
+      preLoaderRoute: typeof OwnerTreasuryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parent/': {
@@ -531,6 +551,7 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,
+  OwnerTreasuryRoute: OwnerTreasuryRoute,
   ParentMessagesRoute: ParentMessagesRoute,
   PlatformClientsRoute: PlatformClientsRoute,
   PlatformLoginRoute: PlatformLoginRoute,
