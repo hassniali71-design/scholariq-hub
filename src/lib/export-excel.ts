@@ -37,11 +37,14 @@ export interface CenterExportData {
   homeworkTasks: HomeworkTask[];
 }
 
+let XLSX: XLSXModule = undefined as unknown as XLSXModule;
+
 function sheetFromRows<T extends Record<string, unknown>>(rows: T[]) {
   return XLSX.utils.json_to_sheet(rows);
 }
 
-export function buildCenterWorkbook(data: CenterExportData): XLSX.WorkBook {
+export async function buildCenterWorkbook(data: CenterExportData) {
+  XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
 
   XLSX.utils.book_append_sheet(
