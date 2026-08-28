@@ -16,7 +16,7 @@
  * them cross-chunk, so there is nothing left to race. Run automatically after `bun run
  * build` via the `postbuild` script — see package.json.
  */
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const HELPER_DEFS: Record<string, string> = {
