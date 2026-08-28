@@ -1,5 +1,11 @@
 import { CURRENT_TENANT, students as seedStudents, teachers as seedTeachers } from "@/lib/mock-data";
-import { createAccount, deleteAccount as deleteAccountFn, fetchAccounts, signIn as signInFn } from "@/lib/auth-functions.server";
+import {
+  createAccount,
+  deleteAccount as deleteAccountFn,
+  fetchAccounts,
+  signIn as signInFn,
+  updateAccountRow,
+} from "@/lib/auth-functions.server";
 import type { UserRole } from "@/types";
 
 /**
@@ -363,4 +369,17 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   emit();
   return { ok: true, session };
+}
+
+/** تعديل حساب موجود من واجهة "إدارة وصلاحيات الوصول". */
+export async function updateAccount(
+  id: string,
+  patch: { full_name?: string; identifier?: string; password?: string | null },
+): Promise<void> {
+  if (USE_SUPABASE) {
+    await updateAccountRow({ data: { identifier: requireIdentifier(), accountId: id, patch } });
+    emit();
+    return;
+  }
+  writeAccounts(readAccounts().map((a) => (a.id === id ? { ...a, ...patch } : a)));
 }
