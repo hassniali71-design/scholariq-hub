@@ -306,14 +306,14 @@ function OwnerDashboard() {
 }
 
 function NotificationRow({ n }: { n: CenterNotification }) {
-  const tone =
-    n.severity === "critical" ? "destructive" : n.severity === "warning" ? "warning" : "success";
+  const toneClass =
+    n.severity === "critical"
+      ? "border-destructive/40 bg-destructive/5"
+      : n.severity === "warning"
+        ? "border-warning/40 bg-warning/5"
+        : "border-success/40 bg-success/5";
   return (
-    <div
-      className={`rounded-xl border-2 p-4 ${
-        n.read_at ? "border-border opacity-70" : `border-${tone}/40 bg-${tone}/5`
-      }`}
-    >
+    <div className={`rounded-xl border-2 p-4 ${n.read_at ? "border-border opacity-70" : toneClass}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-base font-black text-foreground">{n.title}</p>
