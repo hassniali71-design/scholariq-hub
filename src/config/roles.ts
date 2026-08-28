@@ -47,6 +47,7 @@ export const ROLES: Record<UserRole, RoleConfig> = {
     nav: [
       { label: "برج التحكم", to: "/owner", icon: LayoutDashboard },
       { label: "التدفق المالي", to: "/owner/finance", icon: BarChart3 },
+      { label: "الخزنة والنظام المالي", to: "/owner/treasury", icon: Wallet },
       { label: "التزام المدرسين", to: "/owner/compliance", icon: CalendarCheck },
       { label: "الطلاب والمجموعات", to: "/owner/students", icon: Users },
       { label: "إدارة وصلاحيات الوصول", to: "/owner/access", icon: KeyRound },
