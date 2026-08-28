@@ -162,8 +162,8 @@ export async function buildCenterWorkbook(data: CenterExportData) {
   return wb;
 }
 
-export function downloadCenterExcel(data: CenterExportData) {
-  const wb = buildCenterWorkbook(data);
+export async function downloadCenterExcel(data: CenterExportData) {
+  const wb = await buildCenterWorkbook(data);
   const stamp = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `${data.centerName}-${stamp}.xlsx`, { bookType: "xlsx" });
 }
