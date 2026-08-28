@@ -25,11 +25,10 @@ export function getSupabaseAdmin(): AnySupabaseClient {
   assertServerOnly();
   if (client) return client;
 
-  const url = process.env["SUPABASE_URL"];
-  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const { url, serviceRoleKey } = readSupabaseEnv();
   if (!url || !serviceRoleKey) {
     throw new Error(
-      "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing from the server environment (.env).",
+      "ERP_SUPABASE_URL / ERP_SUPABASE_SERVICE_ROLE_KEY missing from the server environment.",
     );
   }
 
