@@ -1,4 +1,15 @@
-import * as XLSX from "xlsx";
+// xlsx is CommonJS-only and breaks the edge/server bundle when imported at module scope.
+// It is loaded lazily inside the browser-only download path instead.
+type XLSXModule = typeof import("xlsx");
+
+let xlsxPromise: Promise<XLSXModule> | undefined;
+
+async function loadXlsx(): Promise<XLSXModule> {
+  if (!xlsxPromise) {
+    xlsxPromise = import("xlsx").then((m) => (m as unknown as { default?: XLSXModule }).default ?? m);
+  }
+  return xlsxPromise;
+}
 
 import type {
   AttendanceRecord,
