@@ -201,13 +201,22 @@ export const fetchCenterData = createServerFn({ method: "GET", strict: { output:
 export const fetchCenterBySlug = createServerFn({ method: "GET" })
   .validator((data: { slug: string }) => data)
   .handler(async ({ data }) => {
-    const supabase = getSupabaseAdmin();
-    const { data: center } = await supabase
-      .from("centers")
-      .select("name, accent_color")
-      .eq("slug", data.slug)
-      .maybeSingle();
-    return center as { name: string; accent_color: string | null } | null;
+    // Branding-only, pre-auth lookup: if the server has no Supabase credentials yet (or the
+    // lookup fails), fall back to the generic login card instead of crashing the whole page
+    // with a 500 — the real failure then surfaces at sign-in, where it is actionable.
+    if (!process.env["SUPABASE_URL"] || !process.env["SUPABASE_SERVICE_ROLE_KEY"]) return null;
+    try {
+      const supabase = getSupabaseAdmin();
+      const { data: center } = await supabase
+        .from("centers")
+        .select("name, accent_color")
+        .eq("slug", data.slug)
+        .maybeSingle();
+      return center as { name: string; accent_color: string | null } | null;
+    } catch (error) {
+      console.error("fetchCenterBySlug failed:", error);
+      return null;
+    }
   });
 
 /**
