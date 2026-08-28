@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { getSupabaseAdmin, resolveCenterId } from "@/lib/supabase-server";
+import { getSupabaseAdmin, readSupabaseEnv, resolveCenterId } from "@/lib/supabase-server";
 
 /**
  * SUPABASE_MIGRATION_SPEC.md §5 — one generic CRUD layer instead of ~40 bespoke server
@@ -204,7 +204,8 @@ export const fetchCenterBySlug = createServerFn({ method: "GET" })
     // Branding-only, pre-auth lookup: if the server has no Supabase credentials yet (or the
     // lookup fails), fall back to the generic login card instead of crashing the whole page
     // with a 500 — the real failure then surfaces at sign-in, where it is actionable.
-    if (!process.env["SUPABASE_URL"] || !process.env["SUPABASE_SERVICE_ROLE_KEY"]) return null;
+    const env = readSupabaseEnv();
+    if (!env.url || !env.serviceRoleKey) return null;
     try {
       const supabase = getSupabaseAdmin();
       const { data: center } = await supabase
