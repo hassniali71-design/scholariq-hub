@@ -35,6 +35,7 @@ import {
 import type {
   ActivityEntry,
   AssessmentScore,
+  Expense,
   AttendanceRecord,
   AttendanceStatus,
   BookExerciseTask,
@@ -55,8 +56,11 @@ import type {
   PaymentMethod,
   PaymentRecord,
   QuizQuestion,
+  PayrollRecord,
   QuizResult,
   RandomPickLog,
+  ScheduleSlot,
+  SubjectPrice,
   SafeHandover,
   SessionEvent,
   SessionRecord,
@@ -261,6 +265,11 @@ export interface DataState {
   notifications: CenterNotification[];
   activityLog: ActivityEntry[];
   staffPermissions: StaffPermissionRecord[];
+  /* محرك الماليات والجدولة (db/0010) */
+  expenses: Expense[];
+  payrollRecords: PayrollRecord[];
+  subjectPrices: SubjectPrice[];
+  scheduleSlots: ScheduleSlot[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -356,6 +365,10 @@ function seedState(): DataState {
     notifications: [],
     activityLog: [],
     staffPermissions: [],
+    expenses: [],
+    payrollRecords: [],
+    subjectPrices: [],
+    scheduleSlots: [],
   };
 }
 
