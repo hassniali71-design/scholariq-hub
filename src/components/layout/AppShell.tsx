@@ -28,6 +28,18 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   const [session, setSession] = useState<Session | null>(null);
   const [checked, setChecked] = useState(false);
 
+  /**
+   * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
+   * دخول مالك المنصة على "/".
+   */
+  const goToCenterLogin = () => {
+    if (center.slug) {
+      void navigate({ to: "/login/$slug", params: { slug: center.slug } });
+    } else {
+      void navigate({ to: "/login" });
+    }
+  };
+
   useEffect(() => {
     const sync = () => {
       const current = getSession();
@@ -40,18 +52,6 @@ export function AppShell({ role, title, description, actions, children }: AppShe
     sync();
     return subscribeAuth(sync);
   }, [role, navigate]);
-
-  /**
-   * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
-   * دخول مالك المنصة على "/".
-   */
-  const goToCenterLogin = () => {
-    if (center.slug) {
-      void navigate({ to: "/login/$slug", params: { slug: center.slug } });
-    } else {
-      void navigate({ to: "/login" });
-    }
-  };
 
   const handleSignOut = () => {
     signOut();
