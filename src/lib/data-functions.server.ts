@@ -47,6 +47,10 @@ const TABLES = [
   "notifications",
   "activity_log",
   "staff_permissions",
+  "expenses",
+  "payroll_records",
+  "subject_prices",
+  "schedule_slots",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -176,14 +180,27 @@ async function fetchAllTablesForCenter(centerId: string) {
       }
       return (data ?? []) as unknown[];
     };
-    const [financeSettings, safeHandovers, notifications, activityLog, staffPermissions] =
-      await Promise.all([
-        optional("center_finance_settings"),
-        optional("safe_handovers"),
-        optional("notifications"),
-        optional("activity_log"),
-        optional("staff_permissions"),
-      ]);
+    const [
+      financeSettings,
+      safeHandovers,
+      notifications,
+      activityLog,
+      staffPermissions,
+      expenses,
+      payrollRecords,
+      subjectPrices,
+      scheduleSlots,
+    ] = await Promise.all([
+      optional("center_finance_settings"),
+      optional("safe_handovers"),
+      optional("notifications"),
+      optional("activity_log"),
+      optional("staff_permissions"),
+      optional("expenses"),
+      optional("payroll_records"),
+      optional("subject_prices"),
+      optional("schedule_slots"),
+    ]);
 
     if (centerRow.error) {
       throw new Error(`فشل تحميل بيانات المركز: ${centerRow.error.message}`);
@@ -205,12 +222,24 @@ async function fetchAllTablesForCenter(centerId: string) {
       notifications,
       activityLog,
       staffPermissions,
+      expenses,
+      payrollRecords,
+      subjectPrices,
+      scheduleSlots,
     } as unknown as {
       centerId: string;
       center: { id: string; name: string; branch: string; accent_color: string | null; slug: string | null };
     } & Record<keyof typeof results, unknown[]> &
       Record<
-        "financeSettings" | "safeHandovers" | "notifications" | "activityLog" | "staffPermissions",
+        | "financeSettings"
+        | "safeHandovers"
+        | "notifications"
+        | "activityLog"
+        | "staffPermissions"
+        | "expenses"
+        | "payrollRecords"
+        | "subjectPrices"
+        | "scheduleSlots",
         unknown[]
       >;
 }

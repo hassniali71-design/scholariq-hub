@@ -45,6 +45,8 @@ export interface Student {
    * the old implicit "one subject via group_id" assumption.
    */
   subject_ids: UUID[];
+  /** نظام دفع الطالب (db/0010) — قد يكون فاضي لصفوف قديمة قبل الهجرة. */
+  billing_plan?: StudentBillingPlan | null;
 }
 
 export interface Teacher {
@@ -506,5 +508,73 @@ export interface StaffPermissionRecord {
   account_identifier: string;
   full_name: string;
   permissions: StaffPermissionKey[];
+  updated_at: string;
+}
+
+/* ---------------- محرك الماليات والجدولة (db/0010) ---------------- */
+
+export type ExpenseCategory =
+  | "maintenance"
+  | "bills"
+  | "rent"
+  | "supplies"
+  | "marketing"
+  | "other";
+
+/** مصروف عام خارجي (صيانة، فواتير، إيجار...) — يُخصم من صافي الربح مباشرة. */
+export interface Expense {
+  id: UUID;
+  center_id: UUID;
+  category: ExpenseCategory;
+  title: string;
+  amount: number;
+  spent_at: string;
+  note: string | null;
+  created_at: string;
+}
+
+export type PayrollBasis = "per_session" | "weekly" | "monthly";
+
+/** راتب مسجّل كـ"صادر" حقيقي لمدرس أو موظف. */
+export interface PayrollRecord {
+  id: UUID;
+  center_id: UUID;
+  person_type: "teacher" | "staff";
+  person_id: string | null;
+  person_name: string;
+  basis: PayrollBasis;
+  amount: number;
+  period: string;
+  paid_at: string;
+  created_at: string;
+}
+
+/** نظام دفع الطالب: بالشهر / بالحصة / كلاهما. */
+export type StudentBillingPlan = "monthly" | "per_session" | "both";
+
+/** سعر المادة الواحدة كما يحدده المالك — الإجمالي يُحسب آلياً من مواد الطالب. */
+export interface SubjectPrice {
+  id: UUID;
+  center_id: UUID;
+  subject_id: UUID;
+  subject_name: string;
+  monthly_price: number;
+  per_session_price: number;
+  updated_at: string;
+}
+
+/** خانة في غرفة تحكم الجدولة: مدرس × مادة × يوم × ساعة × قاعة. */
+export interface ScheduleSlot {
+  id: UUID;
+  center_id: UUID;
+  teacher_id: UUID;
+  teacher_name: string;
+  subject_id: UUID | null;
+  subject: string;
+  grade: string;
+  weekday: string;
+  time: string;
+  room: string;
+  group_id: UUID | null;
   updated_at: string;
 }
