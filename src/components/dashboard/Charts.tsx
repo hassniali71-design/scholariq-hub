@@ -125,3 +125,80 @@ export function ScoreTrendChart({ data }: { data: { label: string; score: number
     </ResponsiveContainer>
   );
 }
+
+/** تقييم أداء المدرسين — عمود لكل مدرس بلونه حسب مستوى الالتزام. */
+export function TeacherPerformanceChart({
+  data,
+}: {
+  data: { name: string; score: number; punctuality: number; delivery: number; rating: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
+        <YAxis domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} width={44} />
+        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
+        <Legend wrapperStyle={{ fontWeight: 800, fontSize: 13 }} />
+        <Bar dataKey="score" name="التقييم العام" radius={[10, 10, 0, 0]}>
+          {data.map((entry) => (
+            <Cell
+              key={entry.name}
+              fill={
+                entry.score >= 80
+                  ? "var(--color-chart-2)"
+                  : entry.score >= 50
+                    ? "var(--color-chart-3)"
+                    : "var(--color-chart-5)"
+              }
+            />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** متوسط أداء وحضور السنتر حسب اليوم. */
+export function CenterDayChart({
+  data,
+}: {
+  data: { day: string; attendance: number; payments: number; sessions: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis dataKey="day" tick={{ ...axisStyle, fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
+        <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={44} />
+        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
+        <Legend wrapperStyle={{ fontWeight: 800, fontSize: 14 }} />
+        <Bar dataKey="attendance" name="حضور مسجّل" fill="var(--color-chart-1)" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="sessions" name="حصص اليوم" fill="var(--color-chart-2)" radius={[8, 8, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** الحضور الأسبوعي — نسخة كبيرة بخطوط أوضح تملأ الكارت بالكامل. */
+export function WeeklyAttendanceChart({ data }: { data: AttendancePoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={420}>
+      <BarChart data={data} margin={{ top: 12, right: 12, left: 12, bottom: 4 }} barGap={10}>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis
+          dataKey="day"
+          tick={{ ...axisStyle, fontSize: 16, fontWeight: 900 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+        />
+        <YAxis tick={{ ...axisStyle, fontSize: 15 }} axisLine={false} tickLine={false} width={48} />
+        <Tooltip contentStyle={{ ...tooltipStyle, fontSize: 15 }} cursor={{ fill: "var(--color-muted)" }} />
+        <Legend wrapperStyle={{ fontWeight: 900, fontSize: 16, paddingTop: 8 }} />
+        <Bar dataKey="present" name="حضور" fill="var(--color-chart-1)" radius={[10, 10, 0, 0]} />
+        <Bar dataKey="absent" name="غياب" fill="var(--color-chart-5)" radius={[10, 10, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
