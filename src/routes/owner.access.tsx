@@ -29,7 +29,13 @@ import {
   setStaffPermissions,
   useDataStore,
 } from "@/lib/data-store";
-import { STAFF_PERMISSION_KEYS, type StaffPermissionKey } from "@/types";
+import { formatCurrency } from "@/lib/format";
+import {
+  STAFF_PERMISSION_KEYS,
+  type PayrollBasis,
+  type StaffPermissionKey,
+  type StudentBillingPlan,
+} from "@/types";
 
 export const Route = createFileRoute("/owner/access")({
   head: () => ({
