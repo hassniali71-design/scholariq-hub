@@ -21,7 +21,9 @@ import {
   addPayroll,
   computeStudentFees,
   createStudentRecord,
+  deleteStudentCompletely,
   createTeacherRecord,
+  getData,
   setStudentBillingPlan,
   setStudentDue,
   getStaffPermissions,
@@ -673,6 +675,11 @@ function AccountRow({ account }: { account: Account }) {
               onClick={async () => {
                 try {
                   await deleteAccount(account.id);
+                  if (account.role === "student") {
+                    // حذف الطالب يمسح معه كل حركته المالية والحضور حتى لا يظل أثره في التدفق المالي.
+                    const student = getData().students.find((s) => s.code === account.identifier);
+                    if (student) deleteStudentCompletely(student.id);
+                  }
                   toast.success("تم حذف الحساب");
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
