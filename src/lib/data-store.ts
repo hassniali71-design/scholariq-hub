@@ -2166,3 +2166,15 @@ export function setStudentBillingPlan(studentId: string, plan: StudentBillingPla
   }));
   syncUpdate("students", studentId, { billing_plan: plan });
 }
+
+/** تحديد المستحق على الطالب (يُحسب آلياً من أسعار مواده عند الإضافة). */
+export function setStudentDue(studentId: string, balanceDue: number) {
+  const status: Student["payment_status"] = balanceDue > 0 ? "pending" : "paid";
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) =>
+      s.id === studentId ? { ...s, balance_due: balanceDue, payment_status: status } : s,
+    ),
+  }));
+  syncUpdate("students", studentId, { balance_due: balanceDue, payment_status: status });
+}

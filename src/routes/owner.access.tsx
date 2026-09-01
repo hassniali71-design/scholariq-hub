@@ -18,8 +18,12 @@ import {
   type CreatedCredentials,
 } from "@/lib/auth";
 import {
+  addPayroll,
+  computeStudentFees,
   createStudentRecord,
   createTeacherRecord,
+  setStudentBillingPlan,
+  setStudentDue,
   getStaffPermissions,
   getSubjectsForGrade,
   setStaffPermissions,
@@ -173,8 +177,14 @@ function StudentProvisionForm() {
   const [guardianPhone, setGuardianPhone] = useState("");
   const [groupId, setGroupId] = useState("");
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [billingPlan, setBillingPlan] = useState<StudentBillingPlan>("monthly");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // الإجمالي يُحسب آلياً من أسعار المواد المختارة (مثال: عربي ٢٠٠ + إنجليزي ٣٠٠ = ٥٠٠).
+  const fees = computeStudentFees(state, subjectIds);
+  const totalDue =
+    billingPlan === "per_session" ? fees.perSession : fees.monthly + (billingPlan === "both" ? fees.perSession : 0);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
@@ -210,6 +220,8 @@ function StudentProvisionForm() {
             toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
             return;
           }
+          setStudentBillingPlan(record.id, billingPlan);
+          setStudentDue(record.id, totalDue);
           setCreated(credentials);
           setFullName("");
           setGuardianName("");
@@ -298,6 +310,35 @@ function StudentProvisionForm() {
         </div>
       ) : null}
 
+      <div>
+        <p className="mb-2 text-xs font-black text-muted-foreground">نظام دفع الطالب</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              { key: "monthly", label: "بالشهر" },
+              { key: "per_session", label: "بالحصة" },
+              { key: "both", label: "كلاهما" },
+            ] as { key: StudentBillingPlan; label: string }[]
+          ).map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setBillingPlan(p.key)}
+              className={`rounded-xl border-2 px-3 py-2 text-xs font-black transition-colors ${
+                billingPlan === p.key
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 rounded-xl border-2 border-border p-3 text-sm font-black text-foreground">
+          الإجمالي المحسوب آلياً: {formatCurrency(totalDue)}
+        </p>
+      </div>
+
       <button
         type="submit"
         disabled={submitting}
@@ -325,6 +366,8 @@ function TeacherProvisionForm() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [salaryBasis, setSalaryBasis] = useState<PayrollBasis>("monthly");
+  const [salaryValue, setSalaryValue] = useState("");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -352,10 +395,22 @@ function TeacherProvisionForm() {
             toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
             return;
           }
+          const salary = Number(salaryValue || 0);
+          if (salary > 0) {
+            // الراتب يُسجَّل كـ"صادر" حقيقي فوراً فيظهر في التدفق المالي وصافي الربح.
+            addPayroll({
+              personType: "teacher",
+              personId: record.id,
+              personName: record.full_name,
+              basis: salaryBasis,
+              amount: salary,
+            });
+          }
           setCreated(credentials);
           setFullName("");
           setPhone("");
           setSubjectId("");
+          setSalaryValue("");
           toast.success(`تم توليد الكود: ${credentials.identifier}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
@@ -400,6 +455,25 @@ function TeacherProvisionForm() {
           </option>
         ))}
       </select>
+
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={salaryBasis}
+          onChange={(e) => setSalaryBasis(e.target.value as PayrollBasis)}
+          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+        >
+          <option value="per_session">راتب بالحصة</option>
+          <option value="weekly">راتب أسبوعي</option>
+          <option value="monthly">راتب شهري</option>
+        </select>
+        <input
+          value={salaryValue}
+          onChange={(e) => setSalaryValue(e.target.value)}
+          inputMode="numeric"
+          placeholder="قيمة الراتب (ج.م)"
+          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        />
+      </div>
 
       <button
         type="submit"
