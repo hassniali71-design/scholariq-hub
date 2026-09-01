@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
+import {
+  ExpensesPanel,
+  PayrollPanel,
+  SubjectPricingPanel,
+} from "@/components/owner/FinanceOpsPanels";
 import { AppShell } from "@/components/layout/AppShell";
 import { getAccounts, subscribeAuth, type Account } from "@/lib/auth";
 import {
@@ -320,6 +325,10 @@ function TreasuryPage() {
           )}
         </Panel>
       </div>
+
+      <SubjectPricingPanel />
+      <ExpensesPanel />
+      <PayrollPanel />
     </AppShell>
   );
 }
