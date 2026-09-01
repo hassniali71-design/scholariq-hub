@@ -324,7 +324,7 @@ function Mini({
   label: string;
   value: string;
   icon: typeof Users;
-  hint?: string;
+  hint?: string | undefined;
 }) {
   return (
     <div className="rounded-xl border-2 border-border p-4">
