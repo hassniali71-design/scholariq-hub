@@ -34,16 +34,28 @@ export function AppShell({ role, title, description, actions, children }: AppShe
       setSession(current);
       setChecked(true);
       if (!current || current.role !== role) {
-        void navigate({ to: "/" });
+        goToCenterLogin();
       }
     };
     sync();
     return subscribeAuth(sync);
   }, [role, navigate]);
 
+  /**
+   * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
+   * دخول مالك المنصة على "/".
+   */
+  const goToCenterLogin = () => {
+    if (center.slug) {
+      void navigate({ to: "/login/$slug", params: { slug: center.slug } });
+    } else {
+      void navigate({ to: "/login" });
+    }
+  };
+
   const handleSignOut = () => {
     signOut();
-    void navigate({ to: "/" });
+    goToCenterLogin();
   };
 
   if (!checked || !session) {
