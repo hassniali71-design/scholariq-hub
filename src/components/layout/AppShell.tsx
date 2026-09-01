@@ -32,10 +32,12 @@ export function AppShell({ role, title, description, actions, children }: AppShe
    * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
    * دخول مالك المنصة على "/".
    */
-  const goToCenterLogin = () => {
-    if (center.slug) {
-      void navigate({ to: "/login/$slug", params: { slug: center.slug } });
+  const goToCenterLogin = (slug?: string | null) => {
+    const target = slug ?? center.slug;
+    if (target) {
+      void navigate({ to: "/login/$slug", params: { slug: target } });
     } else {
+      // أبداً لا نرجّع لصفحة مالك المنصة "/" — دايماً صفحة دخول السنتر.
       void navigate({ to: "/login" });
     }
   };
@@ -54,9 +56,12 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   }, [role, navigate]);
 
   const handleSignOut = () => {
+    // نلتقط الـ slug قبل تسجيل الخروج لأن الستور بيتصفّر بعده.
+    const slug = center.slug;
     signOut();
-    goToCenterLogin();
+    goToCenterLogin(slug);
   };
+
 
   if (!checked || !session) {
     return (
