@@ -166,7 +166,7 @@ function SchedulePage() {
                   key={t.id}
                   title={`جدول ${t.full_name}`}
                   description={`${t.subject} · ${formatNumber(slots.length)} موعد أسبوعي`}
-                  action={
+                  actions={
                     <button
                       type="button"
                       onClick={() => {

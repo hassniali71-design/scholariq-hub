@@ -16,6 +16,7 @@ import { Route as OwnerIndexRouteImport } from './routes/owner.index'
 import { Route as OwnerAccessRouteImport } from './routes/owner.access'
 import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
 import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
+import { Route as OwnerScheduleRouteImport } from './routes/owner.schedule'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
 import { Route as OwnerTreasuryRouteImport } from './routes/owner.treasury'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
@@ -68,6 +69,11 @@ const OwnerComplianceRoute = OwnerComplianceRouteImport.update({
 const OwnerFinanceRoute = OwnerFinanceRouteImport.update({
   id: '/owner/finance',
   path: '/owner/finance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerScheduleRoute = OwnerScheduleRouteImport.update({
+  id: '/owner/schedule',
+  path: '/owner/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerStudentsRoute = OwnerStudentsRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/owner/access': typeof OwnerAccessRoute
   '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
+  '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
+    | '/owner/schedule'
     | '/owner/students'
     | '/owner/treasury'
     | '/parent/messages'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
+    | '/owner/schedule'
     | '/owner/students'
     | '/owner/treasury'
     | '/parent/messages'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/owner/access'
     | '/owner/compliance'
     | '/owner/finance'
+    | '/owner/schedule'
     | '/owner/students'
     | '/owner/treasury'
     | '/parent/messages'
@@ -333,6 +345,7 @@ export interface RootRouteChildren {
   OwnerAccessRoute: typeof OwnerAccessRoute
   OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
+  OwnerScheduleRoute: typeof OwnerScheduleRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
   OwnerTreasuryRoute: typeof OwnerTreasuryRoute
   ParentMessagesRoute: typeof ParentMessagesRoute
@@ -403,6 +416,13 @@ declare module '@tanstack/react-router' {
       path: '/owner/finance'
       fullPath: '/owner/finance'
       preLoaderRoute: typeof OwnerFinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/schedule': {
+      id: '/owner/schedule'
+      path: '/owner/schedule'
+      fullPath: '/owner/schedule'
+      preLoaderRoute: typeof OwnerScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/students': {
@@ -550,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerAccessRoute: OwnerAccessRoute,
   OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,
+  OwnerScheduleRoute: OwnerScheduleRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,
   OwnerTreasuryRoute: OwnerTreasuryRoute,
   ParentMessagesRoute: ParentMessagesRoute,
