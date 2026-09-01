@@ -5,16 +5,25 @@ import {
   BellRing,
   CalendarDays,
   CheckCheck,
+  Clock,
   Download,
   GraduationCap,
   History,
+  PiggyBank,
+  Receipt,
+  TrendingUp,
   UserCheck,
   Users,
   Wallet,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
+import {
+  CenterDayChart,
+  TeacherPerformanceChart,
+  WeeklyAttendanceChart,
+} from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { downloadCenterExcel } from "@/lib/export-excel";
@@ -23,8 +32,18 @@ import {
   getFinanceSettings,
   markAllNotificationsRead,
   markNotificationRead,
+  pushNotification,
   useDataStore,
 } from "@/lib/data-store";
+import {
+  buildActiveGroupsNow,
+  buildDailyCenterActivity,
+  buildDecisionAlerts,
+  buildTeacherPerformance,
+  buildWeeklyAttendance,
+  computeOwnerKpis,
+  WEEKDAYS,
+} from "@/lib/owner-metrics";
 import type { ActivityEntry, CenterNotification } from "@/types";
 
 export const Route = createFileRoute("/owner/")({
@@ -45,12 +64,9 @@ export const Route = createFileRoute("/owner/")({
   component: OwnerDashboard,
 });
 
-const WEEKDAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-
 function OwnerDashboard() {
   const state = useDataStore();
-  const { students, teachers, groups, payments, attendanceRecords, notifications, activityLog } =
-    state;
+  const { students, teachers, groups, attendanceRecords, notifications, activityLog } = state;
   const settings = getFinanceSettings(state);
 
   const today = WEEKDAYS[new Date().getDay()]!;
@@ -60,15 +76,40 @@ function OwnerDashboard() {
     [teachers, todayGroups],
   );
 
-  const collected = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const receivedInSafe = state.safeHandovers.reduce((s, h) => s + Number(h.amount), 0);
-  const unpaid = students.reduce((s, st) => s + Number(st.balance_due), 0);
-  const avgAttendance = students.length
-    ? Math.round(students.reduce((s, st) => s + st.attendance_rate, 0) / students.length)
-    : 0;
+  const kpis = useMemo(() => computeOwnerKpis(state), [state]);
+  const performance = useMemo(() => buildTeacherPerformance(state), [state]);
+  const dayActivity = useMemo(() => buildDailyCenterActivity(state), [state]);
+  const weeklyAttendance = useMemo(() => buildWeeklyAttendance(state), [state]);
+  const activeNow = useMemo(() => buildActiveGroupsNow(state), [state]);
+  const alerts = useMemo(() => buildDecisionAlerts(state), [state]);
 
   const unread = notifications.filter((n) => !n.read_at);
-  const timeline = useMemo(() => buildTimeline(activityLog, notifications), [activityLog, notifications]);
+  const timeline = useMemo(
+    () => buildTimeline(activityLog, notifications),
+    [activityLog, notifications],
+  );
+
+  /**
+   * حوكمة الحصص: أي حصة عدّى ميعادها والمدرس لم يفعّلها (لا حضور ولا واجب) تتحوّل
+   * لإشعار حقيقي مرة واحدة فقط في اليوم، فيظهر في صندوق التنبيهات وسجل النشاط.
+   */
+  useEffect(() => {
+    const day = new Date().toDateString();
+    for (const row of activeNow) {
+      if (!row.started || row.activated || row.lateMinutes < 10) continue;
+      const title = `تأخير في تفعيل حصة ${row.group.name}`;
+      const already = notifications.some(
+        (n) => n.title === title && new Date(n.created_at).toDateString() === day,
+      );
+      if (already) continue;
+      pushNotification(
+        "session_late",
+        "critical",
+        title,
+        `${row.group.teacher_name} · ${row.group.time} · مرّ ${row.lateMinutes} دقيقة بدون رفع واجب أو تسجيل حضور`,
+      );
+    }
+  }, [activeNow, notifications]);
 
   return (
     <AppShell
@@ -102,6 +143,61 @@ function OwnerDashboard() {
         </button>
       }
     >
+      {/* الكروت الثمانية الحقيقية */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="إيرادات الشهر"
+          value={formatCurrency(kpis.monthRevenue)}
+          icon={Banknote}
+          tone="success"
+          trend={`${formatCurrency(kpis.inSafe)} في الخزنة`}
+        />
+        <StatCard
+          label="صافي الربح"
+          value={formatCurrency(kpis.netProfit)}
+          icon={TrendingUp}
+          tone={kpis.netProfit >= 0 ? "success" : "destructive"}
+          trend={`هامش ${formatPercent(kpis.netMarginPct)}`}
+        />
+        <StatCard
+          label="إجمالي الطلاب النشطين"
+          value={formatNumber(kpis.activeStudents)}
+          icon={Users}
+          trend={`${formatNumber(groups.length)} مجموعة`}
+        />
+        <StatCard
+          label="متوسط التزام المدرسين"
+          value={formatPercent(kpis.teacherCompliance)}
+          icon={GraduationCap}
+          tone={kpis.teacherCompliance >= 80 ? "success" : "warning"}
+          trend={`${formatNumber(teachers.length)} مدرس`}
+        />
+        <StatCard
+          label="إجمالي المصروفات العامة"
+          value={formatCurrency(kpis.expensesTotal)}
+          icon={Receipt}
+          tone={kpis.expensesTotal > 0 ? "warning" : "success"}
+        />
+        <StatCard
+          label="إجمالي الرواتب"
+          value={formatCurrency(kpis.salariesTotal)}
+          icon={PiggyBank}
+        />
+        <StatCard
+          label="المستحقات المتأخرة"
+          value={formatCurrency(kpis.overdueTotal)}
+          icon={Wallet}
+          tone={kpis.overdueTotal > 0 ? "destructive" : "success"}
+          trend={`${formatNumber(students.filter((s) => s.balance_due > 0).length)} طالب`}
+        />
+        <StatCard
+          label="متوسط حضور السنتر"
+          value={formatPercent(kpis.avgAttendance)}
+          icon={UserCheck}
+          tone={kpis.avgAttendance >= 85 ? "success" : "warning"}
+        />
+      </div>
+
       {/* نظرة اليوم */}
       <div className="card-crisp p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -146,34 +242,136 @@ function OwnerDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="إجمالي الطلاب" value={formatNumber(students.length)} icon={Users} />
-        <StatCard
-          label="عدد المدرسين"
-          value={formatNumber(teachers.length)}
-          icon={GraduationCap}
-          trend={`${formatNumber(groups.length)} مجموعة`}
-        />
-        <StatCard
-          label="إجمالي التحصيل"
-          value={formatCurrency(collected)}
-          icon={Banknote}
-          tone="success"
-          trend={`${formatCurrency(receivedInSafe)} في الخزنة`}
-        />
-        <StatCard
-          label="مستحقات لم تُحصَّل"
-          value={formatCurrency(unpaid)}
-          icon={Wallet}
-          tone={unpaid > 0 ? "warning" : "success"}
-        />
+      {/* المجموعات النشطة الآن + التنبيهات التي تحتاج قراراً */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Panel
+          title="المجموعات النشطة الآن"
+          description="محسوبة من الساعة الحالية + تفعيل المدرس للحصة فعلياً"
+        >
+          <div className="space-y-3">
+            {activeNow.length === 0 ? (
+              <EmptyState text="لا توجد حصص مجدولة اليوم." />
+            ) : (
+              activeNow.map((row) => (
+                <div
+                  key={row.group.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 p-4 ${
+                    row.started && !row.activated
+                      ? "border-destructive/40 bg-destructive/5"
+                      : row.activated
+                        ? "border-success/40 bg-success/5"
+                        : "border-border"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-base font-black text-foreground">{row.group.name}</p>
+                    <p className="text-sm font-bold text-muted-foreground">
+                      {row.group.teacher_name} · {row.group.time} · قاعة {row.group.room}
+                    </p>
+                  </div>
+                  <StatusBadge
+                    tone={
+                      row.started && row.activated
+                        ? "success"
+                        : row.started
+                          ? "destructive"
+                          : "neutral"
+                    }
+                  >
+                    {row.started && row.activated
+                      ? "نشطة الآن"
+                      : row.started
+                        ? `متأخرة ${formatNumber(row.lateMinutes)} دقيقة`
+                        : "لم تبدأ بعد"}
+                  </StatusBadge>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
+
+        <Panel
+          title="تنبيهات تحتاج قراراً"
+          description={`${formatNumber(alerts.length)} تنبيه محسوب لحظياً من حركة السنتر`}
+        >
+          <div className="max-h-[26rem] space-y-3 overflow-y-auto pl-1">
+            {alerts.length === 0 ? (
+              <EmptyState text="مفيش أي تنبيه مفتوح — كل حاجة تمام دلوقتي." />
+            ) : (
+              alerts.map((a) => (
+                <div
+                  key={a.id}
+                  className={`rounded-xl border-2 p-4 ${
+                    a.severity === "critical"
+                      ? "border-destructive/40 bg-destructive/5"
+                      : a.severity === "warning"
+                        ? "border-warning/40 bg-warning/5"
+                        : "border-border"
+                  }`}
+                >
+                  <p className="flex items-center gap-2 text-base font-black text-foreground">
+                    <AlertTriangle className="size-5 text-warning" />
+                    {a.title}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-muted-foreground">{a.body}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
       </div>
+
+      {/* الرسوم البيانية */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Panel
+          title="تقييم أداء المدرسين"
+          description="الالتزام بالمواعيد + تسليم الحضور والتقييمات + مستوى الطلاب"
+        >
+          {performance.length === 0 ? (
+            <EmptyState text="لا يوجد مدرسون مسجّلون بعد." />
+          ) : (
+            <>
+              <TeacherPerformanceChart data={performance.map((p) => ({ ...p }))} />
+              <div className="mt-4 space-y-2">
+                {performance.map((p) => (
+                  <div
+                    key={p.teacherId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-border p-3"
+                  >
+                    <p className="text-base font-black text-foreground">
+                      {p.name} <span className="text-muted-foreground">· {p.subject}</span>
+                    </p>
+                    <p className="text-sm font-bold text-muted-foreground">
+                      مواعيد {formatPercent(p.punctuality)} · تسليم {formatPercent(p.delivery)} ·
+                      طلاب {formatPercent(p.rating)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Panel>
+
+        <Panel
+          title="متوسط أداء وحضور السنتر حسب اليوم"
+          description="حضور مسجّل وحركة الحصص لكل يوم"
+        >
+          <CenterDayChart data={dayActivity} />
+        </Panel>
+      </div>
+
+      <Panel
+        title="الحضور الأسبوعي"
+        description="حضور وغياب حقيقي موزّع على أيام الأسبوع"
+        className="min-h-[32rem]"
+      >
+        <WeeklyAttendanceChart data={weeklyAttendance} />
+      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
           title="الإشعارات المهمة"
           description={`${formatNumber(unread.length)} إشعار غير مقروء`}
-          className="xl:col-span-1"
         >
           <div className="space-y-3">
             {unread.length > 0 ? (
@@ -194,10 +392,7 @@ function OwnerDashboard() {
           </div>
         </Panel>
 
-        <Panel
-          title="سجل النشاط الموحّد"
-          description="كل الأحداث المهمة بترتيب زمني في مكان واحد"
-        >
+        <Panel title="سجل النشاط الموحّد" description="كل الأحداث المهمة بترتيب زمني في مكان واحد">
           <div className="space-y-3">
             {timeline.length === 0 ? (
               <EmptyState text="السجل فاضي دلوقتي — أول دفعة أو حضور أو استلام خزنة هيتسجل هنا." />
@@ -261,7 +456,9 @@ function OwnerDashboard() {
                 <div key={g.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-base font-black text-foreground">{g.name}</p>
-                    <StatusBadge tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}>
+                    <StatusBadge
+                      tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}
+                    >
                       {formatNumber(g.enrolled)} / {formatNumber(g.capacity)}
                     </StatusBadge>
                   </div>
@@ -283,10 +480,10 @@ function OwnerDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
-          label="متوسط الحضور العام"
-          value={formatPercent(avgAttendance)}
-          icon={UserCheck}
-          tone={avgAttendance >= 85 ? "success" : "warning"}
+          label="حصص متأخرة التفعيل اليوم"
+          value={formatNumber(activeNow.filter((r) => r.started && !r.activated).length)}
+          icon={Clock}
+          tone="destructive"
         />
         <StatCard
           label="طلاب عليهم مستحقات"
@@ -313,7 +510,9 @@ function NotificationRow({ n }: { n: CenterNotification }) {
         ? "border-warning/40 bg-warning/5"
         : "border-success/40 bg-success/5";
   return (
-    <div className={`rounded-xl border-2 p-4 ${n.read_at ? "border-border opacity-70" : toneClass}`}>
+    <div
+      className={`rounded-xl border-2 p-4 ${n.read_at ? "border-border opacity-70" : toneClass}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-base font-black text-foreground">{n.title}</p>

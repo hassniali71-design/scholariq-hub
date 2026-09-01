@@ -28,13 +28,25 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   const [session, setSession] = useState<Session | null>(null);
   const [checked, setChecked] = useState(false);
 
+  /**
+   * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
+   * دخول مالك المنصة على "/".
+   */
+  const goToCenterLogin = () => {
+    if (center.slug) {
+      void navigate({ to: "/login/$slug", params: { slug: center.slug } });
+    } else {
+      void navigate({ to: "/login" });
+    }
+  };
+
   useEffect(() => {
     const sync = () => {
       const current = getSession();
       setSession(current);
       setChecked(true);
       if (!current || current.role !== role) {
-        void navigate({ to: "/" });
+        goToCenterLogin();
       }
     };
     sync();
@@ -43,7 +55,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
 
   const handleSignOut = () => {
     signOut();
-    void navigate({ to: "/" });
+    goToCenterLogin();
   };
 
   if (!checked || !session) {
@@ -148,7 +160,9 @@ export function AppShell({ role, title, description, actions, children }: AppShe
                 to={item.to}
                 className={cn(
                   "shrink-0 rounded-lg px-3 py-2 text-xs font-extrabold",
-                  pathname === item.to ? "bg-navy text-navy-foreground" : "bg-muted text-foreground",
+                  pathname === item.to
+                    ? "bg-navy text-navy-foreground"
+                    : "bg-muted text-foreground",
                 )}
               >
                 {item.label}

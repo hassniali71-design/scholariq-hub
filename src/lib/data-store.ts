@@ -35,6 +35,7 @@ import {
 import type {
   ActivityEntry,
   AssessmentScore,
+  Expense,
   AttendanceRecord,
   AttendanceStatus,
   BookExerciseTask,
@@ -55,8 +56,12 @@ import type {
   PaymentMethod,
   PaymentRecord,
   QuizQuestion,
+  PayrollRecord,
   QuizResult,
   RandomPickLog,
+  ScheduleSlot,
+  StudentBillingPlan,
+  SubjectPrice,
   SafeHandover,
   SessionEvent,
   SessionRecord,
@@ -97,7 +102,9 @@ function currentIdentifier(): string | null {
 
 function reportSyncFailure(table: string, err: unknown) {
   console.error(`[data-store] Supabase sync failed for ${table}:`, err);
-  toast.error("تعذّر الحفظ على الخادم", { description: "التغيير ظاهر عندك الآن لكنه لسه مايتزامنش." });
+  toast.error("تعذّر الحفظ على الخادم", {
+    description: "التغيير ظاهر عندك الآن لكنه لسه مايتزامنش.",
+  });
 }
 
 /**
@@ -144,6 +151,15 @@ function syncUpsert(table: TableName, row: object, onConflict = "id") {
   void upsertRow({ data: { identifier, table, row: row as PlainRow, onConflict } }).catch((err) =>
     reportSyncFailure(table, err),
   );
+}
+
+function syncDeleteIds(table: TableName, ids: string[], idColumn?: string) {
+  if (!USE_SUPABASE || ids.length === 0) return;
+  const identifier = currentIdentifier();
+  if (!identifier) return;
+  void deleteRows({
+    data: { identifier, table, ids, ...(idColumn ? { idColumn } : {}) },
+  }).catch((err) => reportSyncFailure(table, err));
 }
 
 function syncDeleteAll(table: TableName) {
@@ -261,6 +277,11 @@ export interface DataState {
   notifications: CenterNotification[];
   activityLog: ActivityEntry[];
   staffPermissions: StaffPermissionRecord[];
+  /* محرك الماليات والجدولة (db/0010) */
+  expenses: Expense[];
+  payrollRecords: PayrollRecord[];
+  subjectPrices: SubjectPrice[];
+  scheduleSlots: ScheduleSlot[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -356,6 +377,10 @@ function seedState(): DataState {
     notifications: [],
     activityLog: [],
     staffPermissions: [],
+    expenses: [],
+    payrollRecords: [],
+    subjectPrices: [],
+    scheduleSlots: [],
   };
 }
 
@@ -403,7 +428,11 @@ function bootstrapFromSupabase() {
   hydrating = true;
   fetchCenterData({ data: { identifier } })
     .then((result) => {
-      const { centerId: _centerId, center, ...collections } = result as {
+      const {
+        centerId: _centerId,
+        center,
+        ...collections
+      } = result as {
         centerId: string;
         center: CenterInfo;
       } & Record<string, unknown[]>;
@@ -838,9 +867,13 @@ export function getOverallStudentPerformance(
   const bySubject = (student?.subject_ids ?? [])
     .map((subjectId) => {
       const subject = state.subjects.find((s) => s.id === subjectId);
-      return subject ? { subject, summary: getSubjectPerformanceSummary(state, studentId, subjectId) } : null;
+      return subject
+        ? { subject, summary: getSubjectPerformanceSummary(state, studentId, subjectId) }
+        : null;
     })
-    .filter((entry): entry is { subject: Subject; summary: SubjectPerformanceSummary } => entry !== null);
+    .filter(
+      (entry): entry is { subject: Subject; summary: SubjectPerformanceSummary } => entry !== null,
+    );
 
   const overallAvg =
     bySubject.length > 0
@@ -1065,7 +1098,9 @@ export function recordPayment(
     updatedBalanceDue = remaining;
     updatedPaymentStatus = remaining === 0 ? "paid" : student.payment_status;
     const students = state.students.map((s): Student =>
-      s.id === student.id ? { ...s, balance_due: remaining, payment_status: updatedPaymentStatus } : s,
+      s.id === student.id
+        ? { ...s, balance_due: remaining, payment_status: updatedPaymentStatus }
+        : s,
     );
     log = {
       id: `wa-${Date.now()}`,
@@ -1384,7 +1419,10 @@ export function createLesson(
 
     return { ...state, lessons: [lesson, ...state.lessons], curriculumLessons };
   });
-  syncInsert("lessons", getData().lessons.find((l) => l.id === id)!);
+  syncInsert(
+    "lessons",
+    getData().lessons.find((l) => l.id === id)!,
+  );
   if (linkedCurriculumLessonId) {
     syncUpdate("curriculum_lessons", linkedCurriculumLessonId, {
       linked_lesson_id: id,
@@ -1628,7 +1666,8 @@ export function recordSessionSummary(input: SessionSummaryInput) {
     };
   });
   if (record) syncInsert("session_records", record);
-  if (doneCurriculumLessonId) syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
+  if (doneCurriculumLessonId)
+    syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
 }
 
 export interface AssessmentScoreInput {
@@ -1758,7 +1797,6 @@ export function resetLiveScores() {
   syncDeleteAll("live_scores");
 }
 
-
 /* ---------------- برج تحكم المالك (Owner Control Tower) ---------------- */
 
 export const DEFAULT_FINANCE_SETTINGS: Omit<FinanceSettings, "id" | "center_id" | "updated_at"> = {
@@ -1858,7 +1896,9 @@ export function markNotificationRead(id: string) {
 
 export function markAllNotificationsRead() {
   const readAt = new Date().toISOString();
-  const ids = getData().notifications.filter((n) => !n.read_at).map((n) => n.id);
+  const ids = getData()
+    .notifications.filter((n) => !n.read_at)
+    .map((n) => n.id);
   update((state) => ({
     ...state,
     notifications: state.notifications.map((n) => (n.read_at ? n : { ...n, read_at: readAt })),
@@ -1923,4 +1963,246 @@ export function setStaffPermissions(
     return { ...state, staffPermissions: [...rest, row] };
   });
   if (row) syncUpsert("staff_permissions", row, "account_identifier");
+}
+
+/* ---------------- محرك الماليات والجدولة (db/0010) ---------------- */
+
+function nowISO() {
+  return new Date().toISOString();
+}
+
+/** مصروف عام جديد — يظهر فوراً في التدفق المالي وسجل النشاط. */
+export function addExpense(input: {
+  title: string;
+  amount: number;
+  category: Expense["category"];
+  note?: string | null;
+  spentAt?: string;
+}): Expense | null {
+  let row: Expense | null = null;
+  update((state) => {
+    row = {
+      id: `exp-${Date.now()}`,
+      center_id: state.center.id,
+      category: input.category,
+      title: input.title,
+      amount: Number(input.amount) || 0,
+      spent_at: input.spentAt ?? nowISO(),
+      note: input.note ?? null,
+      created_at: nowISO(),
+    };
+    return { ...state, expenses: [row, ...state.expenses] };
+  });
+  if (row) {
+    syncInsert("expenses", row);
+    logActivity("expense", `مصروف: ${input.title}`, null, null, Number(input.amount) || 0);
+  }
+  return row;
+}
+
+export function deleteExpense(id: string) {
+  update((state) => ({ ...state, expenses: state.expenses.filter((e) => e.id !== id) }));
+  syncDeleteIds("expenses", [id]);
+}
+
+/** تسجيل راتب مدرس/موظف كـ"صادر" حقيقي. */
+export function addPayroll(input: {
+  personType: PayrollRecord["person_type"];
+  personId?: string | null;
+  personName: string;
+  basis: PayrollRecord["basis"];
+  amount: number;
+  period?: string;
+}): PayrollRecord | null {
+  let row: PayrollRecord | null = null;
+  update((state) => {
+    row = {
+      id: `pay-${Date.now()}`,
+      center_id: state.center.id,
+      person_type: input.personType,
+      person_id: input.personId ?? null,
+      person_name: input.personName,
+      basis: input.basis,
+      amount: Number(input.amount) || 0,
+      period: input.period ?? new Date().toISOString().slice(0, 7),
+      paid_at: nowISO(),
+      created_at: nowISO(),
+    };
+    return { ...state, payrollRecords: [row, ...state.payrollRecords] };
+  });
+  if (row) {
+    syncInsert("payroll_records", row);
+    logActivity(
+      "payroll",
+      `راتب ${input.personName}`,
+      input.personType === "teacher" ? "مدرس" : "موظف",
+      input.personName,
+      Number(input.amount) || 0,
+    );
+  }
+  return row;
+}
+
+export function deletePayroll(id: string) {
+  update((state) => ({
+    ...state,
+    payrollRecords: state.payrollRecords.filter((p) => p.id !== id),
+  }));
+  syncDeleteIds("payroll_records", [id]);
+}
+
+/** سعر المادة (شهري / بالحصة) — أساس الحساب الآلي لإجمالي رسوم الطالب. */
+export function saveSubjectPrice(subjectId: string, monthly: number, perSession: number) {
+  let row: SubjectPrice | null = null;
+  update((state) => {
+    const subject = state.subjects.find((s) => s.id === subjectId);
+    const existing = state.subjectPrices.find((p) => p.subject_id === subjectId);
+    row = {
+      id: existing?.id ?? `sp-${subjectId}`,
+      center_id: state.center.id,
+      subject_id: subjectId,
+      subject_name: subject?.name ?? existing?.subject_name ?? subjectId,
+      monthly_price: Number(monthly) || 0,
+      per_session_price: Number(perSession) || 0,
+      updated_at: nowISO(),
+    };
+    const rest = state.subjectPrices.filter((p) => p.subject_id !== subjectId);
+    return { ...state, subjectPrices: [...rest, row] };
+  });
+  if (row) syncUpsert("subject_prices", row, "id");
+}
+
+/** إجمالي رسوم الطالب الشهرية = مجموع أسعار المواد المسجّل فيها. */
+export function computeStudentFees(
+  state: DataState,
+  subjectIds: string[],
+): { monthly: number; perSession: number } {
+  return subjectIds.reduce(
+    (acc, id) => {
+      const price = state.subjectPrices.find((p) => p.subject_id === id);
+      return {
+        monthly: acc.monthly + Number(price?.monthly_price ?? 0),
+        perSession: acc.perSession + Number(price?.per_session_price ?? 0),
+      };
+    },
+    { monthly: 0, perSession: 0 },
+  );
+}
+
+/** حفظ خانة في غرفة الجدولة (إنشاء أو تعديل مباشر شبيه بـ Excel). */
+export function upsertScheduleSlot(input: {
+  id?: string;
+  teacherId: string;
+  teacherName: string;
+  subjectId?: string | null;
+  subject: string;
+  grade?: string;
+  weekday: string;
+  time: string;
+  room?: string;
+  groupId?: string | null;
+}): ScheduleSlot | null {
+  let row: ScheduleSlot | null = null;
+  update((state) => {
+    row = {
+      id: input.id ?? `slot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      center_id: state.center.id,
+      teacher_id: input.teacherId,
+      teacher_name: input.teacherName,
+      subject_id: input.subjectId ?? null,
+      subject: input.subject,
+      grade: input.grade ?? "",
+      weekday: input.weekday,
+      time: input.time,
+      room: input.room ?? "",
+      group_id: input.groupId ?? null,
+      updated_at: nowISO(),
+    };
+    const rest = state.scheduleSlots.filter((sl) => sl.id !== row!.id);
+    return { ...state, scheduleSlots: [...rest, row] };
+  });
+  if (row) syncUpsert("schedule_slots", row, "id");
+  return row;
+}
+
+export function deleteScheduleSlot(id: string) {
+  update((state) => ({ ...state, scheduleSlots: state.scheduleSlots.filter((s) => s.id !== id) }));
+  syncDeleteIds("schedule_slots", [id]);
+}
+
+/**
+ * حذف طالب نهائياً + كل متعلقاته المالية والحركية، حتى لا يظل أثره في التدفق المالي
+ * أو في تقارير الحضور بعد خروجه من السنتر.
+ */
+export function deleteStudentCompletely(studentId: string) {
+  const before = getData();
+  const student = before.students.find((s) => s.id === studentId);
+  if (!student) return;
+
+  const paymentIds = before.payments
+    .filter((p) => p.student_code === student.code)
+    .map((p) => p.id);
+  const attendanceIds = before.attendanceRecords
+    .filter((a) => a.student_id === studentId)
+    .map((a) => a.id);
+  const quizIds = before.quizResults.filter((q) => q.student_id === studentId).map((q) => q.id);
+  const homeworkIds = before.homeworkTasks
+    .filter((h) => h.student_id === studentId)
+    .map((h) => h.id);
+  const whatsappIds = before.whatsappLogs
+    .filter((w) => w.student_id === studentId)
+    .map((w) => w.id);
+  const noteIds = before.teacherNotes.filter((n) => n.student_id === studentId).map((n) => n.id);
+
+  update((state) => {
+    const students = state.students.filter((s) => s.id !== studentId);
+    return {
+      ...state,
+      students,
+      payments: state.payments.filter((p) => p.student_code !== student.code),
+      attendanceRecords: state.attendanceRecords.filter((a) => a.student_id !== studentId),
+      quizResults: state.quizResults.filter((q) => q.student_id !== studentId),
+      homeworkTasks: state.homeworkTasks.filter((h) => h.student_id !== studentId),
+      whatsappLogs: state.whatsappLogs.filter((w) => w.student_id !== studentId),
+      teacherNotes: state.teacherNotes.filter((n) => n.student_id !== studentId),
+      groups: state.groups.map((g) =>
+        g.id === student.group_id ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
+      ),
+      leaderboard: buildLeaderboard(students),
+    };
+  });
+
+  syncDeleteIds("students", [studentId]);
+  syncDeleteIds("payments", paymentIds);
+  syncDeleteIds("attendance_records", attendanceIds);
+  syncDeleteIds("quiz_results", quizIds);
+  syncDeleteIds("homework_tasks", homeworkIds);
+  syncDeleteIds("whatsapp_logs", whatsappIds);
+  syncDeleteIds("teacher_notes", noteIds);
+  if (student.group_id) {
+    const group = before.groups.find((g) => g.id === student.group_id);
+    if (group) syncUpdate("groups", group.id, { enrolled: Math.max(0, group.enrolled - 1) });
+  }
+  logActivity("student_deleted", `حذف الطالب ${student.full_name}`, student.code);
+}
+
+/** تحديث نظام دفع الطالب. */
+export function setStudentBillingPlan(studentId: string, plan: StudentBillingPlan) {
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) => (s.id === studentId ? { ...s, billing_plan: plan } : s)),
+  }));
+  syncUpdate("students", studentId, { billing_plan: plan });
+}
+
+/** تحديد المستحق على الطالب (يُحسب آلياً من أسعار مواده عند الإضافة). */
+export function setStudentDue(studentId: string, balanceDue: number) {
+  const status: Student["payment_status"] = balanceDue > 0 ? "pending" : "paid";
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) =>
+      s.id === studentId ? { ...s, balance_due: balanceDue, payment_status: status } : s,
+    ),
+  }));
+  syncUpdate("students", studentId, { balance_due: balanceDue, payment_status: status });
 }

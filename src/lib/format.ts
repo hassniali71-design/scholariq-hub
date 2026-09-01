@@ -47,5 +47,8 @@ const arTime = new Intl.DateTimeFormat("ar-EG", {
 /** PLATFORM_CLIENT_MANAGEMENT_SPEC.md §2 — "12 أغسطس 2026 — 3:52 م" style, latin digits (same tofu-avoidance reasoning as `ar` above). */
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);
+  // بعض السجلات القديمة محفوظة كوقت عربي مختصر ("اليوم 10:30") مش ISO — نعرضها كما هي
+  // بدل ما Intl يرمي RangeError ويسقط الصفحة كلها.
+  if (Number.isNaN(d.getTime())) return iso;
   return `${arDate.format(d)} — ${arTime.format(d)}`;
 }

@@ -48,7 +48,8 @@ export const ROLES: Record<UserRole, RoleConfig> = {
       { label: "برج التحكم", to: "/owner", icon: LayoutDashboard },
       { label: "التدفق المالي", to: "/owner/finance", icon: BarChart3 },
       { label: "الخزنة والنظام المالي", to: "/owner/treasury", icon: Wallet },
-      { label: "التزام المدرسين", to: "/owner/compliance", icon: CalendarCheck },
+      { label: "غرفة تحكم الجدولة", to: "/owner/schedule", icon: CalendarCheck },
+      { label: "التزام المدرسين", to: "/owner/compliance", icon: ClipboardCheck },
       { label: "الطلاب والمجموعات", to: "/owner/students", icon: Users },
       { label: "إدارة وصلاحيات الوصول", to: "/owner/access", icon: KeyRound },
     ],
@@ -119,11 +120,4 @@ export const ROLES: Record<UserRole, RoleConfig> = {
   },
 };
 
-export const ROLE_ORDER: UserRole[] = [
-  "owner",
-  "staff",
-  "teacher",
-  "student",
-  "parent",
-  "visitor",
-];
+export const ROLE_ORDER: UserRole[] = ["owner", "staff", "teacher", "student", "parent", "visitor"];

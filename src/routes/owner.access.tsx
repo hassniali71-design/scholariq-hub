@@ -1,5 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Copy, Eye, GraduationCap, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  Copy,
+  Eye,
+  GraduationCap,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,14 +28,26 @@ import {
   type CreatedCredentials,
 } from "@/lib/auth";
 import {
+  addPayroll,
+  computeStudentFees,
   createStudentRecord,
+  deleteStudentCompletely,
   createTeacherRecord,
+  getData,
+  setStudentBillingPlan,
+  setStudentDue,
   getStaffPermissions,
   getSubjectsForGrade,
   setStaffPermissions,
   useDataStore,
 } from "@/lib/data-store";
-import { STAFF_PERMISSION_KEYS, type StaffPermissionKey } from "@/types";
+import { formatCurrency } from "@/lib/format";
+import {
+  STAFF_PERMISSION_KEYS,
+  type PayrollBasis,
+  type StaffPermissionKey,
+  type StudentBillingPlan,
+} from "@/types";
 
 export const Route = createFileRoute("/owner/access")({
   head: () => ({
@@ -173,8 +195,16 @@ function StudentProvisionForm() {
   const [guardianPhone, setGuardianPhone] = useState("");
   const [groupId, setGroupId] = useState("");
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [billingPlan, setBillingPlan] = useState<StudentBillingPlan>("monthly");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // الإجمالي يُحسب آلياً من أسعار المواد المختارة (مثال: عربي ٢٠٠ + إنجليزي ٣٠٠ = ٥٠٠).
+  const fees = computeStudentFees(state, subjectIds);
+  const totalDue =
+    billingPlan === "per_session"
+      ? fees.perSession
+      : fees.monthly + (billingPlan === "both" ? fees.perSession : 0);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
@@ -210,6 +240,8 @@ function StudentProvisionForm() {
             toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
             return;
           }
+          setStudentBillingPlan(record.id, billingPlan);
+          setStudentDue(record.id, totalDue);
           setCreated(credentials);
           setFullName("");
           setGuardianName("");
@@ -298,6 +330,35 @@ function StudentProvisionForm() {
         </div>
       ) : null}
 
+      <div>
+        <p className="mb-2 text-xs font-black text-muted-foreground">نظام دفع الطالب</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              { key: "monthly", label: "بالشهر" },
+              { key: "per_session", label: "بالحصة" },
+              { key: "both", label: "كلاهما" },
+            ] as { key: StudentBillingPlan; label: string }[]
+          ).map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setBillingPlan(p.key)}
+              className={`rounded-xl border-2 px-3 py-2 text-xs font-black transition-colors ${
+                billingPlan === p.key
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 rounded-xl border-2 border-border p-3 text-sm font-black text-foreground">
+          الإجمالي المحسوب آلياً: {formatCurrency(totalDue)}
+        </p>
+      </div>
+
       <button
         type="submit"
         disabled={submitting}
@@ -325,6 +386,8 @@ function TeacherProvisionForm() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [salaryBasis, setSalaryBasis] = useState<PayrollBasis>("monthly");
+  const [salaryValue, setSalaryValue] = useState("");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -352,10 +415,22 @@ function TeacherProvisionForm() {
             toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
             return;
           }
+          const salary = Number(salaryValue || 0);
+          if (salary > 0) {
+            // الراتب يُسجَّل كـ"صادر" حقيقي فوراً فيظهر في التدفق المالي وصافي الربح.
+            addPayroll({
+              personType: "teacher",
+              personId: record.id,
+              personName: record.full_name,
+              basis: salaryBasis,
+              amount: salary,
+            });
+          }
           setCreated(credentials);
           setFullName("");
           setPhone("");
           setSubjectId("");
+          setSalaryValue("");
           toast.success(`تم توليد الكود: ${credentials.identifier}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
@@ -400,6 +475,25 @@ function TeacherProvisionForm() {
           </option>
         ))}
       </select>
+
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={salaryBasis}
+          onChange={(e) => setSalaryBasis(e.target.value as PayrollBasis)}
+          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+        >
+          <option value="per_session">راتب بالحصة</option>
+          <option value="weekly">راتب أسبوعي</option>
+          <option value="monthly">راتب شهري</option>
+        </select>
+        <input
+          value={salaryValue}
+          onChange={(e) => setSalaryValue(e.target.value)}
+          inputMode="numeric"
+          placeholder="قيمة الراتب (ج.م)"
+          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        />
+      </div>
 
       <button
         type="submit"
@@ -528,14 +622,26 @@ function AccountRow({ account }: { account: Account }) {
     return (
       <tr className="border-t-2 border-border text-base font-extrabold">
         <td className="px-5 py-3">
-          <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input
+            className={inputClass}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
         <td className="px-5 py-3">
-          <input className={inputClass} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+          <input
+            className={inputClass}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
-          <input className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            className={inputClass}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
           <div className="flex gap-2">
@@ -593,6 +699,11 @@ function AccountRow({ account }: { account: Account }) {
               onClick={async () => {
                 try {
                   await deleteAccount(account.id);
+                  if (account.role === "student") {
+                    // حذف الطالب يمسح معه كل حركته المالية والحضور حتى لا يظل أثره في التدفق المالي.
+                    const student = getData().students.find((s) => s.code === account.identifier);
+                    if (student) deleteStudentCompletely(student.id);
+                  }
                   toast.success("تم حذف الحساب");
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
@@ -663,7 +774,9 @@ function StaffPermissionsPanel({ accounts }: { accounts: Account[] }) {
                       <label
                         key={key}
                         className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black ${
-                          checked ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
+                          checked
+                            ? "border-primary bg-primary/5 text-foreground"
+                            : "border-border text-muted-foreground"
                         }`}
                       >
                         <input
