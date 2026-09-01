@@ -172,7 +172,7 @@ function OwnerDashboard() {
           label="إجمالي المصروفات العامة"
           value={formatCurrency(kpis.expensesTotal)}
           icon={Receipt}
-          tone={kpis.expensesTotal > 0 ? "warning" : "neutral"}
+          tone={kpis.expensesTotal > 0 ? "warning" : "success"}
         />
         <StatCard label="إجمالي الرواتب" value={formatCurrency(kpis.salariesTotal)} icon={PiggyBank} />
         <StatCard
