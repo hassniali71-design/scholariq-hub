@@ -120,11 +120,4 @@ export const ROLES: Record<UserRole, RoleConfig> = {
   },
 };
 
-export const ROLE_ORDER: UserRole[] = [
-  "owner",
-  "staff",
-  "teacher",
-  "student",
-  "parent",
-  "visitor",
-];
+export const ROLE_ORDER: UserRole[] = ["owner", "staff", "teacher", "student", "parent", "visitor"];

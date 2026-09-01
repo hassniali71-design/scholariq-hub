@@ -59,7 +59,9 @@ export function SubjectPricingPanel() {
                 <PriceInput
                   label="سعر الشهر (ج.م)"
                   initial={String(price?.monthly_price ?? 0)}
-                  onCommit={(v) => saveSubjectPrice(sub.id, v, Number(price?.per_session_price ?? 0))}
+                  onCommit={(v) =>
+                    saveSubjectPrice(sub.id, v, Number(price?.per_session_price ?? 0))
+                  }
                 />
                 <PriceInput
                   label="سعر الحصة (ج.م)"
@@ -262,7 +264,11 @@ export function PayrollPanel() {
           toast.success("تم تسجيل الراتب كصادر");
         }}
       >
-        <select value={personKey} onChange={(e) => setPersonKey(e.target.value)} className={inputClass}>
+        <select
+          value={personKey}
+          onChange={(e) => setPersonKey(e.target.value)}
+          className={inputClass}
+        >
           <option value="">اختر مدرس / موظف</option>
           {state.teachers.map((t) => (
             <option key={t.id} value={`teacher|${t.id}`}>

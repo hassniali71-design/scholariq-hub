@@ -513,13 +513,7 @@ export interface StaffPermissionRecord {
 
 /* ---------------- محرك الماليات والجدولة (db/0010) ---------------- */
 
-export type ExpenseCategory =
-  | "maintenance"
-  | "bills"
-  | "rent"
-  | "supplies"
-  | "marketing"
-  | "other";
+export type ExpenseCategory = "maintenance" | "bills" | "rent" | "supplies" | "marketing" | "other";
 
 /** مصروف عام خارجي (صيانة، فواتير، إيجار...) — يُخصم من صافي الربح مباشرة. */
 export interface Expense {

@@ -94,7 +94,12 @@ function FinancePage() {
       description="تحليل آلي كامل: تحصيل، رواتب، مصروفات، وصافي ربح لكل مدرس"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="إيرادات الشهر" value={formatCurrency(kpis.monthRevenue)} icon={Banknote} tone="success" />
+        <StatCard
+          label="إيرادات الشهر"
+          value={formatCurrency(kpis.monthRevenue)}
+          icon={Banknote}
+          tone="success"
+        />
         <StatCard
           label="إجمالي الرواتب"
           value={formatCurrency(kpis.salariesTotal)}
@@ -136,10 +141,14 @@ function FinancePage() {
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-bold text-muted-foreground">الإيراد قبل الخصم</p>
             <p className="kpi-number text-2xl">{formatCurrency(grossBefore)}</p>
-            <p className="mt-1 text-sm font-bold text-muted-foreground">{formatPercent(marginBefore)}</p>
+            <p className="mt-1 text-sm font-bold text-muted-foreground">
+              {formatPercent(marginBefore)}
+            </p>
           </div>
           <div className="rounded-xl border-2 border-border p-4">
-            <p className="text-sm font-bold text-muted-foreground">إجمالي الخصومات (رواتب + مصروفات)</p>
+            <p className="text-sm font-bold text-muted-foreground">
+              إجمالي الخصومات (رواتب + مصروفات)
+            </p>
             <p className="kpi-number text-2xl">
               {formatCurrency(kpis.salariesTotal + kpis.expensesTotal)}
             </p>
@@ -223,8 +232,12 @@ function FinancePage() {
                     <td className="py-3 font-black text-foreground">{t.name}</td>
                     <td className="py-3 font-bold text-muted-foreground">{t.subject}</td>
                     <td className="py-3 font-extrabold">{formatNumber(t.studentsCount)}</td>
-                    <td className="py-3 font-extrabold text-success">{formatCurrency(t.revenue)}</td>
-                    <td className="py-3 font-extrabold text-destructive">{formatCurrency(t.salary)}</td>
+                    <td className="py-3 font-extrabold text-success">
+                      {formatCurrency(t.revenue)}
+                    </td>
+                    <td className="py-3 font-extrabold text-destructive">
+                      {formatCurrency(t.salary)}
+                    </td>
                     <td className="py-3">
                       <StatusBadge tone={t.net >= 0 ? "success" : "destructive"}>
                         {formatCurrency(t.net)}
@@ -244,7 +257,8 @@ function FinancePage() {
             <div className="rounded-xl border-2 border-success/40 bg-success/5 p-5">
               <p className="text-lg font-black text-foreground">{lastPayment.student_name}</p>
               <p className="mt-1 text-sm font-bold text-muted-foreground">
-                {lastPayment.item} · {lastPayment.student_code} · {formatDateTime(lastPayment.created_at)}
+                {lastPayment.item} · {lastPayment.student_code} ·{" "}
+                {formatDateTime(lastPayment.created_at)}
               </p>
               <p className="kpi-number mt-3 text-3xl text-success">
                 {formatCurrency(Number(lastPayment.amount))}
@@ -308,7 +322,13 @@ function FinancePage() {
         </div>
         <p className="mt-3 text-sm font-bold text-muted-foreground">
           مثال: طالب مسجّل في كل المواد الحالية إجماليه الشهري{" "}
-          {formatCurrency(computeStudentFees(state, subjects.map((s) => s.id)).monthly)}.
+          {formatCurrency(
+            computeStudentFees(
+              state,
+              subjects.map((s) => s.id),
+            ).monthly,
+          )}
+          .
         </p>
       </Panel>
     </AppShell>

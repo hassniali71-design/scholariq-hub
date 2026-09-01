@@ -58,7 +58,11 @@ function SchedulePage() {
     }
     for (const list of map.values()) {
       list.sort((a, b) =>
-        a.weekday === b.weekday ? (a.time < b.time ? -1 : 1) : WEEKDAYS.indexOf(a.weekday as never) - WEEKDAYS.indexOf(b.weekday as never),
+        a.weekday === b.weekday
+          ? a.time < b.time
+            ? -1
+            : 1
+          : WEEKDAYS.indexOf(a.weekday as never) - WEEKDAYS.indexOf(b.weekday as never),
       );
     }
     return map;

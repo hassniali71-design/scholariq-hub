@@ -160,7 +160,9 @@ export function AppShell({ role, title, description, actions, children }: AppShe
                 to={item.to}
                 className={cn(
                   "shrink-0 rounded-lg px-3 py-2 text-xs font-extrabold",
-                  pathname === item.to ? "bg-navy text-navy-foreground" : "bg-muted text-foreground",
+                  pathname === item.to
+                    ? "bg-navy text-navy-foreground"
+                    : "bg-muted text-foreground",
                 )}
               >
                 {item.label}

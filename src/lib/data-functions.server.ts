@@ -73,175 +73,185 @@ function assertAllowedTable(table: string): asserts table is TableName {
  * 28-table fetch either way, just a different source for `centerId`.
  */
 async function fetchAllTablesForCenter(centerId: string) {
-    const supabase = getSupabaseAdmin();
+  const supabase = getSupabaseAdmin();
 
-    const scoped = (table: TableName) => supabase.from(table).select("*").eq("center_id", centerId);
+  const scoped = (table: TableName) => supabase.from(table).select("*").eq("center_id", centerId);
 
-    const [
-      centerRow,
-      students,
-      teachers,
-      groups,
-      subjects,
-      grades,
-      gradeSubjects,
-      attendanceRecords,
-      payments,
-      booklets,
-      quizResults,
-      homeworkTasks,
-      whatsappLogs,
-      teacherNotes,
-      liveScores,
-      shiftClosures,
-      lessons,
-      lessonSlides,
-      sessionQuestions,
-      timerExtensions,
-      randomPickLogs,
-      sessionEvents,
-      sessionRecords,
-      assessmentScores,
-      curriculumUnits,
-      curriculumLessons,
-      bookExerciseTasks,
-      suggestedActivities,
-      electronicHomeworks,
-    ] = await Promise.all([
-      supabase.from("centers").select("id, name, branch, accent_color, slug").eq("id", centerId).single(),
-      scoped("students"),
-      scoped("teachers"),
-      scoped("groups"),
-      scoped("subjects"),
-      scoped("grades"),
-      scoped("grade_subjects"),
-      scoped("attendance_records"),
-      scoped("payments"),
-      scoped("booklets"),
-      scoped("quiz_results"),
-      scoped("homework_tasks"),
-      scoped("whatsapp_logs"),
-      scoped("teacher_notes"),
-      scoped("live_scores"),
-      scoped("shift_closures"),
-      scoped("lessons"),
-      scoped("lesson_slides"),
-      scoped("session_questions"),
-      scoped("timer_extensions"),
-      scoped("random_pick_logs"),
-      scoped("session_events"),
-      scoped("session_records"),
-      scoped("assessment_scores"),
-      scoped("curriculum_units"),
-      scoped("curriculum_lessons"),
-      scoped("book_exercise_tasks"),
-      scoped("suggested_activities"),
-      scoped("electronic_homeworks"),
-    ]);
+  const [
+    centerRow,
+    students,
+    teachers,
+    groups,
+    subjects,
+    grades,
+    gradeSubjects,
+    attendanceRecords,
+    payments,
+    booklets,
+    quizResults,
+    homeworkTasks,
+    whatsappLogs,
+    teacherNotes,
+    liveScores,
+    shiftClosures,
+    lessons,
+    lessonSlides,
+    sessionQuestions,
+    timerExtensions,
+    randomPickLogs,
+    sessionEvents,
+    sessionRecords,
+    assessmentScores,
+    curriculumUnits,
+    curriculumLessons,
+    bookExerciseTasks,
+    suggestedActivities,
+    electronicHomeworks,
+  ] = await Promise.all([
+    supabase
+      .from("centers")
+      .select("id, name, branch, accent_color, slug")
+      .eq("id", centerId)
+      .single(),
+    scoped("students"),
+    scoped("teachers"),
+    scoped("groups"),
+    scoped("subjects"),
+    scoped("grades"),
+    scoped("grade_subjects"),
+    scoped("attendance_records"),
+    scoped("payments"),
+    scoped("booklets"),
+    scoped("quiz_results"),
+    scoped("homework_tasks"),
+    scoped("whatsapp_logs"),
+    scoped("teacher_notes"),
+    scoped("live_scores"),
+    scoped("shift_closures"),
+    scoped("lessons"),
+    scoped("lesson_slides"),
+    scoped("session_questions"),
+    scoped("timer_extensions"),
+    scoped("random_pick_logs"),
+    scoped("session_events"),
+    scoped("session_records"),
+    scoped("assessment_scores"),
+    scoped("curriculum_units"),
+    scoped("curriculum_lessons"),
+    scoped("book_exercise_tasks"),
+    scoped("suggested_activities"),
+    scoped("electronic_homeworks"),
+  ]);
 
-    const results = {
-      students,
-      teachers,
-      groups,
-      subjects,
-      grades,
-      gradeSubjects,
-      attendanceRecords,
-      payments,
-      booklets,
-      quizResults,
-      homeworkTasks,
-      whatsappLogs,
-      teacherNotes,
-      liveScores,
-      shiftClosures,
-      lessons,
-      lessonSlides,
-      sessionQuestions,
-      timerExtensions,
-      randomPickLogs,
-      sessionEvents,
-      sessionRecords,
-      assessmentScores,
-      curriculumUnits,
-      curriculumLessons,
-      bookExerciseTasks,
-      suggestedActivities,
-      electronicHomeworks,
-    };
+  const results = {
+    students,
+    teachers,
+    groups,
+    subjects,
+    grades,
+    gradeSubjects,
+    attendanceRecords,
+    payments,
+    booklets,
+    quizResults,
+    homeworkTasks,
+    whatsappLogs,
+    teacherNotes,
+    liveScores,
+    shiftClosures,
+    lessons,
+    lessonSlides,
+    sessionQuestions,
+    timerExtensions,
+    randomPickLogs,
+    sessionEvents,
+    sessionRecords,
+    assessmentScores,
+    curriculumUnits,
+    curriculumLessons,
+    bookExerciseTasks,
+    suggestedActivities,
+    electronicHomeworks,
+  };
 
-    // برج تحكم المالك (migration db/0009): tolerant fetch — لو الجداول الجديدة لسه ماتعملتش
-    // في قاعدة البيانات، الصفحات تشتغل عادي بقوائم فاضية بدل ما التطبيق كله يقع.
-    const optional = async (table: TableName) => {
-      const { data, error } = await scoped(table);
-      if (error) {
-        console.warn(`[data] optional table ${table} unavailable: ${error.message}`);
-        return [] as unknown[];
-      }
-      return (data ?? []) as unknown[];
-    };
-    const [
-      financeSettings,
-      safeHandovers,
-      notifications,
-      activityLog,
-      staffPermissions,
-      expenses,
-      payrollRecords,
-      subjectPrices,
-      scheduleSlots,
-    ] = await Promise.all([
-      optional("center_finance_settings"),
-      optional("safe_handovers"),
-      optional("notifications"),
-      optional("activity_log"),
-      optional("staff_permissions"),
-      optional("expenses"),
-      optional("payroll_records"),
-      optional("subject_prices"),
-      optional("schedule_slots"),
-    ]);
-
-    if (centerRow.error) {
-      throw new Error(`فشل تحميل بيانات المركز: ${centerRow.error.message}`);
+  // برج تحكم المالك (migration db/0009): tolerant fetch — لو الجداول الجديدة لسه ماتعملتش
+  // في قاعدة البيانات، الصفحات تشتغل عادي بقوائم فاضية بدل ما التطبيق كله يقع.
+  const optional = async (table: TableName) => {
+    const { data, error } = await scoped(table);
+    if (error) {
+      console.warn(`[data] optional table ${table} unavailable: ${error.message}`);
+      return [] as unknown[];
     }
-    for (const [key, result] of Object.entries(results)) {
-      if (result.error) {
-        throw new Error(`فشل تحميل ${key}: ${result.error.message}`);
-      }
-    }
+    return (data ?? []) as unknown[];
+  };
+  const [
+    financeSettings,
+    safeHandovers,
+    notifications,
+    activityLog,
+    staffPermissions,
+    expenses,
+    payrollRecords,
+    subjectPrices,
+    scheduleSlots,
+  ] = await Promise.all([
+    optional("center_finance_settings"),
+    optional("safe_handovers"),
+    optional("notifications"),
+    optional("activity_log"),
+    optional("staff_permissions"),
+    optional("expenses"),
+    optional("payroll_records"),
+    optional("subject_prices"),
+    optional("schedule_slots"),
+  ]);
 
-    return {
-      centerId,
-      // §8/§11: every client sees their own center's real name/branch/accent color, not the
-      // seeded demo tenant's.
-      center: centerRow.data,
-      ...Object.fromEntries(Object.entries(results).map(([key, result]) => [key, result.data ?? []])),
-      financeSettings,
-      safeHandovers,
-      notifications,
-      activityLog,
-      staffPermissions,
-      expenses,
-      payrollRecords,
-      subjectPrices,
-      scheduleSlots,
-    } as unknown as {
-      centerId: string;
-      center: { id: string; name: string; branch: string; accent_color: string | null; slug: string | null };
-    } & Record<keyof typeof results, unknown[]> &
-      Record<
-        | "financeSettings"
-        | "safeHandovers"
-        | "notifications"
-        | "activityLog"
-        | "staffPermissions"
-        | "expenses"
-        | "payrollRecords"
-        | "subjectPrices"
-        | "scheduleSlots",
-        unknown[]
-      >;
+  if (centerRow.error) {
+    throw new Error(`فشل تحميل بيانات المركز: ${centerRow.error.message}`);
+  }
+  for (const [key, result] of Object.entries(results)) {
+    if (result.error) {
+      throw new Error(`فشل تحميل ${key}: ${result.error.message}`);
+    }
+  }
+
+  return {
+    centerId,
+    // §8/§11: every client sees their own center's real name/branch/accent color, not the
+    // seeded demo tenant's.
+    center: centerRow.data,
+    ...Object.fromEntries(Object.entries(results).map(([key, result]) => [key, result.data ?? []])),
+    financeSettings,
+    safeHandovers,
+    notifications,
+    activityLog,
+    staffPermissions,
+    expenses,
+    payrollRecords,
+    subjectPrices,
+    scheduleSlots,
+  } as unknown as {
+    centerId: string;
+    center: {
+      id: string;
+      name: string;
+      branch: string;
+      accent_color: string | null;
+      slug: string | null;
+    };
+  } & Record<keyof typeof results, unknown[]> &
+    Record<
+      | "financeSettings"
+      | "safeHandovers"
+      | "notifications"
+      | "activityLog"
+      | "staffPermissions"
+      | "expenses"
+      | "payrollRecords"
+      | "subjectPrices"
+      | "scheduleSlots",
+      unknown[]
+    >;
 }
 
 export const fetchCenterData = createServerFn({ method: "GET", strict: { output: false } })
@@ -331,7 +341,14 @@ export const updateRow = createServerFn({ method: "POST" })
   });
 
 export const upsertRow = createServerFn({ method: "POST" })
-  .validator((data: { identifier: string; table: TableName; row: Record<string, unknown>; onConflict: string }) => data)
+  .validator(
+    (data: {
+      identifier: string;
+      table: TableName;
+      row: Record<string, unknown>;
+      onConflict: string;
+    }) => data,
+  )
   .handler(async ({ data }) => {
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);
@@ -343,7 +360,9 @@ export const upsertRow = createServerFn({ method: "POST" })
   });
 
 export const deleteRows = createServerFn({ method: "POST" })
-  .validator((data: { identifier: string; table: TableName; idColumn?: string; ids?: string[] }) => data)
+  .validator(
+    (data: { identifier: string; table: TableName; idColumn?: string; ids?: string[] }) => data,
+  )
   .handler(async ({ data }) => {
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);

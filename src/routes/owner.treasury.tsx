@@ -26,7 +26,8 @@ export const Route = createFileRoute("/owner/treasury")({
       { title: "الخزنة والنظام المالي — لوحة المالك" },
       {
         name: "description",
-        content: "اختيار نظام التعامل المالي للسنتر (شهري/بالحصة/بالسيزون) وسجل تسليم واستلام الخزنة.",
+        content:
+          "اختيار نظام التعامل المالي للسنتر (شهري/بالحصة/بالسيزون) وسجل تسليم واستلام الخزنة.",
       },
       { property: "og:title", content: "الخزنة والنظام المالي — لوحة المالك" },
       {
@@ -127,7 +128,11 @@ function TreasuryPage() {
       description="اختيار نظام التعامل المالي للسنتر وتسجيل كل استلام من الموظفين"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="إجمالي التحصيل المسجَّل" value={formatCurrency(collected)} icon={Banknote} />
+        <StatCard
+          label="إجمالي التحصيل المسجَّل"
+          value={formatCurrency(collected)}
+          icon={Banknote}
+        />
         <StatCard
           label="المستلم في الخزنة"
           value={formatCurrency(totalReceived)}
@@ -159,7 +164,9 @@ function TreasuryPage() {
                 type="button"
                 onClick={() => setMode(m.key)}
                 className={`rounded-xl border-2 p-4 text-right transition-colors ${
-                  mode === m.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                  mode === m.key
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
                 <p className="text-base font-black text-foreground">{m.label}</p>
@@ -204,7 +211,9 @@ function TreasuryPage() {
                 onChange={setSalaryValue}
               />
               <div className="rounded-xl border-2 border-border p-4">
-                <p className="text-sm font-bold text-muted-foreground">تقدير إجمالي الرواتب شهرياً</p>
+                <p className="text-sm font-bold text-muted-foreground">
+                  تقدير إجمالي الرواتب شهرياً
+                </p>
                 <p className="kpi-number mt-1 text-2xl">{formatCurrency(salaryEstimate)}</p>
               </div>
             </div>

@@ -102,7 +102,9 @@ function currentIdentifier(): string | null {
 
 function reportSyncFailure(table: string, err: unknown) {
   console.error(`[data-store] Supabase sync failed for ${table}:`, err);
-  toast.error("تعذّر الحفظ على الخادم", { description: "التغيير ظاهر عندك الآن لكنه لسه مايتزامنش." });
+  toast.error("تعذّر الحفظ على الخادم", {
+    description: "التغيير ظاهر عندك الآن لكنه لسه مايتزامنش.",
+  });
 }
 
 /**
@@ -426,7 +428,11 @@ function bootstrapFromSupabase() {
   hydrating = true;
   fetchCenterData({ data: { identifier } })
     .then((result) => {
-      const { centerId: _centerId, center, ...collections } = result as {
+      const {
+        centerId: _centerId,
+        center,
+        ...collections
+      } = result as {
         centerId: string;
         center: CenterInfo;
       } & Record<string, unknown[]>;
@@ -861,9 +867,13 @@ export function getOverallStudentPerformance(
   const bySubject = (student?.subject_ids ?? [])
     .map((subjectId) => {
       const subject = state.subjects.find((s) => s.id === subjectId);
-      return subject ? { subject, summary: getSubjectPerformanceSummary(state, studentId, subjectId) } : null;
+      return subject
+        ? { subject, summary: getSubjectPerformanceSummary(state, studentId, subjectId) }
+        : null;
     })
-    .filter((entry): entry is { subject: Subject; summary: SubjectPerformanceSummary } => entry !== null);
+    .filter(
+      (entry): entry is { subject: Subject; summary: SubjectPerformanceSummary } => entry !== null,
+    );
 
   const overallAvg =
     bySubject.length > 0
@@ -1088,7 +1098,9 @@ export function recordPayment(
     updatedBalanceDue = remaining;
     updatedPaymentStatus = remaining === 0 ? "paid" : student.payment_status;
     const students = state.students.map((s): Student =>
-      s.id === student.id ? { ...s, balance_due: remaining, payment_status: updatedPaymentStatus } : s,
+      s.id === student.id
+        ? { ...s, balance_due: remaining, payment_status: updatedPaymentStatus }
+        : s,
     );
     log = {
       id: `wa-${Date.now()}`,
@@ -1407,7 +1419,10 @@ export function createLesson(
 
     return { ...state, lessons: [lesson, ...state.lessons], curriculumLessons };
   });
-  syncInsert("lessons", getData().lessons.find((l) => l.id === id)!);
+  syncInsert(
+    "lessons",
+    getData().lessons.find((l) => l.id === id)!,
+  );
   if (linkedCurriculumLessonId) {
     syncUpdate("curriculum_lessons", linkedCurriculumLessonId, {
       linked_lesson_id: id,
@@ -1651,7 +1666,8 @@ export function recordSessionSummary(input: SessionSummaryInput) {
     };
   });
   if (record) syncInsert("session_records", record);
-  if (doneCurriculumLessonId) syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
+  if (doneCurriculumLessonId)
+    syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
 }
 
 export interface AssessmentScoreInput {
@@ -1781,7 +1797,6 @@ export function resetLiveScores() {
   syncDeleteAll("live_scores");
 }
 
-
 /* ---------------- برج تحكم المالك (Owner Control Tower) ---------------- */
 
 export const DEFAULT_FINANCE_SETTINGS: Omit<FinanceSettings, "id" | "center_id" | "updated_at"> = {
@@ -1881,7 +1896,9 @@ export function markNotificationRead(id: string) {
 
 export function markAllNotificationsRead() {
   const readAt = new Date().toISOString();
-  const ids = getData().notifications.filter((n) => !n.read_at).map((n) => n.id);
+  const ids = getData()
+    .notifications.filter((n) => !n.read_at)
+    .map((n) => n.id);
   update((state) => ({
     ...state,
     notifications: state.notifications.map((n) => (n.read_at ? n : { ...n, read_at: readAt })),
@@ -2027,7 +2044,10 @@ export function addPayroll(input: {
 }
 
 export function deletePayroll(id: string) {
-  update((state) => ({ ...state, payrollRecords: state.payrollRecords.filter((p) => p.id !== id) }));
+  update((state) => ({
+    ...state,
+    payrollRecords: state.payrollRecords.filter((p) => p.id !== id),
+  }));
   syncDeleteIds("payroll_records", [id]);
 }
 
@@ -2119,11 +2139,19 @@ export function deleteStudentCompletely(studentId: string) {
   const student = before.students.find((s) => s.id === studentId);
   if (!student) return;
 
-  const paymentIds = before.payments.filter((p) => p.student_code === student.code).map((p) => p.id);
-  const attendanceIds = before.attendanceRecords.filter((a) => a.student_id === studentId).map((a) => a.id);
+  const paymentIds = before.payments
+    .filter((p) => p.student_code === student.code)
+    .map((p) => p.id);
+  const attendanceIds = before.attendanceRecords
+    .filter((a) => a.student_id === studentId)
+    .map((a) => a.id);
   const quizIds = before.quizResults.filter((q) => q.student_id === studentId).map((q) => q.id);
-  const homeworkIds = before.homeworkTasks.filter((h) => h.student_id === studentId).map((h) => h.id);
-  const whatsappIds = before.whatsappLogs.filter((w) => w.student_id === studentId).map((w) => w.id);
+  const homeworkIds = before.homeworkTasks
+    .filter((h) => h.student_id === studentId)
+    .map((h) => h.id);
+  const whatsappIds = before.whatsappLogs
+    .filter((w) => w.student_id === studentId)
+    .map((w) => w.id);
   const noteIds = before.teacherNotes.filter((n) => n.student_id === studentId).map((n) => n.id);
 
   update((state) => {

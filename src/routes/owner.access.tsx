@@ -1,5 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Copy, Eye, GraduationCap, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  Copy,
+  Eye,
+  GraduationCap,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -192,7 +202,9 @@ function StudentProvisionForm() {
   // الإجمالي يُحسب آلياً من أسعار المواد المختارة (مثال: عربي ٢٠٠ + إنجليزي ٣٠٠ = ٥٠٠).
   const fees = computeStudentFees(state, subjectIds);
   const totalDue =
-    billingPlan === "per_session" ? fees.perSession : fees.monthly + (billingPlan === "both" ? fees.perSession : 0);
+    billingPlan === "per_session"
+      ? fees.perSession
+      : fees.monthly + (billingPlan === "both" ? fees.perSession : 0);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
@@ -610,14 +622,26 @@ function AccountRow({ account }: { account: Account }) {
     return (
       <tr className="border-t-2 border-border text-base font-extrabold">
         <td className="px-5 py-3">
-          <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input
+            className={inputClass}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
         <td className="px-5 py-3">
-          <input className={inputClass} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+          <input
+            className={inputClass}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
-          <input className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            className={inputClass}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
           <div className="flex gap-2">
@@ -750,7 +774,9 @@ function StaffPermissionsPanel({ accounts }: { accounts: Account[] }) {
                       <label
                         key={key}
                         className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-black ${
-                          checked ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
+                          checked
+                            ? "border-primary bg-primary/5 text-foreground"
+                            : "border-border text-muted-foreground"
                         }`}
                       >
                         <input

@@ -50,7 +50,9 @@ export function computeOwnerKpis(state: DataState): OwnerKpis {
   const netProfit = monthRevenue - salariesTotal - expensesTotal;
   const overdueTotal = state.students.reduce((s, st) => s + Number(st.balance_due), 0);
   const avgAttendance = state.students.length
-    ? Math.round(state.students.reduce((s, st) => s + st.attendance_rate, 0) / state.students.length)
+    ? Math.round(
+        state.students.reduce((s, st) => s + st.attendance_rate, 0) / state.students.length,
+      )
     : 0;
   const perf = buildTeacherPerformance(state);
   const teacherCompliance = perf.length
@@ -91,7 +93,9 @@ export function buildTeacherPerformance(state: DataState): TeacherPerformanceRow
     const groupNames = new Set(groups.map((g) => g.name));
     const students = state.students.filter((s) => s.subject_ids.includes(t.subject_id));
 
-    const attendanceForTeacher = state.attendanceRecords.filter((a) => groupNames.has(a.group_name));
+    const attendanceForTeacher = state.attendanceRecords.filter((a) =>
+      groupNames.has(a.group_name),
+    );
     const punctuality = groups.length
       ? Math.min(100, Math.round((attendanceForTeacher.length / (groups.length * 5)) * 100))
       : 0;

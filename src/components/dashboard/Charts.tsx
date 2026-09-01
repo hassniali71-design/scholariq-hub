@@ -104,7 +104,6 @@ export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
   );
 }
 
-
 export function ScoreTrendChart({ data }: { data: { label: string; score: number }[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -136,7 +135,13 @@ export function TeacherPerformanceChart({
     <ResponsiveContainer width="100%" height={340}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
-        <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
+        <XAxis
+          dataKey="name"
+          tick={{ ...axisStyle, fontSize: 13 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+        />
         <YAxis domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} width={44} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
         <Legend wrapperStyle={{ fontWeight: 800, fontSize: 13 }} />
@@ -169,12 +174,28 @@ export function CenterDayChart({
     <ResponsiveContainer width="100%" height={340}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
-        <XAxis dataKey="day" tick={{ ...axisStyle, fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
+        <XAxis
+          dataKey="day"
+          tick={{ ...axisStyle, fontSize: 14 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+        />
         <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={44} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
         <Legend wrapperStyle={{ fontWeight: 800, fontSize: 14 }} />
-        <Bar dataKey="attendance" name="حضور مسجّل" fill="var(--color-chart-1)" radius={[8, 8, 0, 0]} />
-        <Bar dataKey="sessions" name="حصص اليوم" fill="var(--color-chart-2)" radius={[8, 8, 0, 0]} />
+        <Bar
+          dataKey="attendance"
+          name="حضور مسجّل"
+          fill="var(--color-chart-1)"
+          radius={[8, 8, 0, 0]}
+        />
+        <Bar
+          dataKey="sessions"
+          name="حصص اليوم"
+          fill="var(--color-chart-2)"
+          radius={[8, 8, 0, 0]}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -194,7 +215,10 @@ export function WeeklyAttendanceChart({ data }: { data: AttendancePoint[] }) {
           interval={0}
         />
         <YAxis tick={{ ...axisStyle, fontSize: 15 }} axisLine={false} tickLine={false} width={48} />
-        <Tooltip contentStyle={{ ...tooltipStyle, fontSize: 15 }} cursor={{ fill: "var(--color-muted)" }} />
+        <Tooltip
+          contentStyle={{ ...tooltipStyle, fontSize: 15 }}
+          cursor={{ fill: "var(--color-muted)" }}
+        />
         <Legend wrapperStyle={{ fontWeight: 900, fontSize: 16, paddingTop: 8 }} />
         <Bar dataKey="present" name="حضور" fill="var(--color-chart-1)" radius={[10, 10, 0, 0]} />
         <Bar dataKey="absent" name="غياب" fill="var(--color-chart-5)" radius={[10, 10, 0, 0]} />

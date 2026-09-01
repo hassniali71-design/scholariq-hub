@@ -19,7 +19,11 @@ import {
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
-import { CenterDayChart, TeacherPerformanceChart, WeeklyAttendanceChart } from "@/components/dashboard/Charts";
+import {
+  CenterDayChart,
+  TeacherPerformanceChart,
+  WeeklyAttendanceChart,
+} from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { downloadCenterExcel } from "@/lib/export-excel";
@@ -174,7 +178,11 @@ function OwnerDashboard() {
           icon={Receipt}
           tone={kpis.expensesTotal > 0 ? "warning" : "success"}
         />
-        <StatCard label="إجمالي الرواتب" value={formatCurrency(kpis.salariesTotal)} icon={PiggyBank} />
+        <StatCard
+          label="إجمالي الرواتب"
+          value={formatCurrency(kpis.salariesTotal)}
+          icon={PiggyBank}
+        />
         <StatCard
           label="المستحقات المتأخرة"
           value={formatCurrency(kpis.overdueTotal)}
@@ -315,7 +323,10 @@ function OwnerDashboard() {
 
       {/* الرسوم البيانية */}
       <div className="grid gap-6 xl:grid-cols-2">
-        <Panel title="تقييم أداء المدرسين" description="الالتزام بالمواعيد + تسليم الحضور والتقييمات + مستوى الطلاب">
+        <Panel
+          title="تقييم أداء المدرسين"
+          description="الالتزام بالمواعيد + تسليم الحضور والتقييمات + مستوى الطلاب"
+        >
           {performance.length === 0 ? (
             <EmptyState text="لا يوجد مدرسون مسجّلون بعد." />
           ) : (
@@ -331,8 +342,8 @@ function OwnerDashboard() {
                       {p.name} <span className="text-muted-foreground">· {p.subject}</span>
                     </p>
                     <p className="text-sm font-bold text-muted-foreground">
-                      مواعيد {formatPercent(p.punctuality)} · تسليم {formatPercent(p.delivery)} · طلاب{" "}
-                      {formatPercent(p.rating)}
+                      مواعيد {formatPercent(p.punctuality)} · تسليم {formatPercent(p.delivery)} ·
+                      طلاب {formatPercent(p.rating)}
                     </p>
                   </div>
                 ))}
@@ -341,7 +352,10 @@ function OwnerDashboard() {
           )}
         </Panel>
 
-        <Panel title="متوسط أداء وحضور السنتر حسب اليوم" description="حضور مسجّل وحركة الحصص لكل يوم">
+        <Panel
+          title="متوسط أداء وحضور السنتر حسب اليوم"
+          description="حضور مسجّل وحركة الحصص لكل يوم"
+        >
           <CenterDayChart data={dayActivity} />
         </Panel>
       </div>
@@ -442,7 +456,9 @@ function OwnerDashboard() {
                 <div key={g.id} className="rounded-xl border-2 border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-base font-black text-foreground">{g.name}</p>
-                    <StatusBadge tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}>
+                    <StatusBadge
+                      tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}
+                    >
                       {formatNumber(g.enrolled)} / {formatNumber(g.capacity)}
                     </StatusBadge>
                   </div>
@@ -494,7 +510,9 @@ function NotificationRow({ n }: { n: CenterNotification }) {
         ? "border-warning/40 bg-warning/5"
         : "border-success/40 bg-success/5";
   return (
-    <div className={`rounded-xl border-2 p-4 ${n.read_at ? "border-border opacity-70" : toneClass}`}>
+    <div
+      className={`rounded-xl border-2 p-4 ${n.read_at ? "border-border opacity-70" : toneClass}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-base font-black text-foreground">{n.title}</p>
