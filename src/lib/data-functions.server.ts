@@ -304,14 +304,42 @@ export const fetchCenterDataForAdmin = createServerFn({ method: "POST", strict: 
     return fetchAllTablesForCenter(data.targetCenterId);
   });
 
+/**
+ * أعمدة جديدة (زي students.subject_fees / billing_plan في db/0011) ممكن تكون لسه ماتضافتش
+ * لقاعدة البيانات. بدل ما العملية كلها تفشل، نشيل العمود المفقود ونعيد المحاولة — البيانات
+ * تتسجل، والعمود يترجع تلقائياً بمجرد تشغيل ملف الهجرة.
+ */
+function missingColumn(message: string): string | null {
+  const m = /Could not find the '([^']+)' column/.exec(message);
+  return m?.[1] ?? null;
+}
+
+async function withColumnFallback(
+  row: Record<string, unknown>,
+  run: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>,
+) {
+  let current = { ...row };
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error } = await run(current);
+    if (!error) return;
+    const column = missingColumn(error.message);
+    if (!column || !(column in current)) throw new Error(error.message);
+    console.warn(`[data] dropping unknown column "${column}" — run the pending SQL migration.`);
+    delete current[column];
+  }
+  throw new Error("تعذّر حفظ البيانات — شغّل ملف الهجرة db/0011 في قاعدة البيانات.");
+}
+
 export const insertRow = createServerFn({ method: "POST" })
   .validator((data: { identifier: string; table: TableName; row: Record<string, unknown> }) => data)
   .handler(async ({ data }) => {
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from(data.table).insert({ ...data.row, center_id: centerId });
-    if (error) throw new Error(error.message);
+    await withColumnFallback({ ...data.row, center_id: centerId }, async (row) => {
+      const { error } = await supabase.from(data.table).insert(row);
+      return { error };
+    });
   });
 
 export const updateRow = createServerFn({ method: "POST" })
@@ -332,12 +360,14 @@ export const updateRow = createServerFn({ method: "POST" })
     // The center_id filter is what makes this safe: a caller can only ever touch rows that
     // already belong to their own (server-verified) center, even if `id` collides with
     // another tenant's row.
-    const { error } = await supabase
-      .from(data.table)
-      .update(data.patch)
-      .eq(idColumn, data.id)
-      .eq("center_id", centerId);
-    if (error) throw new Error(error.message);
+    await withColumnFallback(data.patch, async (patch) => {
+      const { error } = await supabase
+        .from(data.table)
+        .update(patch)
+        .eq(idColumn, data.id)
+        .eq("center_id", centerId);
+      return { error };
+    });
   });
 
 export const upsertRow = createServerFn({ method: "POST" })
@@ -353,10 +383,12 @@ export const upsertRow = createServerFn({ method: "POST" })
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from(data.table)
-      .upsert({ ...data.row, center_id: centerId }, { onConflict: data.onConflict });
-    if (error) throw new Error(error.message);
+    await withColumnFallback({ ...data.row, center_id: centerId }, async (row) => {
+      const { error } = await supabase
+        .from(data.table)
+        .upsert(row, { onConflict: data.onConflict });
+      return { error };
+    });
   });
 
 export const deleteRows = createServerFn({ method: "POST" })

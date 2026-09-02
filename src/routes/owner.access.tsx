@@ -29,13 +29,14 @@ import {
 } from "@/lib/auth";
 import {
   addPayroll,
-  computeStudentFees,
   createStudentRecord,
   deleteStudentCompletely,
+  getGradesForStage,
+  sumSubjectFees,
+  STAGES,
+  type StageKey,
   createTeacherRecord,
   getData,
-  setStudentBillingPlan,
-  setStudentDue,
   getStaffPermissions,
   getSubjectsForGrade,
   setStaffPermissions,
@@ -66,6 +67,9 @@ export const Route = createFileRoute("/owner/access")({
   }),
   component: AccessManagement,
 });
+
+const inputClass =
+  "w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary";
 
 function copy(text: string) {
   void navigator.clipboard?.writeText(text);
@@ -189,36 +193,34 @@ function ProvisionForm({ title, hint, icon: Icon, submitLabel, onCreate }: FormC
  */
 function StudentProvisionForm() {
   const state = useDataStore();
-  const { groups } = state;
   const [fullName, setFullName] = useState("");
-  const [guardianName, setGuardianName] = useState("");
-  const [guardianPhone, setGuardianPhone] = useState("");
-  const [groupId, setGroupId] = useState("");
+  const [phone, setPhone] = useState("");
+  const [stage, setStage] = useState<StageKey | "">("");
+  const [gradeId, setGradeId] = useState("");
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [billingPlan, setBillingPlan] = useState<StudentBillingPlan>("monthly");
+  const [fees, setFees] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // الإجمالي يُحسب آلياً من أسعار المواد المختارة (مثال: عربي ٢٠٠ + إنجليزي ٣٠٠ = ٥٠٠).
-  const fees = computeStudentFees(state, subjectIds);
-  const totalDue =
-    billingPlan === "per_session"
-      ? fees.perSession
-      : fees.monthly + (billingPlan === "both" ? fees.perSession : 0);
-
-  const selectedGroup = groups.find((g) => g.id === groupId);
-  const availableSubjects = selectedGroup ? getSubjectsForGrade(state, selectedGroup.grade_id) : [];
+  const stageGrades = stage ? getGradesForStage(state, stage) : [];
+  const availableSubjects = gradeId ? getSubjectsForGrade(state, gradeId) : [];
+  const selectedSubjects = availableSubjects.filter((s) => subjectIds.includes(s.id));
+  const numericFees: Record<string, number> = Object.fromEntries(
+    subjectIds.map((id) => [id, Number(fees[id] ?? 0) || 0]),
+  );
+  const totalDue = sumSubjectFees(numericFees);
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!fullName.trim() || !guardianName.trim() || !guardianPhone.trim()) {
-          toast.error("من فضلك أدخل كل البيانات");
+        if (!fullName.trim() || !phone.trim()) {
+          toast.error("من فضلك أدخل اسم الطالب ورقم الهاتف");
           return;
         }
-        if (!groupId) {
-          toast.error("من فضلك اختر مجموعة");
+        if (!stage || !gradeId) {
+          toast.error("من فضلك اختر المرحلة والصف");
           return;
         }
         if (subjectIds.length === 0) {
@@ -227,27 +229,28 @@ function StudentProvisionForm() {
         }
         setSubmitting(true);
         try {
-          const credentials = await createStudent(fullName.trim(), guardianPhone.trim());
+          const credentials = await createStudent(fullName.trim(), phone.trim());
           const record = createStudentRecord({
             code: credentials.identifier,
             fullName: fullName.trim(),
-            groupId,
-            guardianName: guardianName.trim(),
-            guardianPhone: guardianPhone.trim(),
+            gradeId,
+            guardianName: fullName.trim(),
+            guardianPhone: phone.trim(),
             subjectIds,
+            subjectFees: numericFees,
+            billingPlan,
           });
           if (!record) {
             toast.error("حدث خطأ أثناء إنشاء بيانات الطالب");
             return;
           }
-          setStudentBillingPlan(record.id, billingPlan);
-          setStudentDue(record.id, totalDue);
           setCreated(credentials);
           setFullName("");
-          setGuardianName("");
-          setGuardianPhone("");
-          setGroupId("");
+          setPhone("");
+          setStage("");
+          setGradeId("");
           setSubjectIds([]);
+          setFees({});
           toast.success(`تم توليد الكود: ${credentials.identifier}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
@@ -269,75 +272,106 @@ function StudentProvisionForm() {
         </div>
       </div>
 
+      {/* ١ — اسم الطالب */}
       <input
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
         placeholder="اسم الطالب بالكامل"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        className={inputClass}
       />
+
+      {/* ٢ — رقم الهاتف */}
       <input
-        value={guardianName}
-        onChange={(e) => setGuardianName(e.target.value)}
-        placeholder="اسم ولي الأمر"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
-      />
-      <input
-        value={guardianPhone}
-        onChange={(e) => setGuardianPhone(e.target.value)}
-        placeholder="رقم هاتف ولي الأمر"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="رقم الهاتف"
         inputMode="tel"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        className={inputClass}
       />
+
+      {/* ٣ — المرحلة الدراسية */}
       <select
-        value={groupId}
+        value={stage}
         onChange={(e) => {
-          setGroupId(e.target.value);
+          setStage(e.target.value as StageKey | "");
+          setGradeId("");
           setSubjectIds([]);
+          setFees({});
         }}
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+        className={inputClass}
       >
-        <option value="">اختر المجموعة</option>
-        {groups.map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name} — {g.grade}
+        <option value="">اختر المرحلة الدراسية</option>
+        {STAGES.map((s) => (
+          <option key={s.key} value={s.key}>
+            {s.label}
           </option>
         ))}
       </select>
 
-      {selectedGroup ? (
+      {/* ٤ — الصف داخل المرحلة */}
+      {stage ? (
+        <select
+          value={gradeId}
+          onChange={(e) => {
+            setGradeId(e.target.value);
+            setSubjectIds([]);
+            setFees({});
+          }}
+          className={inputClass}
+        >
+          <option value="">اختر الصف الدراسي</option>
+          {stageGrades.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
+
+      {/* ٥ — المواد المتاحة لهذا الصف (متعدد الاختيار) */}
+      {gradeId ? (
         <div>
-          <p className="mb-2 text-xs font-black text-muted-foreground">المواد المشترك بيها</p>
-          <div className="flex flex-wrap gap-2">
-            {availableSubjects.map((s) => (
-              <label
-                key={s.id}
-                className="flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-foreground has-checked:border-primary has-checked:bg-primary/10"
-              >
-                <input
-                  type="checkbox"
-                  checked={subjectIds.includes(s.id)}
-                  onChange={(e) =>
-                    setSubjectIds((prev) =>
-                      e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id),
-                    )
-                  }
-                  className="size-4"
-                />
-                {s.name}
-              </label>
-            ))}
-          </div>
+          <p className="mb-2 text-xs font-black text-muted-foreground">
+            المواد المتاحة لهذا الصف (اختيار متعدد)
+          </p>
+          {availableSubjects.length === 0 ? (
+            <p className="text-xs font-bold text-muted-foreground">
+              لا توجد مواد مسجّلة لهذا الصف بعد.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableSubjects.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-xs font-black text-foreground has-checked:border-primary has-checked:bg-primary/10"
+                >
+                  <input
+                    type="checkbox"
+                    checked={subjectIds.includes(s.id)}
+                    onChange={(e) =>
+                      setSubjectIds((prev) =>
+                        e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id),
+                      )
+                    }
+                    className="size-4"
+                  />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 
+      {/* ٦ — نوع الحساب */}
       <div>
-        <p className="mb-2 text-xs font-black text-muted-foreground">نظام دفع الطالب</p>
+        <p className="mb-2 text-xs font-black text-muted-foreground">نوع الحساب</p>
         <div className="grid grid-cols-3 gap-2">
           {(
             [
-              { key: "monthly", label: "بالشهر" },
-              { key: "per_session", label: "بالحصة" },
-              { key: "both", label: "كلاهما" },
+              { key: "per_session", label: "حصة" },
+              { key: "monthly", label: "شهر" },
+              { key: "season", label: "موسم" },
             ] as { key: StudentBillingPlan; label: string }[]
           ).map((p) => (
             <button
@@ -354,17 +388,39 @@ function StudentProvisionForm() {
             </button>
           ))}
         </div>
-        <p className="mt-2 rounded-xl border-2 border-border p-3 text-sm font-black text-foreground">
-          الإجمالي المحسوب آلياً: {formatCurrency(totalDue)}
-        </p>
       </div>
+
+      {/* ٧ — سعر كل مادة لهذا الطالب تحديداً */}
+      {selectedSubjects.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-black text-muted-foreground">
+            سعر كل مادة لهذا الطالب (يُدخَل يدوياً)
+          </p>
+          {selectedSubjects.map((s) => (
+            <div key={s.id} className="flex items-center gap-2">
+              <span className="min-w-32 text-sm font-black text-foreground">{s.name}</span>
+              <input
+                type="number"
+                min={0}
+                value={fees[s.id] ?? ""}
+                onChange={(e) => setFees((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                placeholder="السعر بالجنيه"
+                className={`${inputClass} flex-1`}
+              />
+            </div>
+          ))}
+          <p className="rounded-xl border-2 border-border p-3 text-sm font-black text-foreground">
+            إجمالي المستحق: {formatCurrency(totalDue)}
+          </p>
+        </div>
+      ) : null}
 
       <button
         type="submit"
         disabled={submitting}
         className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {submitting ? "جارٍ الإنشاء…" : "توليد كود الطالب"}
+        {submitting ? "جارٍ الإنشاء…" : "حفظ الطالب وتوليد الكود"}
       </button>
 
       {created ? <CredentialCard data={created} /> : null}

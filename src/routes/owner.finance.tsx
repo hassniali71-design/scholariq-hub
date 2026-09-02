@@ -49,7 +49,11 @@ function FinancePage() {
   const teacherFinance = useMemo(() => buildTeacherFinance(state), [state]);
 
   const monthlyStudents = students.filter(
-    (s) => s.billing_plan === "monthly" || s.billing_plan === "both" || !s.billing_plan,
+    (s) =>
+      s.billing_plan === "monthly" ||
+      s.billing_plan === "season" ||
+      s.billing_plan === "both" ||
+      !s.billing_plan,
   ).length;
   const perSessionStudents = students.filter(
     (s) => s.billing_plan === "per_session" || s.billing_plan === "both",
@@ -64,13 +68,18 @@ function FinancePage() {
         const collected = payments
           .filter((p) => codes.has(p.student_code))
           .reduce((s, p) => s + Number(p.amount), 0);
+        // المتوقع = مجموع الأسعار الشخصية لكل طالب في هذه المادة (لا سعر عام ثابت).
         const price = state.subjectPrices.find((p) => p.subject_id === sub.id);
+        const expected = enrolled.reduce((sum, s) => {
+          const personal = Number(s.subject_fees?.[sub.id] ?? 0);
+          return sum + (personal || Number(price?.monthly_price ?? 0));
+        }, 0);
         return {
           id: sub.id,
           name: sub.name,
           students: enrolled.length,
           collected,
-          expected: enrolled.length * Number(price?.monthly_price ?? 0),
+          expected,
         };
       })
       .sort((a, b) => b.collected - a.collected || b.expected - a.expected);

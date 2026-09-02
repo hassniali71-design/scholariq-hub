@@ -548,54 +548,111 @@ export interface CreateStudentInput {
   /** The login code from `auth.ts`'s `createStudent` — must match so `resolveCurrentStudent` finds this record. */
   code: string;
   fullName: string;
-  groupId: string;
+  /** الصف المختار من الدروب ليست (المرحلة ← الصف) — هو أساس الربط الآن، والمجموعة اختيارية. */
+  gradeId: string;
+  /** مجموعة اختيارية؛ لو مش متحددة يحاول يلاقي مجموعة مناسبة للصف + أول مادة. */
+  groupId?: string | null;
   guardianName: string;
   guardianPhone: string;
   subjectIds: string[];
+  /** سعر كل مادة لهذا الطالب تحديداً — `{ [subject_id]: price }`. */
+  subjectFees?: Record<string, number>;
+  billingPlan?: StudentBillingPlan;
+}
+
+/** المراحل الدراسية المتاحة (لا يوجد ثانوي — محذوف عمداً من قاعدة البيانات). */
+export type StageKey = "primary" | "prep";
+
+export const STAGES: { key: StageKey; label: string }[] = [
+  { key: "primary", label: "ابتدائي" },
+  { key: "prep", label: "إعدادي" },
+];
+
+/** المرحلة مشتقّة من اسم الصف نفسه (البيانات مصدر الحقيقة، مش قائمة مكتوبة يدوياً). */
+export function getStageOfGrade(grade: Grade): StageKey | null {
+  if (grade.name.includes("الإعدادي") || grade.name.includes("الاعدادي")) return "prep";
+  if (grade.name.includes("الابتدائي")) return "primary";
+  return null;
+}
+
+/** صفوف المرحلة المختارة، مرتّبة. */
+export function getGradesForStage(state: DataState, stage: StageKey): Grade[] {
+  return state.grades.filter((g) => getStageOfGrade(g) === stage).sort((a, b) => a.order - b.order);
+}
+
+/** إجمالي المستحق على الطالب من أسعار مواده الشخصية. */
+export function sumSubjectFees(fees: Record<string, number> | null | undefined): number {
+  return Object.values(fees ?? {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
 }
 
 /**
  * §7: the "إضافة طالب" screen used to only create an `auth.ts` login account —
  * no `Student` record ever got created, so a newly-provisioned student's code
  * matched nothing here and `resolveCurrentStudent` silently fell back to
- * `students[0]`. This is the missing half: a real `Student` row, seeded from
- * the chosen group (grade/group_name mirror it) with sensible zeroed stats.
- * Returns null if the group id doesn't exist.
+ * `students[0]`.
+ *
+ * الآن الطالب يُنشأ من (المرحلة ← الصف ← المواد) مباشرة، والمجموعة اختيارية:
+ * لو فيه مجموعة لنفس الصف وأول مادة مختارة يتربط بيها تلقائياً، وإلا يفضل بدون
+ * مجموعة (`group_id = null`) لحد ما تتعمل له مجموعة. الرسوم شخصية لكل مادة.
+ * Returns null if the grade id doesn't exist.
  */
 export function createStudentRecord(input: CreateStudentInput): Student | null {
   const state = getData();
-  const group = state.groups.find((g) => g.id === input.groupId);
-  if (!group) return null;
+  const grade = state.grades.find((g) => g.id === input.gradeId);
+  if (!grade) return null;
+
+  const firstSubject = input.subjectIds[0] ?? null;
+  const group =
+    state.groups.find((g) => g.id === input.groupId) ??
+    state.groups.find((g) => g.grade_id === grade.id && g.subject_id === firstSubject) ??
+    null;
+
+  const fees = input.subjectFees ?? {};
+  const balanceDue = sumSubjectFees(fees);
 
   const student: Student = {
     id: `st-${Date.now()}`,
     center_id: state.center.id,
     code: input.code,
     full_name: input.fullName,
-    grade: group.grade,
-    group_name: group.name,
-    group_id: group.id,
+    grade: grade.name,
+    group_name: group?.name ?? grade.name,
+    group_id: group?.id ?? null,
     guardian_name: input.guardianName,
     guardian_phone: input.guardianPhone,
-    payment_status: "pending",
-    balance_due: 0,
+    payment_status: balanceDue > 0 ? "pending" : "paid",
+    balance_due: balanceDue,
     points: 0,
     attendance_rate: 0,
     avg_score: 0,
     subject_ids: input.subjectIds,
+    billing_plan: input.billingPlan ?? "monthly",
+    subject_fees: fees,
   };
 
   update((s) => {
     const students = [...s.students, student];
-    const groups = s.groups.map((g) =>
-      g.id === group.id ? { ...g, enrolled: g.enrolled + 1 } : g,
-    );
+    const groups = group
+      ? s.groups.map((g) => (g.id === group.id ? { ...g, enrolled: g.enrolled + 1 } : g))
+      : s.groups;
     return { ...s, students, groups, leaderboard: buildLeaderboard(students) };
   });
   syncInsert("students", student);
-  syncUpdate("groups", group.id, { enrolled: group.enrolled + 1 });
+  if (group) syncUpdate("groups", group.id, { enrolled: group.enrolled + 1 });
 
   return student;
+}
+
+/** تعديل أسعار مواد طالب بعد إنشائه (يعيد حساب المستحق عليه). */
+export function setStudentSubjectFees(studentId: string, fees: Record<string, number>) {
+  const balanceDue = sumSubjectFees(fees);
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) =>
+      s.id === studentId ? { ...s, subject_fees: fees, balance_due: balanceDue } : s,
+    ),
+  }));
+  syncUpdate("students", studentId, { subject_fees: fees, balance_due: balanceDue });
 }
 
 export interface CreateTeacherInput {
