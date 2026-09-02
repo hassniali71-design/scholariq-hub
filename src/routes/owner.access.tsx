@@ -32,6 +32,11 @@ import {
   computeStudentFees,
   createStudentRecord,
   deleteStudentCompletely,
+  getGradesForStage,
+  sumSubjectFees,
+  STAGES,
+  setStudentSubjectFees,
+  type StageKey,
   createTeacherRecord,
   getData,
   setStudentBillingPlan,
@@ -66,6 +71,9 @@ export const Route = createFileRoute("/owner/access")({
   }),
   component: AccessManagement,
 });
+
+const inputClass =
+  "w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary";
 
 function copy(text: string) {
   void navigator.clipboard?.writeText(text);
