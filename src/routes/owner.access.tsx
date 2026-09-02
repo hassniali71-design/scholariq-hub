@@ -29,18 +29,14 @@ import {
 } from "@/lib/auth";
 import {
   addPayroll,
-  computeStudentFees,
   createStudentRecord,
   deleteStudentCompletely,
   getGradesForStage,
   sumSubjectFees,
   STAGES,
-  setStudentSubjectFees,
   type StageKey,
   createTeacherRecord,
   getData,
-  setStudentBillingPlan,
-  setStudentDue,
   getStaffPermissions,
   getSubjectsForGrade,
   setStaffPermissions,
