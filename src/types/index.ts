@@ -47,6 +47,11 @@ export interface Student {
   subject_ids: UUID[];
   /** نظام دفع الطالب (db/0010) — قد يكون فاضي لصفوف قديمة قبل الهجرة. */
   billing_plan?: StudentBillingPlan | null;
+  /**
+   * سعر كل مادة لهذا الطالب تحديداً (db/0011) — `{ [subject_id]: price }`.
+   * السعر شخصي لكل طالب وليس سعراً عاماً ثابتاً للمادة.
+   */
+  subject_fees?: Record<UUID, number> | null;
 }
 
 export interface Teacher {
