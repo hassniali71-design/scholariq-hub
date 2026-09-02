@@ -360,12 +360,14 @@ export const updateRow = createServerFn({ method: "POST" })
     // The center_id filter is what makes this safe: a caller can only ever touch rows that
     // already belong to their own (server-verified) center, even if `id` collides with
     // another tenant's row.
-    const { error } = await supabase
-      .from(data.table)
-      .update(data.patch)
-      .eq(idColumn, data.id)
-      .eq("center_id", centerId);
-    if (error) throw new Error(error.message);
+    await withColumnFallback(data.patch, async (patch) => {
+      const { error } = await supabase
+        .from(data.table)
+        .update(patch)
+        .eq(idColumn, data.id)
+        .eq("center_id", centerId);
+      return { error };
+    });
   });
 
 export const upsertRow = createServerFn({ method: "POST" })
@@ -381,10 +383,12 @@ export const upsertRow = createServerFn({ method: "POST" })
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from(data.table)
-      .upsert({ ...data.row, center_id: centerId }, { onConflict: data.onConflict });
-    if (error) throw new Error(error.message);
+    await withColumnFallback({ ...data.row, center_id: centerId }, async (row) => {
+      const { error } = await supabase
+        .from(data.table)
+        .upsert(row, { onConflict: data.onConflict });
+      return { error };
+    });
   });
 
 export const deleteRows = createServerFn({ method: "POST" })
