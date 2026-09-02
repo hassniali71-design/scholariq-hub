@@ -208,9 +208,7 @@ function CashierPage() {
                   </StatusBadge>
                 </div>
               ) : (
-                <p className="text-sm font-black text-muted-foreground">
-                  لم يتم اختيار طالب بعد.
-                </p>
+                <p className="text-sm font-black text-muted-foreground">لم يتم اختيار طالب بعد.</p>
               )}
             </Field>
 

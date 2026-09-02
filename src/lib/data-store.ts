@@ -577,9 +577,7 @@ export function getStageOfGrade(grade: Grade): StageKey | null {
 
 /** صفوف المرحلة المختارة، مرتّبة. */
 export function getGradesForStage(state: DataState, stage: StageKey): Grade[] {
-  return state.grades
-    .filter((g) => getStageOfGrade(g) === stage)
-    .sort((a, b) => a.order - b.order);
+  return state.grades.filter((g) => getStageOfGrade(g) === stage).sort((a, b) => a.order - b.order);
 }
 
 /** إجمالي المستحق على الطالب من أسعار مواده الشخصية. */
