@@ -336,9 +336,10 @@ export const insertRow = createServerFn({ method: "POST" })
     assertAllowedTable(data.table);
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
-    await withColumnFallback({ ...data.row, center_id: centerId }, (row) =>
-      supabase.from(data.table).insert(row),
-    );
+    await withColumnFallback({ ...data.row, center_id: centerId }, async (row) => {
+      const { error } = await supabase.from(data.table).insert(row);
+      return { error };
+    });
   });
 
 export const updateRow = createServerFn({ method: "POST" })
