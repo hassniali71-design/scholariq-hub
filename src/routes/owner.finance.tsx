@@ -49,7 +49,11 @@ function FinancePage() {
   const teacherFinance = useMemo(() => buildTeacherFinance(state), [state]);
 
   const monthlyStudents = students.filter(
-    (s) => s.billing_plan === "monthly" || s.billing_plan === "both" || !s.billing_plan,
+    (s) =>
+      s.billing_plan === "monthly" ||
+      s.billing_plan === "season" ||
+      s.billing_plan === "both" ||
+      !s.billing_plan,
   ).length;
   const perSessionStudents = students.filter(
     (s) => s.billing_plan === "per_session" || s.billing_plan === "both",
