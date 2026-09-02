@@ -548,10 +548,43 @@ export interface CreateStudentInput {
   /** The login code from `auth.ts`'s `createStudent` — must match so `resolveCurrentStudent` finds this record. */
   code: string;
   fullName: string;
-  groupId: string;
+  /** الصف المختار من الدروب ليست (المرحلة ← الصف) — هو أساس الربط الآن، والمجموعة اختيارية. */
+  gradeId: string;
+  /** مجموعة اختيارية؛ لو مش متحددة يحاول يلاقي مجموعة مناسبة للصف + أول مادة. */
+  groupId?: string | null;
   guardianName: string;
   guardianPhone: string;
   subjectIds: string[];
+  /** سعر كل مادة لهذا الطالب تحديداً — `{ [subject_id]: price }`. */
+  subjectFees?: Record<string, number>;
+  billingPlan?: StudentBillingPlan;
+}
+
+/** المراحل الدراسية المتاحة (لا يوجد ثانوي — محذوف عمداً من قاعدة البيانات). */
+export type StageKey = "primary" | "prep";
+
+export const STAGES: { key: StageKey; label: string }[] = [
+  { key: "primary", label: "ابتدائي" },
+  { key: "prep", label: "إعدادي" },
+];
+
+/** المرحلة مشتقّة من اسم الصف نفسه (البيانات مصدر الحقيقة، مش قائمة مكتوبة يدوياً). */
+export function getStageOfGrade(grade: Grade): StageKey | null {
+  if (grade.name.includes("الإعدادي") || grade.name.includes("الاعدادي")) return "prep";
+  if (grade.name.includes("الابتدائي")) return "primary";
+  return null;
+}
+
+/** صفوف المرحلة المختارة، مرتّبة. */
+export function getGradesForStage(state: DataState, stage: StageKey): Grade[] {
+  return state.grades
+    .filter((g) => getStageOfGrade(g) === stage)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** إجمالي المستحق على الطالب من أسعار مواده الشخصية. */
+export function sumSubjectFees(fees: Record<string, number> | null | undefined): number {
+  return Object.values(fees ?? {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
 }
 
 /**
