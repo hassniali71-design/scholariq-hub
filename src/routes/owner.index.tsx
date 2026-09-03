@@ -22,10 +22,14 @@ import { toast } from "sonner";
 import {
   CenterDayChart,
   TeacherPerformanceChart,
-  WeeklyAttendanceChart,
 } from "@/components/dashboard/Charts";
+import { CenterActivityPanels } from "@/components/dashboard/CenterActivityPanels";
+import { EnhancedWeeklyAttendance } from "@/components/dashboard/EnhancedWeeklyAttendance";
+import { LiveActiveGroupsCard } from "@/components/dashboard/LiveActiveGroupsCard";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
+import { TodayOverviewPanels } from "@/components/dashboard/TodayOverviewPanels";
 import { AppShell } from "@/components/layout/AppShell";
+import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
 import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import {
@@ -40,7 +44,6 @@ import {
   buildDailyCenterActivity,
   buildDecisionAlerts,
   buildTeacherPerformance,
-  buildWeeklyAttendance,
   computeOwnerKpis,
   WEEKDAYS,
 } from "@/lib/owner-metrics";
@@ -66,7 +69,7 @@ export const Route = createFileRoute("/owner/")({
 
 function OwnerDashboard() {
   const state = useDataStore();
-  const { students, teachers, groups, attendanceRecords, notifications, activityLog } = state;
+  const { students, teachers, groups, attendanceRecords, notifications, activityLog, tasks } = state;
   const settings = getFinanceSettings(state);
 
   const today = WEEKDAYS[new Date().getDay()]!;
@@ -79,9 +82,14 @@ function OwnerDashboard() {
   const kpis = useMemo(() => computeOwnerKpis(state), [state]);
   const performance = useMemo(() => buildTeacherPerformance(state), [state]);
   const dayActivity = useMemo(() => buildDailyCenterActivity(state), [state]);
-  const weeklyAttendance = useMemo(() => buildWeeklyAttendance(state), [state]);
   const activeNow = useMemo(() => buildActiveGroupsNow(state), [state]);
   const alerts = useMemo(() => buildDecisionAlerts(state), [state]);
+
+  const openTasks = useMemo(
+    () => tasks.filter((t) => t.status === "pending" || t.status === "in_progress"),
+    [tasks],
+  );
+  const urgentTasks = useMemo(() => openTasks.filter((t) => t.is_urgent), [openTasks]);
 
   const unread = notifications.filter((n) => !n.read_at);
   const timeline = useMemo(
@@ -91,7 +99,7 @@ function OwnerDashboard() {
 
   /**
    * حوكمة الحصص: أي حصة عدّى ميعادها والمدرس لم يفعّلها (لا حضور ولا واجب) تتحوّل
-   * لإشعار حقيقي مرة واحدة فقط في اليوم، فيظهر في صندوق التنبيهات وسجل النشاط.
+   * لإشعار حقيقي مرة واحدة فقط في اليوم.
    */
   useEffect(() => {
     const day = new Date().toDateString();
@@ -109,7 +117,10 @@ function OwnerDashboard() {
         `${row.group.teacher_name} · ${row.group.time} · مرّ ${row.lateMinutes} دقيقة بدون رفع واجب أو تسجيل حضور`,
       );
     }
-  }, [activeNow, notifications]);
+    // عند اكتمال مهمة مفتوحة → إشعار
+    // (يولّد داخلياً في createTask/setTaskStatus)
+    void urgentTasks;
+  }, [activeNow, notifications, urgentTasks]);
 
   return (
     <AppShell
@@ -143,14 +154,18 @@ function OwnerDashboard() {
         </button>
       }
     >
-      {/* الكروت الثمانية الحقيقية */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* الكروت الستة الرئيسية — كلها من بيانات حقيقية */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="إيرادات الشهر"
           value={formatCurrency(kpis.monthRevenue)}
           icon={Banknote}
           tone="success"
-          trend={`${formatCurrency(kpis.inSafe)} في الخزنة`}
+          trend={
+            kpis.inSafe > 0
+              ? `${formatCurrency(kpis.inSafe)} في الخزنة`
+              : "لا يوجد رصيد في الخزنة"
+          }
         />
         <StatCard
           label="صافي الربح"
@@ -173,15 +188,11 @@ function OwnerDashboard() {
           trend={`${formatNumber(teachers.length)} مدرس`}
         />
         <StatCard
-          label="إجمالي المصروفات العامة"
-          value={formatCurrency(kpis.expensesTotal)}
-          icon={Receipt}
-          tone={kpis.expensesTotal > 0 ? "warning" : "success"}
-        />
-        <StatCard
-          label="إجمالي الرواتب"
-          value={formatCurrency(kpis.salariesTotal)}
-          icon={PiggyBank}
+          label="متوسط حضور السنتر"
+          value={formatPercent(kpis.avgAttendance)}
+          icon={UserCheck}
+          tone={kpis.avgAttendance >= 85 ? "success" : "warning"}
+          trend={`من سجل ${formatNumber(attendanceRecords.length)} حضور`}
         />
         <StatCard
           label="المستحقات المتأخرة"
@@ -190,113 +201,95 @@ function OwnerDashboard() {
           tone={kpis.overdueTotal > 0 ? "destructive" : "success"}
           trend={`${formatNumber(students.filter((s) => s.balance_due > 0).length)} طالب`}
         />
-        <StatCard
-          label="متوسط حضور السنتر"
-          value={formatPercent(kpis.avgAttendance)}
-          icon={UserCheck}
-          tone={kpis.avgAttendance >= 85 ? "success" : "warning"}
-        />
       </div>
 
-      {/* نظرة اليوم */}
-      <div className="card-crisp p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-xl font-black text-foreground">
-            <CalendarDays className="size-6 text-primary" />
-            نظرة اليوم — {today}
-          </p>
-          <StatusBadge tone={todayGroups.length > 0 ? "success" : "neutral"}>
-            {formatNumber(todayGroups.length)} حصة اليوم
-          </StatusBadge>
+      {/* المهام اليومية + كرت المهام في الواجهة */}
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <DailyTasksCard role="owner" />
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border-2 border-border p-4">
-            <p className="text-sm font-bold text-muted-foreground">حصص اليوم</p>
-            <p className="kpi-number text-3xl">{formatNumber(todayGroups.length)}</p>
-            <p className="mt-1 text-sm font-bold text-muted-foreground">
-              {todayGroups
-                .slice(0, 3)
-                .map((g) => `${g.name} (${g.time})`)
-                .join(" · ") || "لا توجد حصص مجدولة اليوم"}
-            </p>
-          </div>
-          <div className="rounded-xl border-2 border-border p-4">
-            <p className="text-sm font-bold text-muted-foreground">المدرسون على رأس العمل اليوم</p>
-            <p className="kpi-number text-3xl">{formatNumber(teachersToday.length)}</p>
-            <p className="mt-1 text-sm font-bold text-muted-foreground">
-              {teachersToday.map((t) => t.full_name).join(" · ") || "لا يوجد"}
-            </p>
-          </div>
-          <div className="rounded-xl border-2 border-border p-4">
-            <p className="text-sm font-bold text-muted-foreground">تسجيلات الحضور المسجّلة</p>
-            <p className="kpi-number text-3xl">{formatNumber(attendanceRecords.length)}</p>
-            <p className="mt-1 text-sm font-bold text-muted-foreground">
-              نظام الرسوم الحالي:{" "}
-              {settings.billing_mode === "monthly"
-                ? "اشتراك شهري"
-                : settings.billing_mode === "per_session"
-                  ? "بالحصة"
-                  : "بالسيزون"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* المجموعات النشطة الآن + التنبيهات التي تحتاج قراراً */}
-      <div className="grid gap-6 xl:grid-cols-2">
         <Panel
-          title="المجموعات النشطة الآن"
-          description="محسوبة من الساعة الحالية + تفعيل المدرس للحصة فعلياً"
+          title="المهام المستعجلة"
+          description="مهام مفتوحة وعليها علامة مستعجل"
         >
-          <div className="space-y-3">
-            {activeNow.length === 0 ? (
-              <EmptyState text="لا توجد حصص مجدولة اليوم." />
-            ) : (
-              activeNow.map((row) => (
+          {urgentTasks.length === 0 ? (
+            <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+              لا توجد مهام مستعجلة مفتوحة الآن.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {urgentTasks.slice(0, 6).map((t) => (
                 <div
-                  key={row.group.id}
-                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 p-4 ${
-                    row.started && !row.activated
-                      ? "border-destructive/40 bg-destructive/5"
-                      : row.activated
-                        ? "border-success/40 bg-success/5"
-                        : "border-border"
-                  }`}
+                  key={t.id}
+                  className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-3"
                 >
-                  <div className="min-w-0">
-                    <p className="text-base font-black text-foreground">{row.group.name}</p>
-                    <p className="text-sm font-bold text-muted-foreground">
-                      {row.group.teacher_name} · {row.group.time} · قاعة {row.group.room}
-                    </p>
-                  </div>
-                  <StatusBadge
-                    tone={
-                      row.started && row.activated
-                        ? "success"
-                        : row.started
-                          ? "destructive"
-                          : "neutral"
-                    }
-                  >
-                    {row.started && row.activated
-                      ? "نشطة الآن"
-                      : row.started
-                        ? `متأخرة ${formatNumber(row.lateMinutes)} دقيقة`
-                        : "لم تبدأ بعد"}
-                  </StatusBadge>
+                  <p className="text-sm font-black text-foreground">🚨 {t.title}</p>
+                  <p className="text-xs font-bold text-muted-foreground">
+                    {t.assignee_name} · {t.task_type} · {formatDateTime(t.created_at)}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </Panel>
+      </div>
 
+      {/* نظرة اليوم + كرت الأحداث اليومية الجديد */}
+      <TodayOverviewPanels />
+
+      {/* جدول اليوم التلقائي (مفصّل) */}
+      <Panel
+        title={`جدول اليوم — ${today}`}
+        description={`${formatNumber(todayGroups.length)} حصة · ${formatNumber(teachersToday.length)} مدرس`}
+      >
+        {todayGroups.length === 0 ? (
+          <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-base font-bold text-muted-foreground">
+            لا توجد حصص مجدولة لهذا اليوم في {state.center.name}.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-base">
+              <thead>
+                <tr className="border-b-2 border-border text-muted-foreground">
+                  <th className="pb-3">المادة</th>
+                  <th className="pb-3">المدرس</th>
+                  <th className="pb-3">المرحلة</th>
+                  <th className="pb-3">الساعة</th>
+                  <th className="pb-3">القاعة</th>
+                  <th className="pb-3">المجموعة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...todayGroups]
+                  .sort((a, b) => (a.time < b.time ? -1 : 1))
+                  .map((g) => (
+                    <tr key={g.id} className="border-b border-border last:border-0">
+                      <td className="py-3 font-black text-foreground">{g.subject}</td>
+                      <td className="py-3 font-bold text-foreground">{g.teacher_name}</td>
+                      <td className="py-3 font-bold text-muted-foreground">{g.grade}</td>
+                      <td className="py-3 font-extrabold">{g.time}</td>
+                      <td className="py-3 font-extrabold">قاعة {g.room}</td>
+                      <td className="py-3 font-extrabold">{g.name}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      {/* المجموعات النشطة الآن + تنبيهات */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <LiveActiveGroupsCard />
         <Panel
           title="تنبيهات تحتاج قراراً"
           description={`${formatNumber(alerts.length)} تنبيه محسوب لحظياً من حركة السنتر`}
         >
           <div className="max-h-[26rem] space-y-3 overflow-y-auto pl-1">
             {alerts.length === 0 ? (
-              <EmptyState text="مفيش أي تنبيه مفتوح — كل حاجة تمام دلوقتي." />
+              <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+                مفيش أي تنبيه مفتوح — كل حاجة تمام دلوقتي.
+              </p>
             ) : (
               alerts.map((a) => (
                 <div
@@ -321,6 +314,9 @@ function OwnerDashboard() {
         </Panel>
       </div>
 
+      {/* متوسط أداء السنتر — رسمين منفصلين */}
+      <CenterActivityPanels />
+
       {/* الرسوم البيانية */}
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
@@ -328,7 +324,9 @@ function OwnerDashboard() {
           description="الالتزام بالمواعيد + تسليم الحضور والتقييمات + مستوى الطلاب"
         >
           {performance.length === 0 ? (
-            <EmptyState text="لا يوجد مدرسون مسجّلون بعد." />
+            <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+              لا يوجد مدرسون مسجّلون بعد.
+            </p>
           ) : (
             <>
               <TeacherPerformanceChart data={performance.map((p) => ({ ...p }))} />
@@ -351,7 +349,6 @@ function OwnerDashboard() {
             </>
           )}
         </Panel>
-
         <Panel
           title="متوسط أداء وحضور السنتر حسب اليوم"
           description="حضور مسجّل وحركة الحصص لكل يوم"
@@ -360,14 +357,10 @@ function OwnerDashboard() {
         </Panel>
       </div>
 
-      <Panel
-        title="الحضور الأسبوعي"
-        description="حضور وغياب حقيقي موزّع على أيام الأسبوع"
-        className="min-h-[32rem]"
-      >
-        <WeeklyAttendanceChart data={weeklyAttendance} />
-      </Panel>
+      {/* الحضور الأسبوعي — محسّن بألوان وتكبير */}
+      <EnhancedWeeklyAttendance />
 
+      {/* إشعارات + Timeline */}
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
           title="الإشعارات المهمة"
@@ -385,17 +378,20 @@ function OwnerDashboard() {
               </button>
             ) : null}
             {notifications.length === 0 ? (
-              <EmptyState text="لا توجد إشعارات بعد — أي دفعة أو غياب أو تأخير هيظهر هنا فوراً." />
+              <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+                لا توجد إشعارات بعد — أي دفعة أو غياب أو تأخير هيظهر هنا فوراً.
+              </p>
             ) : (
               notifications.slice(0, 12).map((n) => <NotificationRow key={n.id} n={n} />)
             )}
           </div>
         </Panel>
-
         <Panel title="سجل النشاط الموحّد" description="كل الأحداث المهمة بترتيب زمني في مكان واحد">
           <div className="space-y-3">
             {timeline.length === 0 ? (
-              <EmptyState text="السجل فاضي دلوقتي — أول دفعة أو حضور أو استلام خزنة هيتسجل هنا." />
+              <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+                السجل فاضي دلوقتي — أول دفعة أو حضور أو استلام خزنة هيتسجل هنا.
+              </p>
             ) : (
               timeline.slice(0, 15).map((e) => (
                 <div key={e.id} className="flex gap-3 rounded-xl border-2 border-border p-4">
@@ -417,6 +413,29 @@ function OwnerDashboard() {
         </Panel>
       </div>
 
+      {/* كروت تحذيرية سريعة */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          label="حصص متأخرة التفعيل اليوم"
+          value={formatNumber(activeNow.filter((r) => r.started && !r.activated).length)}
+          icon={Clock}
+          tone="destructive"
+        />
+        <StatCard
+          label="طلاب عليهم مستحقات"
+          value={formatNumber(students.filter((s) => s.balance_due > 0).length)}
+          icon={AlertTriangle}
+          tone="warning"
+        />
+        <StatCard
+          label="إشعارات حرجة مفتوحة"
+          value={formatNumber(unread.filter((n) => n.severity === "critical").length)}
+          icon={BellRing}
+          tone="destructive"
+        />
+      </div>
+
+      {/* المدرسون + إشغال المجموعات */}
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="المدرسون" description="عدد الطلاب والمجموعات لكل مدرس">
           <div className="overflow-x-auto">
@@ -425,6 +444,7 @@ function OwnerDashboard() {
                 <tr className="border-b-2 border-border text-muted-foreground">
                   <th className="pb-3">المدرس</th>
                   <th className="pb-3">المادة</th>
+                  <th className="pb-3">المراحل</th>
                   <th className="pb-3">الطلاب</th>
                   <th className="pb-3">المجموعات</th>
                 </tr>
@@ -432,10 +452,20 @@ function OwnerDashboard() {
               <tbody>
                 {teachers.map((t) => {
                   const enrolled = students.filter((s) => s.subject_ids.includes(t.subject_id));
+                  const stages = t.stages ?? [];
                   return (
                     <tr key={t.id} className="border-b border-border last:border-0">
                       <td className="py-3 font-black text-foreground">{t.full_name}</td>
                       <td className="py-3 font-bold text-muted-foreground">{t.subject}</td>
+                      <td className="py-3 font-extrabold">
+                        {stages.length > 0
+                          ? stages
+                              .map((s) =>
+                                s === "primary" ? "ابتدائي" : s === "prep" ? "إعدادي" : "ثانوي",
+                              )
+                              .join(" + ")
+                          : "—"}
+                      </td>
                       <td className="py-3 font-extrabold">{formatNumber(enrolled.length)}</td>
                       <td className="py-3 font-extrabold">
                         {formatNumber(groups.filter((g) => g.teacher_id === t.id).length)}
@@ -478,24 +508,29 @@ function OwnerDashboard() {
         </Panel>
       </div>
 
+      {/* مالية سريعة في الأسفل */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
-          label="حصص متأخرة التفعيل اليوم"
-          value={formatNumber(activeNow.filter((r) => r.started && !r.activated).length)}
-          icon={Clock}
-          tone="destructive"
+          label="إجمالي المصروفات العامة"
+          value={formatCurrency(kpis.expensesTotal)}
+          icon={Receipt}
+          tone={kpis.expensesTotal > 0 ? "warning" : "success"}
         />
         <StatCard
-          label="طلاب عليهم مستحقات"
-          value={formatNumber(students.filter((s) => s.balance_due > 0).length)}
-          icon={AlertTriangle}
-          tone="warning"
+          label="إجمالي الرواتب"
+          value={formatCurrency(kpis.salariesTotal)}
+          icon={PiggyBank}
         />
         <StatCard
-          label="إشعارات حرجة مفتوحة"
-          value={formatNumber(unread.filter((n) => n.severity === "critical").length)}
-          icon={BellRing}
-          tone="destructive"
+          label="نظام الفوترة الحالي"
+          value={
+            settings.billing_mode === "monthly"
+              ? "شهري"
+              : settings.billing_mode === "per_session"
+                ? "بالحصة"
+                : "بالموسم"
+          }
+          icon={CalendarDays}
         />
       </div>
     </AppShell>
@@ -519,6 +554,7 @@ function NotificationRow({ n }: { n: CenterNotification }) {
           <p className="text-sm font-bold text-muted-foreground">
             {formatDateTime(n.created_at)}
             {n.body ? ` · ${n.body}` : ""}
+            {n.source_event ? ` · ${n.source_event}` : ""}
           </p>
         </div>
         {n.read_at ? (
@@ -565,3 +601,5 @@ function buildTimeline(
     (a, b) => (a.created_at < b.created_at ? 1 : -1),
   );
 }
+
+void EmptyState;

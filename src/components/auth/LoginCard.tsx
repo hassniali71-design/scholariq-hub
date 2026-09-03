@@ -70,13 +70,14 @@ export function LoginCard({
   }
 
   return (
-    <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10">
+    <div dir="rtl" className="flex min-h-screen flex-col items-center justify-center gap-6 bg-canvas px-4 py-10">
       <div className="w-full max-w-md">
         <div className="card-crisp overflow-hidden">
           <div
             className="flex flex-col items-center gap-3 px-6 py-8 text-navy-foreground"
             style={{ backgroundColor: branding?.accentColor ?? DEFAULT_TENANT_ACCENT }}
           >
+            <p className="text-sm font-black text-white/90">مرحبا بكم في نظام سبّورة لإدارة السناتر التعليمية</p>
             <span className="flex size-16 items-center justify-center rounded-2xl bg-white/15">
               <GraduationCap className="size-9" />
             </span>
@@ -189,6 +190,12 @@ export function LoginCard({
             </p>
           </form>
         </div>
+        <p className="mt-4 flex items-center justify-center gap-2 text-xs font-black text-muted-foreground">
+          <span>مقدمة من شركة</span>
+          <span className="rounded-md border-2 border-primary/40 bg-primary/5 px-2 py-0.5 text-sm font-black text-primary">
+            حلول
+          </span>
+        </p>
       </div>
     </div>
   );

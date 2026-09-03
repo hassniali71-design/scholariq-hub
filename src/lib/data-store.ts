@@ -71,6 +71,11 @@ import type {
   Student,
   Subject,
   SuggestedActivity,
+  Task,
+  TaskAssigneeRole,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
   Teacher,
   TeacherNote,
   TimerExtension,
@@ -282,6 +287,8 @@ export interface DataState {
   payrollRecords: PayrollRecord[];
   subjectPrices: SubjectPrice[];
   scheduleSlots: ScheduleSlot[];
+  /* نظام المهام (db/0012) */
+  tasks: Task[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -381,6 +388,7 @@ function seedState(): DataState {
     payrollRecords: [],
     subjectPrices: [],
     scheduleSlots: [],
+    tasks: [],
   };
 }
 
@@ -660,6 +668,8 @@ export interface CreateTeacherInput {
   userId: string;
   fullName: string;
   subjectId: string;
+  /** المراحل التي يدرّسها المدرس — يسمح بأكثر من مرحلة (ابتدائي/إعدادي/ثانوي). */
+  stages?: ("primary" | "prep" | "secondary")[];
 }
 
 /**
@@ -673,6 +683,9 @@ export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
   const subject = state.subjects.find((s) => s.id === input.subjectId);
   if (!subject) return null;
 
+  const stages: ("primary" | "prep" | "secondary")[] =
+    input.stages && input.stages.length > 0 ? input.stages : ["primary"];
+
   const teacher: Teacher = {
     id: `tc-${Date.now()}`,
     center_id: state.center.id,
@@ -685,6 +698,8 @@ export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
     timer_compliance: 0,
     sla_breaches: 0,
     monthly_revenue: 0,
+    stages,
+    primary_stage: stages[0]!,
   };
 
   update((s) => ({ ...s, teachers: [...s.teachers, teacher] }));
@@ -1864,6 +1879,7 @@ export const DEFAULT_FINANCE_SETTINGS: Omit<FinanceSettings, "id" | "center_id" 
   season_sessions: 0,
   staff_salary_basis: "fixed",
   staff_salary_value: 0,
+  default_group_capacity: 20,
 };
 
 export function getFinanceSettings(state: DataState): FinanceSettings {
@@ -2262,4 +2278,103 @@ export function setStudentDue(studentId: string, balanceDue: number) {
     ),
   }));
   syncUpdate("students", studentId, { balance_due: balanceDue, payment_status: status });
+}
+
+/* ---------------- نظام المهام (Tasks) ---------------- */
+
+export interface CreateTaskInput {
+  title: string;
+  taskType?: TaskType;
+  assigneeRole: TaskAssigneeRole;
+  assigneeId: string | null;
+  assigneeName: string;
+  createdById?: string | null;
+  createdByName?: string | null;
+  priority?: TaskPriority;
+  isUrgent?: boolean;
+  note?: string | null;
+  dueAt?: string | null;
+}
+
+export function createTask(input: CreateTaskInput): Task {
+  const now = new Date().toISOString();
+  const id = `tsk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const row: Task = {
+    id,
+    center_id: "",
+    title: input.title.trim(),
+    task_type: input.taskType ?? "general",
+    assignee_role: input.assigneeRole,
+    assignee_id: input.assigneeId,
+    assignee_name: input.assigneeName,
+    created_by_id: input.createdById ?? null,
+    created_by_name: input.createdByName ?? null,
+    priority: input.priority ?? "medium",
+    is_urgent: input.isUrgent ?? false,
+    status: "pending",
+    note: input.note ?? null,
+    due_at: input.dueAt ?? null,
+    completed_at: null,
+    created_at: now,
+    updated_at: now,
+  };
+  update((state) => {
+    row.center_id = state.center.id;
+    return { ...state, tasks: [row, ...state.tasks] };
+  });
+  syncInsert("tasks", row as unknown as object);
+  logActivity(
+    "task_created",
+    `مهمة جديدة: ${row.title}`,
+    `المُكلَّف: ${row.assignee_name} (${row.assignee_role})${row.is_urgent ? " · مستعجل" : ""}`,
+    input.createdByName ?? null,
+  );
+  pushNotification(
+    "task_assigned",
+    row.is_urgent ? "critical" : "info",
+    `مهمة جديدة: ${row.title}`,
+    `المُكلَّف: ${row.assignee_name}${row.is_urgent ? " · مستعجل" : ""}`,
+  );
+  return row;
+}
+
+export function setTaskStatus(id: string, status: TaskStatus) {
+  const now = new Date().toISOString();
+  update((state) => ({
+    ...state,
+    tasks: state.tasks.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            status,
+            completed_at: status === "done" ? now : t.completed_at,
+            updated_at: now,
+          }
+        : t,
+    ),
+  }));
+  syncUpdate("tasks", id, {
+    status,
+    completed_at: status === "done" ? now : null,
+    updated_at: now,
+  });
+}
+
+export function deleteTask(id: string) {
+  update((state) => ({ ...state, tasks: state.tasks.filter((t) => t.id !== id) }));
+  syncDeleteIds("tasks", [id]);
+}
+
+/** المهام الخاصة بمستخدم/دور معيّن — مفتاح الفلترة للوحات كل دور. */
+export function getTasksForAssignee(
+  state: DataState,
+  role: TaskAssigneeRole,
+  identifier: string | null,
+): Task[] {
+  if (role === "owner") {
+    return state.tasks;
+  }
+  return state.tasks.filter(
+    (t) => t.assignee_role === role && (identifier ? t.assignee_id === identifier : true),
+  );
 }

@@ -224,20 +224,32 @@ function StudentsPage() {
 
       <Panel title="جدول المجموعات" description="المواعيد والقاعات والمدرس المسؤول">
         <div className="grid gap-4 md:grid-cols-2">
-          {groups.map((g) => (
-            <div key={g.id} className="rounded-xl border-2 border-border p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-black text-foreground">{g.name}</p>
-                <StatusBadge tone="primary">{g.room}</StatusBadge>
+          {groups.map((g) => {
+            const overCap = g.enrolled > g.capacity;
+            // منطق "المجموعات الإضافية" — لو عدد الطلاب تجاوز السعة، النظام يقترح إنشاء مجموعة ثانية بنفس المدرس/المادة
+            const extraGroups = g.capacity > 0 ? Math.floor((g.enrolled - 1) / g.capacity) : 0;
+            return (
+              <div key={g.id} className="rounded-xl border-2 border-border p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-black text-foreground">{g.name}</p>
+                  <StatusBadge tone={overCap ? "destructive" : "primary"}>
+                    {g.room} · {formatNumber(g.enrolled)}/{formatNumber(g.capacity)}
+                  </StatusBadge>
+                </div>
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
+                  {g.teacher_name} · {g.grade} · {g.subject}
+                </p>
+                <p className="mt-2 text-sm font-extrabold">
+                  {g.weekday} — {g.time} · {formatNumber(g.enrolled)} طالب
+                </p>
+                {extraGroups > 0 ? (
+                  <p className="mt-2 rounded-lg bg-warning/10 px-3 py-1.5 text-xs font-black text-warning">
+                    ⚠️ المجموعة تجاوزت السعة — يمكن إنشاء {formatNumber(extraGroups)} مجموعة إضافية بنفس المدرس
+                  </p>
+                ) : null}
               </div>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">
-                {g.teacher_name} · {g.grade}
-              </p>
-              <p className="mt-2 text-sm font-extrabold">
-                {g.weekday} — {g.time} · {formatNumber(g.enrolled)} طالب
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Panel>
     </AppShell>

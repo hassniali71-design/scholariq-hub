@@ -51,6 +51,7 @@ const TABLES = [
   "payroll_records",
   "subject_prices",
   "schedule_slots",
+  "tasks",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];

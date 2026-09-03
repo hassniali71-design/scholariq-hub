@@ -442,10 +442,17 @@ function TeacherProvisionForm() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [stages, setStages] = useState<("primary" | "prep" | "secondary")[]>(["primary"]);
   const [salaryBasis, setSalaryBasis] = useState<PayrollBasis>("monthly");
   const [salaryValue, setSalaryValue] = useState("");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleStage = (s: "primary" | "prep" | "secondary") => {
+    setStages((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+    );
+  };
 
   return (
     <form
@@ -459,6 +466,10 @@ function TeacherProvisionForm() {
           toast.error("من فضلك اختر المادة");
           return;
         }
+        if (stages.length === 0) {
+          toast.error("اختر مرحلة واحدة على الأقل");
+          return;
+        }
         setSubmitting(true);
         try {
           const credentials = await createTeacher(fullName.trim(), phone.trim());
@@ -466,6 +477,7 @@ function TeacherProvisionForm() {
             userId: credentials.identifier,
             fullName: fullName.trim(),
             subjectId,
+            stages,
           });
           if (!record) {
             toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
@@ -486,6 +498,7 @@ function TeacherProvisionForm() {
           setFullName("");
           setPhone("");
           setSubjectId("");
+          setStages(["primary"]);
           setSalaryValue("");
           toast.success(`تم توليد الكود: ${credentials.identifier}`);
         } catch (err) {
@@ -519,6 +532,35 @@ function TeacherProvisionForm() {
         inputMode="tel"
         className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
       />
+      <div>
+        <p className="mb-1.5 text-xs font-black text-muted-foreground">المراحل (يمكن اختيار أكثر من مرحلة)</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              { key: "primary" as const, label: "ابتدائي" },
+              { key: "prep" as const, label: "إعدادي" },
+              { key: "secondary" as const, label: "ثانوي" },
+            ]
+          ).map((opt) => (
+            <label
+              key={opt.key}
+              className={`flex cursor-pointer items-center justify-center rounded-xl border-2 px-3 py-2 text-sm font-black ${
+                stages.includes(opt.key)
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={stages.includes(opt.key)}
+                onChange={() => toggleStage(opt.key)}
+                className="sr-only"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </div>
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}

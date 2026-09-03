@@ -14,9 +14,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LoginSlugRouteImport } from './routes/login.$slug'
 import { Route as OwnerIndexRouteImport } from './routes/owner.index'
 import { Route as OwnerAccessRouteImport } from './routes/owner.access'
+import { Route as OwnerComplianceRouteImport } from './routes/owner.compliance'
 import { Route as OwnerFinanceRouteImport } from './routes/owner.finance'
 import { Route as OwnerScheduleRouteImport } from './routes/owner.schedule'
 import { Route as OwnerStudentsRouteImport } from './routes/owner.students'
+import { Route as OwnerTasksRouteImport } from './routes/owner.tasks'
 import { Route as OwnerTreasuryRouteImport } from './routes/owner.treasury'
 import { Route as ParentIndexRouteImport } from './routes/parent.index'
 import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
@@ -27,11 +29,13 @@ import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
 import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
 import { Route as StaffShiftRouteImport } from './routes/staff.shift'
+import { Route as StaffTasksRouteImport } from './routes/staff.tasks'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherAssessmentsRouteImport } from './routes/teacher.assessments'
 import { Route as TeacherCurriculumRouteImport } from './routes/teacher.curriculum'
+import { Route as TeacherTasksRouteImport } from './routes/teacher.tasks'
 import { Route as VisitorIndexRouteImport } from './routes/visitor.index'
 import { Route as TeacherSessionGroupIdRouteImport } from './routes/teacher.session.$groupId'
 
@@ -60,6 +64,11 @@ const OwnerAccessRoute = OwnerAccessRouteImport.update({
   path: '/owner/access',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerComplianceRoute = OwnerComplianceRouteImport.update({
+  id: '/owner/compliance',
+  path: '/owner/compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OwnerFinanceRoute = OwnerFinanceRouteImport.update({
   id: '/owner/finance',
   path: '/owner/finance',
@@ -73,6 +82,11 @@ const OwnerScheduleRoute = OwnerScheduleRouteImport.update({
 const OwnerStudentsRoute = OwnerStudentsRouteImport.update({
   id: '/owner/students',
   path: '/owner/students',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerTasksRoute = OwnerTasksRouteImport.update({
+  id: '/owner/tasks',
+  path: '/owner/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerTreasuryRoute = OwnerTreasuryRouteImport.update({
@@ -125,6 +139,11 @@ const StaffShiftRoute = StaffShiftRouteImport.update({
   path: '/staff/shift',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffTasksRoute = StaffTasksRouteImport.update({
+  id: '/staff/tasks',
+  path: '/staff/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/student/',
   path: '/student/',
@@ -150,6 +169,11 @@ const TeacherCurriculumRoute = TeacherCurriculumRouteImport.update({
   path: '/teacher/curriculum',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeacherTasksRoute = TeacherTasksRouteImport.update({
+  id: '/teacher/tasks',
+  path: '/teacher/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VisitorIndexRoute = VisitorIndexRouteImport.update({
   id: '/visitor/',
   path: '/visitor/',
@@ -166,9 +190,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/tasks': typeof OwnerTasksRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
@@ -177,9 +203,11 @@ export interface FileRoutesByFullPath {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/tasks': typeof TeacherTasksRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -193,9 +221,11 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/tasks': typeof OwnerTasksRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
@@ -204,9 +234,11 @@ export interface FileRoutesByTo {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/tasks': typeof TeacherTasksRoute
   '/owner': typeof OwnerIndexRoute
   '/parent': typeof ParentIndexRoute
   '/staff': typeof StaffIndexRoute
@@ -221,9 +253,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRouteWithChildren
   '/login/$slug': typeof LoginSlugRoute
   '/owner/access': typeof OwnerAccessRoute
+  '/owner/compliance': typeof OwnerComplianceRoute
   '/owner/finance': typeof OwnerFinanceRoute
   '/owner/schedule': typeof OwnerScheduleRoute
   '/owner/students': typeof OwnerStudentsRoute
+  '/owner/tasks': typeof OwnerTasksRoute
   '/owner/treasury': typeof OwnerTreasuryRoute
   '/parent/messages': typeof ParentMessagesRoute
   '/platform/clients': typeof PlatformClientsRoute
@@ -232,9 +266,11 @@ export interface FileRoutesById {
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
+  '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/tasks': typeof TeacherTasksRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -250,9 +286,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/login/$slug'
     | '/owner/access'
+    | '/owner/compliance'
     | '/owner/finance'
     | '/owner/schedule'
     | '/owner/students'
+    | '/owner/tasks'
     | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
@@ -261,9 +299,11 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/staff/tasks'
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/tasks'
     | '/owner/'
     | '/parent/'
     | '/staff/'
@@ -277,9 +317,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/login/$slug'
     | '/owner/access'
+    | '/owner/compliance'
     | '/owner/finance'
     | '/owner/schedule'
     | '/owner/students'
+    | '/owner/tasks'
     | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
@@ -288,9 +330,11 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/staff/tasks'
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/tasks'
     | '/owner'
     | '/parent'
     | '/staff'
@@ -304,9 +348,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/login/$slug'
     | '/owner/access'
+    | '/owner/compliance'
     | '/owner/finance'
     | '/owner/schedule'
     | '/owner/students'
+    | '/owner/tasks'
     | '/owner/treasury'
     | '/parent/messages'
     | '/platform/clients'
@@ -315,9 +361,11 @@ export interface FileRouteTypes {
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
+    | '/staff/tasks'
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/tasks'
     | '/owner/'
     | '/parent/'
     | '/staff/'
@@ -331,9 +379,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRouteWithChildren
   OwnerAccessRoute: typeof OwnerAccessRoute
+  OwnerComplianceRoute: typeof OwnerComplianceRoute
   OwnerFinanceRoute: typeof OwnerFinanceRoute
   OwnerScheduleRoute: typeof OwnerScheduleRoute
   OwnerStudentsRoute: typeof OwnerStudentsRoute
+  OwnerTasksRoute: typeof OwnerTasksRoute
   OwnerTreasuryRoute: typeof OwnerTreasuryRoute
   ParentMessagesRoute: typeof ParentMessagesRoute
   PlatformClientsRoute: typeof PlatformClientsRoute
@@ -342,9 +392,11 @@ export interface RootRouteChildren {
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
+  StaffTasksRoute: typeof StaffTasksRoute
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
   TeacherCurriculumRoute: typeof TeacherCurriculumRoute
+  TeacherTasksRoute: typeof TeacherTasksRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   ParentIndexRoute: typeof ParentIndexRoute
   StaffIndexRoute: typeof StaffIndexRoute
@@ -391,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner/compliance': {
+      id: '/owner/compliance'
+      path: '/owner/compliance'
+      fullPath: '/owner/compliance'
+      preLoaderRoute: typeof OwnerComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/owner/finance': {
       id: '/owner/finance'
       path: '/owner/finance'
@@ -410,6 +469,13 @@ declare module '@tanstack/react-router' {
       path: '/owner/students'
       fullPath: '/owner/students'
       preLoaderRoute: typeof OwnerStudentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/tasks': {
+      id: '/owner/tasks'
+      path: '/owner/tasks'
+      fullPath: '/owner/tasks'
+      preLoaderRoute: typeof OwnerTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/treasury': {
@@ -482,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffShiftRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff/tasks': {
+      id: '/staff/tasks'
+      path: '/staff/tasks'
+      fullPath: '/staff/tasks'
+      preLoaderRoute: typeof StaffTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/student/': {
       id: '/student/'
       path: '/student'
@@ -517,6 +590,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherCurriculumRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teacher/tasks': {
+      id: '/teacher/tasks'
+      path: '/teacher/tasks'
+      fullPath: '/teacher/tasks'
+      preLoaderRoute: typeof TeacherTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/visitor/': {
       id: '/visitor/'
       path: '/visitor'
@@ -548,9 +628,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRouteWithChildren,
   OwnerAccessRoute: OwnerAccessRoute,
+  OwnerComplianceRoute: OwnerComplianceRoute,
   OwnerFinanceRoute: OwnerFinanceRoute,
   OwnerScheduleRoute: OwnerScheduleRoute,
   OwnerStudentsRoute: OwnerStudentsRoute,
+  OwnerTasksRoute: OwnerTasksRoute,
   OwnerTreasuryRoute: OwnerTreasuryRoute,
   ParentMessagesRoute: ParentMessagesRoute,
   PlatformClientsRoute: PlatformClientsRoute,
@@ -559,9 +641,11 @@ const rootRouteChildren: RootRouteChildren = {
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,
+  StaffTasksRoute: StaffTasksRoute,
   StudentLeaderboardRoute: StudentLeaderboardRoute,
   TeacherAssessmentsRoute: TeacherAssessmentsRoute,
   TeacherCurriculumRoute: TeacherCurriculumRoute,
+  TeacherTasksRoute: TeacherTasksRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   ParentIndexRoute: ParentIndexRoute,
   StaffIndexRoute: StaffIndexRoute,

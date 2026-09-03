@@ -72,6 +72,10 @@ export interface Teacher {
   timer_compliance: number;
   sla_breaches: number;
   monthly_revenue: number;
+  /** المراحل التي يدرّسها المدرس (ابتدائي / إعدادي / ثانوي) — مصفوفة للسماح بأكثر من مرحلة. */
+  stages?: ("primary" | "prep" | "secondary")[];
+  /** أول مرحلة رئيسية يستعملها في الـ UI عند عدم تحديد المراحل. */
+  primary_stage?: ("primary" | "prep" | "secondary");
 }
 
 export interface Group {
@@ -382,6 +386,8 @@ export interface HomeworkTask {
   due_date: string;
   status: "pending" | "submitted" | "graded" | "late";
   grade?: number;
+  /** تاريخ إنشاء/رفع الواجب — اختياري لتوافق مع سجلات قديمة بلا تاريخ. */
+  created_at?: string;
 }
 
 export interface WhatsAppLog {
@@ -453,6 +459,8 @@ export interface FinanceSettings {
   season_sessions: number;
   staff_salary_basis: StaffSalaryBasis;
   staff_salary_value: number;
+  /** السعة الافتراضية للمجموعة الجديدة (20 افتراضياً، قابلة للتعديل لكل مجموعة). */
+  default_group_capacity: number;
   updated_at: string;
 }
 
@@ -479,6 +487,45 @@ export interface CenterNotification {
   body: string | null;
   read_at: string | null;
   created_at: string;
+  /** db/0013 — مصدر الحدث (مثل session_late, overdue, new_student) لتجميع التنبيهات ومنع التكرار. */
+  source_event?: string | null;
+  source_id?: string | null;
+  acknowledged_at?: string | null;
+  is_actionable?: boolean;
+}
+
+/* ---------------- نظام المهام (Tasks) ---------------- */
+
+export type TaskType =
+  | "general"
+  | "follow_up"
+  | "collection"
+  | "curriculum"
+  | "admin"
+  | "communication";
+
+export type TaskPriority = "low" | "medium" | "high";
+export type TaskStatus = "pending" | "in_progress" | "done" | "cancelled";
+export type TaskAssigneeRole = "teacher" | "staff" | "owner";
+
+export interface Task {
+  id: UUID;
+  center_id: UUID;
+  title: string;
+  task_type: TaskType;
+  assignee_role: TaskAssigneeRole;
+  assignee_id: string | null;
+  assignee_name: string;
+  created_by_id: string | null;
+  created_by_name: string | null;
+  priority: TaskPriority;
+  is_urgent: boolean;
+  status: TaskStatus;
+  note: string | null;
+  due_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** سجل النشاط الموحّد (Timeline) — كل الأحداث المهمة في مكان واحد. */

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
-import { BrandLogo } from "@/components/BrandLogo";
+import { TopBar } from "@/components/layout/TopBar";
 import { ROLES } from "@/config/roles";
 import { useDataStore } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
@@ -73,7 +73,6 @@ export function AppShell({ role, title, description, actions, children }: AppShe
 
   return (
     <div dir="rtl" className="flex min-h-screen bg-canvas">
-      <BrandLogo />
       {/* §11-أ: tenant accent — sidebar background only, independent of the 5 subject colors. */}
       <aside
         className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col text-navy-foreground md:flex"
@@ -137,7 +136,8 @@ export function AppShell({ role, title, description, actions, children }: AppShe
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 border-b-2 border-border bg-background/95 backdrop-blur">
+        <TopBar role={role} />
+        <header className="sticky top-[60px] z-20 border-b-2 border-border bg-background/95 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8">
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-black text-foreground md:text-3xl">{title}</h1>

@@ -72,6 +72,9 @@ export const grades: Grade[] = [
   { id: "gd-7", center_id: c, name: "الأول الإعدادي", order: 7 },
   { id: "gd-8", center_id: c, name: "الثاني الإعدادي", order: 8 },
   { id: "gd-9", center_id: c, name: "الثالث الإعدادي", order: 9 },
+  { id: "gd-10", center_id: c, name: "الأول الثانوي", order: 10 },
+  { id: "gd-11", center_id: c, name: "الثاني الثانوي", order: 11 },
+  { id: "gd-12", center_id: c, name: "الثالث الثانوي", order: 12 },
 ];
 
 /**
@@ -82,9 +85,19 @@ export const grades: Grade[] = [
  */
 const CORE_SUBJECT_IDS = ["sub-1", "sub-2", "sub-3"] as const;
 const UPPER_PRIMARY_SUBJECT_IDS = ["sub-1", "sub-2", "sub-3", "sub-4", "sub-5"] as const;
+/**
+ * الإعدادي والثانوي يدرسون نفس المواد (عربي/إنجليزي/رياضيات/علوم/دراسات)
+ * — يمكن توسيعها لاحقاً بإضافة فيزياء/كيمياء/أحياء كمواد جديدة في مرجع subjects.
+ */
+const PREP_SUBJECT_IDS = UPPER_PRIMARY_SUBJECT_IDS;
 
 export const gradeSubjects: GradeSubject[] = grades.flatMap((g) => {
-  const subjectIds = g.order <= 3 ? CORE_SUBJECT_IDS : UPPER_PRIMARY_SUBJECT_IDS;
+  const subjectIds =
+    g.order <= 3
+      ? CORE_SUBJECT_IDS
+      : g.order <= 9
+        ? UPPER_PRIMARY_SUBJECT_IDS
+        : PREP_SUBJECT_IDS;
   return subjectIds.map((subjectId) => ({
     id: `gs-${g.id}-${subjectId}`,
     grade_id: g.id,
@@ -419,6 +432,8 @@ export const teachers: Teacher[] = [
     timer_compliance: 97,
     sla_breaches: 1,
     monthly_revenue: 86400,
+    stages: ["primary", "prep"],
+    primary_stage: "primary",
   },
   {
     id: "tc-2",
@@ -432,6 +447,8 @@ export const teachers: Teacher[] = [
     timer_compliance: 92,
     sla_breaches: 3,
     monthly_revenue: 71200,
+    stages: ["primary", "prep", "secondary"],
+    primary_stage: "prep",
   },
   {
     id: "tc-3",
@@ -445,6 +462,8 @@ export const teachers: Teacher[] = [
     timer_compliance: 78,
     sla_breaches: 9,
     monthly_revenue: 96000,
+    stages: ["primary", "prep", "secondary"],
+    primary_stage: "prep",
   },
   {
     id: "tc-4",
@@ -458,6 +477,8 @@ export const teachers: Teacher[] = [
     timer_compliance: 88,
     sla_breaches: 4,
     monthly_revenue: 52800,
+    stages: ["primary", "prep"],
+    primary_stage: "primary",
   },
   {
     id: "tc-5",
@@ -471,6 +492,8 @@ export const teachers: Teacher[] = [
     timer_compliance: 90,
     sla_breaches: 2,
     monthly_revenue: 45000,
+    stages: ["primary"],
+    primary_stage: "primary",
   },
 ];
 
@@ -572,6 +595,71 @@ export const groups: Group[] = [
     room: "قاعة C2",
     enrolled: 24,
     capacity: 30,
+  },
+  // مجموعات إضافية لتغطية الإعدادي والثانوي
+  {
+    id: "gr-7",
+    center_id: c,
+    name: "إنجليزي - سبت 6م",
+    subject: "إنجليزي",
+    subject_id: "sub-2",
+    teacher_name: "أ. كريم شوقي",
+    teacher_id: "tc-3",
+    grade: "الأول الإعدادي",
+    grade_id: "gd-7",
+    weekday: "السبت",
+    time: "06:00 م",
+    room: "قاعة D1",
+    enrolled: 18,
+    capacity: 20,
+  },
+  {
+    id: "gr-8",
+    center_id: c,
+    name: "رياضيات - أحد 4م",
+    subject: "رياضيات",
+    subject_id: "sub-3",
+    teacher_name: "أ. نورهان سعيد",
+    teacher_id: "tc-4",
+    grade: "الثاني الإعدادي",
+    grade_id: "gd-8",
+    weekday: "الأحد",
+    time: "04:00 م",
+    room: "قاعة D2",
+    enrolled: 16,
+    capacity: 20,
+  },
+  {
+    id: "gr-9",
+    center_id: c,
+    name: "علوم - ثلاثاء 7م",
+    subject: "علوم",
+    subject_id: "sub-5",
+    teacher_name: "أ. هبة عبد الرحمن",
+    teacher_id: "tc-2",
+    grade: "الأول الثانوي",
+    grade_id: "gd-10",
+    weekday: "الثلاثاء",
+    time: "07:00 م",
+    room: "قاعة E1",
+    enrolled: 12,
+    capacity: 20,
+  },
+  {
+    id: "gr-10",
+    center_id: c,
+    name: "دراسات - أربعاء 5م",
+    subject: "دراسات",
+    subject_id: "sub-4",
+    teacher_name: "أ. مصطفى الجندي",
+    teacher_id: "tc-1",
+    grade: "الثالث الإعدادي",
+    grade_id: "gd-9",
+    weekday: "الأربعاء",
+    time: "05:00 م",
+    room: "قاعة D3",
+    enrolled: 19,
+    capacity: 20,
   },
 ];
 
