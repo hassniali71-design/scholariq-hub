@@ -79,6 +79,7 @@ import type {
   LessonPlan,
   PlatformTeacherNote,
   Student,
+  StudentGroupEnrollment,
   Subject,
   SuggestedActivity,
   Task,
@@ -317,6 +318,8 @@ export interface DataState {
   homeworkAttempts: HomeworkAttempt[];
   /** Migration 0026: إشارة "نشطة الآن" مستقلة — فعل الموظف فقط، انظر تعليق GroupActivation. */
   groupActivations: GroupActivation[];
+  /** Migration 0027: تسجيل الطالب في مجموعات إضافية (مواد تانية) — إضافي بحت. */
+  studentGroupEnrollments: StudentGroupEnrollment[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -427,6 +430,7 @@ function seedState(): DataState {
     teacherLaunches: [],
     homeworkAttempts: [],
     groupActivations: [],
+    studentGroupEnrollments: [],
   };
 }
 
@@ -4143,6 +4147,72 @@ export function removeStudentFromGroup(studentId: string): void {
 
 export function getGroupsForGrade(state: DataState, gradeId: string): Group[] {
   return state.groups.filter((g) => g.grade_id === gradeId);
+}
+
+/**
+ * Migration 0027 — كل مجموعات الطالب: المجموعة الأساسية (student.group_id، لسه
+ * المصدر الوحيد للحضور/المدفوعات/وضع الحصة) + أي مجموعات إضافية سُجِّل فيها عبر
+ * enrollStudentInAdditionalGroup (لمواد تانية). مُستخدمة في صفحة "مدرّسيني ومنهجي".
+ */
+export function getGroupsForStudent(state: DataState, studentId: string): Group[] {
+  const student = state.students.find((s) => s.id === studentId);
+  const extraGroupIds = state.studentGroupEnrollments
+    .filter((e) => e.student_id === studentId)
+    .map((e) => e.group_id);
+  const ids = new Set<string>(extraGroupIds);
+  if (student?.group_id) ids.add(student.group_id);
+  return state.groups.filter((g) => ids.has(g.id));
+}
+
+/** تسجيل الطالب في مجموعة إضافية (مادة تانية) — لا يلمس student.group_id إطلاقاً. */
+export function enrollStudentInAdditionalGroup(
+  studentId: string,
+  groupId: string,
+): { ok: boolean; reason?: string } {
+  const state = getData();
+  const student = state.students.find((s) => s.id === studentId);
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!student || !group) return { ok: false, reason: "بيانات غير مكتملة" };
+  if (student.group_id === groupId) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
+  const already = state.studentGroupEnrollments.some(
+    (e) => e.student_id === studentId && e.group_id === groupId,
+  );
+  if (already) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
+  if (group.enrolled >= group.capacity) return { ok: false, reason: "السعة مكتملة" };
+  let row: StudentGroupEnrollment | null = null;
+  update((s) => {
+    row = {
+      id: `sge-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: studentId,
+      group_id: groupId,
+    };
+    return {
+      ...s,
+      studentGroupEnrollments: [row, ...s.studentGroupEnrollments],
+      groups: s.groups.map((g) => (g.id === groupId ? { ...g, enrolled: g.enrolled + 1 } : g)),
+    };
+  });
+  if (row) syncInsert("student_group_enrollments", row);
+  syncUpdate("groups", groupId, { enrolled: group.enrolled + 1 });
+  return { ok: true };
+}
+
+export function unenrollStudentFromAdditionalGroup(enrollmentId: string): void {
+  const state = getData();
+  const enrollment = state.studentGroupEnrollments.find((e) => e.id === enrollmentId);
+  const group = enrollment ? state.groups.find((g) => g.id === enrollment.group_id) : undefined;
+  update((s) => ({
+    ...s,
+    studentGroupEnrollments: s.studentGroupEnrollments.filter((e) => e.id !== enrollmentId),
+    groups: enrollment
+      ? s.groups.map((g) =>
+          g.id === enrollment.group_id ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
+        )
+      : s.groups,
+  }));
+  syncDeleteIds("student_group_enrollments", [enrollmentId]);
+  if (group) syncUpdate("groups", group.id, { enrolled: Math.max(0, group.enrolled - 1) });
 }
 
 export function getEligibleStudentsForGroup(

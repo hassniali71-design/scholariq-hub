@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 
 import {
   addStudentToGroup,
+  enrollStudentInAdditionalGroup,
   getEligibleStudentsForGroup,
   useDataStore,
 } from "@/lib/data-store";
@@ -13,6 +14,10 @@ import type { Group } from "@/types";
  * إضافة طالب/طلاب لمجموعة موجودة بالفعل — بدون الحاجة لإنشاء مجموعة جديدة من
  * الصفر لكل طالب ينضم لاحقاً. يستخدم addStudentToGroup الموجودة أصلاً في
  * data-store.ts (كانت بلا أي واجهة تستدعيها).
+ *
+ * لو الطالب عنده مجموعة أساسية مختلفة بالفعل، الإضافة هنا بتسجّله في المجموعة
+ * دي كـ"مادة إضافية" (Migration 0027) من غير ما تنقله من مجموعته الأساسية —
+ * الأساس بيتغيّر فقط لو الطالب بلا مجموعة أصلاً.
  */
 export function AddStudentToGroupModal({
   group,
@@ -37,10 +42,16 @@ export function AddStudentToGroupModal({
 
   if (!group) return null;
 
-  function handleAdd(studentId: string, studentName: string) {
-    const result = addStudentToGroup(studentId, group!.id);
+  function handleAdd(studentId: string, studentName: string, hasOtherPrimaryGroup: boolean) {
+    const result = hasOtherPrimaryGroup
+      ? enrollStudentInAdditionalGroup(studentId, group!.id)
+      : addStudentToGroup(studentId, group!.id);
     if (result.ok) {
-      toast.success(`تمت إضافة ${studentName} لمجموعة ${group!.name}`);
+      toast.success(
+        hasOtherPrimaryGroup
+          ? `تمت إضافة ${studentName} لمجموعة ${group!.name} كمادة إضافية`
+          : `تمت إضافة ${studentName} لمجموعة ${group!.name}`,
+      );
     } else {
       toast.error(result.reason ?? "تعذّرت الإضافة");
     }
@@ -91,26 +102,30 @@ export function AddStudentToGroupModal({
               لا يوجد طلاب مؤهلون (نفس الصف والمادة) غير مسجَّلين في هذه المجموعة بالفعل.
             </p>
           ) : (
-            filtered.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-foreground">{s.full_name}</p>
-                  <p className="text-xs font-bold text-muted-foreground">
-                    {s.code} · {s.group_name}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={group.enrolled >= group.capacity}
-                  onClick={() => handleAdd(s.id, s.full_name)}
-                  className="shrink-0 rounded-lg bg-navy px-3 py-1.5 text-xs font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            filtered.map((s) => {
+              const hasOtherPrimaryGroup = !!s.group_id && s.group_id !== group.id;
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
                 >
-                  إضافة
-                </button>
-              </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-foreground">{s.full_name}</p>
+                    <p className="text-xs font-bold text-muted-foreground">
+                      {s.code} · {s.group_name}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={group.enrolled >= group.capacity}
+                    onClick={() => handleAdd(s.id, s.full_name, hasOtherPrimaryGroup)}
+                    className="shrink-0 rounded-lg bg-navy px-3 py-1.5 text-xs font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {hasOtherPrimaryGroup ? "إضافة كمادة إضافية" : "إضافة"}
+                  </button>
+                </div>
+              );
+            })
             ))
           )}
         </div>

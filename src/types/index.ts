@@ -179,6 +179,19 @@ export interface Group {
   notes?: string | null;
 }
 
+/**
+ * Migration 0027 — تسجيل الطالب في مجموعة **إضافية** (مادة تانية)، منفصل تماماً
+ * عن `Student.group_id` (المجموعة الأساسية القديمة اللي كل الحضور/المدفوعات/
+ * وضع الحصة لسه معتمدين عليها بلا أي تغيير). إضافي بحت لصفحة "مدرّسيني ومنهجي" —
+ * صفر تأثير على أي سلوك موجود.
+ */
+export interface StudentGroupEnrollment {
+  id: UUID;
+  center_id: UUID;
+  student_id: UUID;
+  group_id: UUID;
+}
+
 /** Reference table — replaces free-text `subject`/`subject_id` pairs with a real lookup. */
 export interface Subject {
   id: UUID;
