@@ -2084,7 +2084,7 @@ export function getPlatformNotesForSubject(
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
-export function closeShift(countedAmount: number) {
+export function closeShift(countedAmount: number): { expected: number; diff: number } {
   let closure: ShiftClosure | null = null;
   update((state) => {
     const expected = state.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -2098,11 +2098,13 @@ export function closeShift(countedAmount: number) {
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  if (closure) {
-    const c = closure as ShiftClosure;
-    syncInsert("shift_closures", c);
-    logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
-  }
+  const c = closure as ShiftClosure;
+  syncInsert("shift_closures", c);
+  logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
+  // القيمة المرجعة هي المرجع الرسمي المُسجَّل فعلياً (محسوبة لحظة الإغلاق نفسها) —
+  // الواجهة تعرض هذه القيمة بعد التقفيل بدل إعادة حسابها محلياً من بيانات قد تكون
+  // تغيّرت بين لحظة الضغط ولحظة الرسم.
+  return { expected: c.expected, diff: c.diff };
 }
 
 function ensureLiveScore(state: DataState, student: Student): LiveScore {
@@ -2918,11 +2920,48 @@ export function setStaffPermissions(
   update((state) => {
     const existing = state.staffPermissions.find((p) => p.account_identifier === identifier);
     row = {
+      ...existing,
       id: existing?.id ?? `perm-${identifier}`,
       center_id: state.center.id,
       account_identifier: identifier,
       full_name: fullName,
       permissions,
+      updated_at: new Date().toISOString(),
+    };
+    const rest = state.staffPermissions.filter((p) => p.account_identifier !== identifier);
+    return { ...state, staffPermissions: [...rest, row] };
+  });
+  if (row) syncUpsert("staff_permissions", row, "account_identifier");
+}
+
+/** الراتب المتوقع للموظف — تذكير فقط في صفحة التدفق المالي، لا يُخصم تلقائياً. نفس نمط setStaffPermissions (تحديث/إنشاء صف واحد لكل موظف). */
+export function getStaffExpectedSalary(
+  state: DataState,
+  identifier: string,
+): { basis: PayrollBasis; value: number } | null {
+  const row = state.staffPermissions.find((p) => p.account_identifier === identifier);
+  if (!row?.expected_salary_basis || row.expected_salary_value == null) return null;
+  return { basis: row.expected_salary_basis, value: row.expected_salary_value };
+}
+
+export function setStaffExpectedSalary(
+  identifier: string,
+  fullName: string,
+  basis: PayrollBasis,
+  value: number,
+) {
+  let row: StaffPermissionRecord | null = null;
+  update((state) => {
+    const existing = state.staffPermissions.find((p) => p.account_identifier === identifier);
+    row = {
+      ...existing,
+      id: existing?.id ?? `perm-${identifier}`,
+      center_id: state.center.id,
+      account_identifier: identifier,
+      full_name: fullName,
+      permissions: existing?.permissions ?? [],
+      expected_salary_basis: basis,
+      expected_salary_value: value,
       updated_at: new Date().toISOString(),
     };
     const rest = state.staffPermissions.filter((p) => p.account_identifier !== identifier);

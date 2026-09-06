@@ -106,6 +106,7 @@ function Row({ entry }: { entry: ActivityEntry }) {
       <button
         type="button"
         onClick={() => {
+          if (!window.confirm("متأكد إنك عايز تحذف هذا العنصر من سجل النشاط؟")) return;
           deleteActivityEntry(entry.id);
           toast.success("تم حذف العنصر");
         }}

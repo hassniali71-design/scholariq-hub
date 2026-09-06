@@ -701,6 +701,9 @@ export interface StaffPermissionRecord {
   account_identifier: string;
   full_name: string;
   permissions: StaffPermissionKey[];
+  /** الراتب المتوقع (للتذكير فقط في صفحة التدفق المالي — لا يُخصم تلقائياً). */
+  expected_salary_basis?: PayrollBasis | null;
+  expected_salary_value?: number | null;
   updated_at: string;
 }
 

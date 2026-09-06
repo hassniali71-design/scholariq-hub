@@ -150,6 +150,7 @@ function NotificationRow({ n }: { n: CenterNotification }) {
           <button
             type="button"
             onClick={() => {
+              if (!window.confirm("متأكد إنك عايز تحذف هذا الإشعار؟")) return;
               deleteNotification(n.id);
               toast.success("تم حذف الإشعار");
             }}

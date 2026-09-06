@@ -6,7 +6,6 @@ import {
   Clock,
   Download,
   GraduationCap,
-  ListTodo,
   TrendingUp,
   UserCheck,
   Users,
@@ -25,7 +24,7 @@ import { ActivityLogPanel } from "@/components/owner/ActivityLogPanel";
 import { NotificationsPanel } from "@/components/owner/NotificationsPanel";
 import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
 import { downloadCenterExcel } from "@/lib/export-excel";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import {
   getFinanceSettings,
   pushNotification,
@@ -397,9 +396,3 @@ function OwnerDashboard() {
     </AppShell>
   );
 }
-
-function formatDateTime(s: string) {
-  return s.length === 0 ? "—" : s;
-}
-
-void ListTodo;

@@ -37,8 +37,10 @@ import {
   type StageKey,
   createTeacherRecord,
   getData,
+  getStaffExpectedSalary,
   getStaffPermissions,
   getSubjectsForGrade,
+  setStaffExpectedSalary,
   setStaffPermissions,
   useDataStore,
 } from "@/lib/data-store";
@@ -541,17 +543,15 @@ function StaffProvisionForm() {
           setFullName("");
           setPhone("");
           setSalaryValue("");
-          // نتذكّر الراتب المتوقع في localStorage الصغير للـ staff salary
-          // (لا يُخصم تلقائياً، فقط للتذكير في صفحة التدفق المالي).
-          try {
-            const stored = JSON.parse(
-              window.localStorage.getItem("staff_expected_salary") ?? "{}",
-            ) as Record<string, { basis: PayrollBasis; value: number }>;
-            stored[result.identifier] = { basis: salaryBasis, value: Number(salaryValue || 0) };
-            window.localStorage.setItem("staff_expected_salary", JSON.stringify(stored));
-          } catch {
-            /* ignore */
-          }
+          // الراتب المتوقع يُحفظ في StaffPermissionRecord عبر data-store.ts (نفس نمط
+          // setStaffPermissions المعتمد في المشروع) بدل localStorage خام منفصل —
+          // لا يُخصم تلقائياً، فقط للتذكير في صفحة التدفق المالي.
+          setStaffExpectedSalary(
+            result.identifier,
+            result.full_name,
+            salaryBasis,
+            Number(salaryValue || 0),
+          );
           toast.success(`تم توليد الكود: ${result.identifier}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
@@ -725,12 +725,21 @@ function AccessManagement() {
 
 /* ---------------- صف حساب (مع حذف جذري) ---------------- */
 
+const SALARY_BASIS_LABEL: Record<PayrollBasis, string> = {
+  per_session: "بالحصة",
+  weekly: "أسبوعي",
+  monthly: "شهري",
+};
+
 function AccountRow({ account }: { account: Account }) {
+  const state = useDataStore();
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(account.full_name);
   const [identifier, setIdentifier] = useState(account.identifier);
   const [password, setPassword] = useState(account.password ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const expectedSalary =
+    account.role === "staff" ? getStaffExpectedSalary(state, account.identifier) : null;
 
   const inputCls =
     "w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-base font-extrabold text-foreground outline-none focus:border-primary";
@@ -782,8 +791,18 @@ function AccountRow({ account }: { account: Account }) {
     );
   }
 
-  function runCascadeDelete() {
+  async function runCascadeDelete() {
     const role = account.role as "teacher" | "staff" | "student" | "visitor";
+    // نحذف حساب الدخول (accounts) أولاً — لو فشل، نوقف هنا ولا نلمس البيانات التشغيلية،
+    // عشان ما نسيبش حساب "شبح" قدر يسجّل دخول بعد ما بياناته اتمسحت، أو العكس: بيانات
+    // اتمسحت وحساب الدخول لسه شغال. الترتيب ده يضمن إن أسوأ حالة فشل هي "بيانات قديمة
+    // متسيبة لحساب متقفول"، مش "حساب شغال بلا بيانات".
+    try {
+      await deleteAccount(account.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل حذف الحساب من accounts");
+      return;
+    }
     const result = deleteAccountCascade(account.id, role);
     if (result.ok) {
       const details: string[] = [];
@@ -799,11 +818,6 @@ function AccountRow({ account }: { account: Account }) {
     } else {
       toast.error(result.error ?? "فشل الحذف");
     }
-    // حذف الـ account row نفسه (server fn) — لا يحدث داخل deleteAccountCascade
-    // لأنه محمي بـ try/catch ولا يوقف الباقي.
-    void deleteAccount(account.id).catch((e) =>
-      toast.error(e instanceof Error ? e.message : "فشل حذف الحساب من accounts"),
-    );
   }
 
   return (
@@ -812,7 +826,15 @@ function AccountRow({ account }: { account: Account }) {
         <td className="px-5 py-3 text-foreground">{account.full_name}</td>
         <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
         <td className="px-5 py-3 font-mono text-foreground">{account.identifier}</td>
-        <td className="px-5 py-3 font-mono text-muted-foreground">{account.password ?? "—"}</td>
+        <td className="px-5 py-3 font-mono text-muted-foreground">
+          {account.password ?? "—"}
+          {expectedSalary ? (
+            <span className="mt-1 block font-sans text-xs font-bold text-muted-foreground">
+              الراتب المتوقع: {formatCurrency(expectedSalary.value)} ·{" "}
+              {SALARY_BASIS_LABEL[expectedSalary.basis]}
+            </span>
+          ) : null}
+        </td>
         <td className="px-5 py-3">
           <div className="flex flex-wrap gap-2">
             <button

@@ -95,7 +95,6 @@ function StudentsPage() {
     attendanceRecords,
     homeworkTasks,
     teacherNotes,
-    teachers,
   } = state;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | Student["payment_status"]>("all");
@@ -514,7 +513,13 @@ function StudentsPage() {
                   return;
                 }
                 if (!selected) return;
-                addTeacherNote(selected.id, teachers[0]?.id ?? selected.id, noteDraft);
+                const studentGroup = groups.find((g) => g.id === selected.group_id);
+                const teacherId = studentGroup?.teacher_id;
+                if (!teacherId) {
+                  toast.error("الطالب غير مسجّل في مجموعة لها مدرس بعد");
+                  return;
+                }
+                addTeacherNote(selected.id, teacherId, noteDraft);
                 setNoteDraft("");
                 toast.success("تم حفظ الملاحظة");
               }}
