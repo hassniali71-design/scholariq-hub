@@ -71,9 +71,18 @@ export function ExamsCard({
   const remaining = running ? Math.max(0, Math.round((running.endsAt - now) / 1000)) : 0;
 
   const upload = async (file: File) => {
-    if (file.size > MAX_BYTES) return toast.error("حجم الملف يتجاوز 10MB");
-    if (!ACCEPTED.includes(file.type)) return toast.error("PDF أو صورة فقط");
-    if (!title.trim()) return toast.error("اكتب اسم الامتحان أولاً");
+    if (file.size > MAX_BYTES) {
+      toast.error("حجم الملف يتجاوز 10MB");
+      return;
+    }
+    if (!ACCEPTED.includes(file.type)) {
+      toast.error("PDF أو صورة فقط");
+      return;
+    }
+    if (!title.trim()) {
+      toast.error("اكتب اسم الامتحان أولاً");
+      return;
+    }
     setBusy(true);
     try {
       const data = await fileToBase64(file);
