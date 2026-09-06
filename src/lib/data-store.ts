@@ -4091,17 +4091,30 @@ export function addStudentToGroup(
   if (group.enrolled >= group.capacity) {
     return { ok: false, reason: "السعة مكتملة" };
   }
+  // لو الطالب كان مسجَّل في مجموعة تانية قبل كده، لازم ننقّص عدد المسجَّلين فيها
+  // (كانت المجموعة القديمة بتفضل عدادها زي ما هو غلط لو نقلنا الطالب من غيرها).
+  const previousGroupId = student.group_id;
   update((s) => ({
     ...s,
-    groups: s.groups.map((g) =>
-      g.id === groupId ? { ...g, enrolled: g.enrolled + 1 } : g,
-    ),
+    groups: s.groups.map((g) => {
+      if (g.id === groupId) return { ...g, enrolled: g.enrolled + 1 };
+      if (previousGroupId && g.id === previousGroupId) {
+        return { ...g, enrolled: Math.max(0, g.enrolled - 1) };
+      }
+      return g;
+    }),
     students: s.students.map((st) =>
       st.id === studentId ? { ...st, group_id: groupId, group_name: group.name } : st,
     ),
   }));
   syncUpdate("students", studentId, { group_id: groupId, group_name: group.name });
   syncUpdate("groups", groupId, { enrolled: group.enrolled + 1 });
+  if (previousGroupId && previousGroupId !== groupId) {
+    const previousGroup = state.groups.find((g) => g.id === previousGroupId);
+    if (previousGroup) {
+      syncUpdate("groups", previousGroupId, { enrolled: Math.max(0, previousGroup.enrolled - 1) });
+    }
+  }
   return { ok: true };
 }
 
