@@ -1,16 +1,28 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
-import { Navigate } from "@tanstack/react-router";
+import {
+  BookOpenCheck,
+  CheckCircle2,
+  ClipboardList,
+  Dices,
+  FileText,
+  Gamepad2,
+  Lightbulb,
+  Send,
+  Sparkles,
+  UserCheck,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import { StatusBadge } from "@/components/dashboard/StatCard";
+import { Panel, StatusBadge } from "@/components/dashboard/StatCard";
+import { AssessmentsTable } from "@/components/teacher/AssessmentsTable";
 import { AttendanceRosterBox } from "@/components/teacher/AttendanceRosterBox";
-import { BehaviorScoreColumn } from "@/components/teacher/BehaviorScoreColumn";
-import { CorrectionPanel } from "@/components/teacher/CorrectionPanel";
+import { ExamsCard } from "@/components/teacher/ExamsCard";
 import { GroupResourcesPanel } from "@/components/teacher/GroupResourcesPanel";
 import { InteractiveActivityStudio } from "@/components/teacher/InteractiveActivityStudio";
 import { LaunchPanel } from "@/components/teacher/LaunchPanel";
+import { OwnerNotesCard } from "@/components/teacher/OwnerNotesCard";
 import { ReviewUploadPanel } from "@/components/teacher/ReviewUploadPanel";
 import { SessionFreeTimer } from "@/components/teacher/SessionFreeTimer";
 import { pickFairly } from "@/components/session/FairRandomPicker";
@@ -18,14 +30,9 @@ import { InteractiveSlideViewer } from "@/components/session/InteractiveSlideVie
 import { SessionCurriculumNav } from "@/components/session/SessionCurriculumNav";
 import { SessionLessonPlanBanner } from "@/components/session/SessionLessonPlanBanner";
 import { SessionReviewPanel } from "@/components/session/SessionReviewPanel";
-import {
-  BehaviorButtons,
-  BookExerciseCard,
-  HomeworkStep,
-  QuestionCard,
-} from "@/components/session/SessionSteps";
+import { SessionSideNav, type SessionSectionDef } from "@/components/session/SessionSideNav";
+import { BookExerciseCard, QuestionCard } from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
-import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
 import { useContentHash } from "@/hooks/use-content-hash";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useCurrentTeacher } from "@/hooks/use-current-teacher";
@@ -33,50 +40,80 @@ import { useSession } from "@/hooks/use-current-student";
 import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
 import { formatNumber } from "@/lib/format";
 import {
-  REASONABLE_EXTENSION_RATIO,
   getAssessmentScoresForLesson,
+  getBookExerciseTask,
   getCurriculumLessonsForUnit,
   getCurriculumUnitsForSubjectGrade,
   getData,
   getNextPlannedLesson,
   getQuestionsForLesson,
   getSessionRecordForLesson,
-  getSessionRecordsForGroup,
   getSlidesForLesson,
-  getBookExerciseTask,
   getStudentsForGroup,
-  getSuggestedActivityForLesson,
   recordAssessmentScore,
-  recordAttendance,
   recordBookExerciseTask,
   recordQuestionAnswer,
   recordRandomPick,
   recordSessionSummary,
-  recordTimerExtension,
   releaseSessionTasks,
-  scoreHomework as persistHomeworkScore,
   updateLessonSlide,
   updateQuizQuestion,
   useDataStore,
 } from "@/lib/data-store";
-import { SESSION_STEPS } from "@/lib/mock-data";
 import { getSubjectTheme } from "@/lib/subject-themes";
 import { cn } from "@/lib/utils";
-import type { AttendanceStatus, LiveScore, SessionStepKey } from "@/types";
+import type { AttendanceStatus, LiveScore } from "@/types";
 
-/** §7-هـ: teacher picks the question's timer duration when drawing, based on difficulty. */
-const QUESTION_DURATIONS = [10, 15, 30] as const;
+/** §7-هـ: مدة تايمر السؤال — الافتراضي 20 ثانية (البند 6). */
+const QUESTION_DURATIONS = [10, 20, 30] as const;
+
+/** البند 0 — أقسام الحصة السبعة في قائمة جانبية طولية. */
+const SECTIONS: SessionSectionDef[] = [
+  {
+    key: "attendance",
+    title: "سجل الحضور والغياب",
+    hint: "حاضر / متأخر بالدقائق / غائب + ملاحظات المالك",
+    Icon: UserCheck,
+  },
+  {
+    key: "lesson",
+    title: "الشرح التفاعلي",
+    hint: "نصائح البدء، مخطط الحصة، روابط المنهج والمرفقات، والشرائح",
+    Icon: Lightbulb,
+  },
+  {
+    key: "assessments",
+    title: "التقييمات",
+    hint: "جدول موحّد لكل أنواع التقييم بما فيها السلوك",
+    Icon: ClipboardList,
+  },
+  {
+    key: "launch",
+    title: "إطلاق المهام والواجبات",
+    hint: "إطلاق جديد + سجل كامل بالحذف فقط",
+    Icon: Send,
+  },
+  {
+    key: "activity",
+    title: "النشاط التفاعلي",
+    hint: "شيت الأسئلة بأربعة أوضاع + سحب طالب عشوائي",
+    Icon: Gamepad2,
+  },
+  {
+    key: "reviews",
+    title: "المراجعات والامتحانات",
+    hint: "رفع ومعاينة الملفات + امتحان بمدة ودرجات",
+    Icon: FileText,
+  },
+  {
+    key: "wrapup",
+    title: "تمارين الكتاب وختام الحصة",
+    hint: "تمارين داخل الحصة، الواجب المنزلي، وإنهاء الحصة",
+    Icon: BookOpenCheck,
+  },
+];
 
 export const Route = createFileRoute("/teacher/session/$groupId")({
-  /**
-   * Bug fix (real browser trial): session mode used to hardcode `groups[0]`,
-   * so every "ابدأ" button — no matter which group — landed on the same
-   * group's session. Now the route requires a real group id; an invalid one
-   * (bad/stale link) redirects back to the group list instead of crashing.
-   * Safe to check here (not just client-side like AppShell's auth gate)
-   * because `getData()` falls back to the seeded `SERVER_STATE` during SSR,
-   * which always has every seeded group.
-   */
   beforeLoad: ({ params }) => {
     const exists = getData().groups.some((g) => g.id === params.groupId);
     if (!exists) {
@@ -89,13 +126,15 @@ export const Route = createFileRoute("/teacher/session/$groupId")({
       {
         name: "description",
         content:
-          "المنهج، الطلاب، وكل أنواع التقييم لهذه المجموعة في مكان واحد — تسلسل الحصة الموقوت من تسعة بنود.",
+          "المنهج، الطلاب، وكل أنواع التقييم لهذه المجموعة في مكان واحد — سبعة أقسام في قائمة جانبية.",
       },
       { property: "og:title", content: "وضع الحصة — المركز الكامل للمجموعة" },
       {
         property: "og:description",
-        content: "مركز قيادة الحصة: منهج، شرح، تقييم، وإطلاق مهام في شاشة واحدة.",
+        content: "مركز قيادة الحصة: حضور، شرح، تقييم، إطلاق مهام، أنشطة، امتحانات.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SessionMode,
@@ -105,20 +144,12 @@ function SessionMode() {
   const { groupId } = Route.useParams();
   const state = useDataStore();
   const { groups, liveScores, attendanceRecords, subjects } = state;
-  /** `beforeLoad` already guarantees this group exists. */
   const group = groups.find((g) => g.id === groupId)!;
   const navigate = useNavigate();
-  /**
-   * Ownership check (Section 0): this group MUST belong to the signed-in
-   * teacher. The previous `beforeLoad` only verified group existence, so any
-   * teacher could open any group's session URL. Now we compare against the
-   * current session's `user_id` (or, belt-and-suspenders, the legacy
-   * `teacher_id` link) and redirect to the teacher dashboard on mismatch.
-   */
   const teacher = useCurrentTeacher();
   const session = useSession();
-  /** Login identifier (e.g. "TCH-2001") — يُحفظ في `group_resources.created_by`. */
   const teacherIdentifier = session?.identifier ?? teacher?.user_id ?? teacher?.id ?? "";
+
   useEffect(() => {
     if (
       teacher &&
@@ -129,29 +160,21 @@ function SessionMode() {
       navigate({ to: "/teacher" });
     }
   }, [teacher, group, navigate]);
-  if (
-    teacher &&
-    group.teacher_id !== teacher.id &&
-    group.teacher_user_id !== teacher.user_id
-  ) {
-    return <Navigate to="/teacher" />;
-  }
+
   const sessionStudents = useMemo(
     () => getStudentsForGroup(state, group.id),
     [state.students, group.id],
   );
-  /** §7-و: session mode only — never applied to AppShell (shared by every role). */
   const theme = getSubjectTheme(subjects.find((s) => s.id === group.subject_id)?.theme_key);
   const { computeHash } = useContentHash();
   const [uploading, setUploading] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("attendance");
 
-  /**
-   * CURRICULUM_ENGINE_SPEC.md §13-ب: the curriculum column drives which lesson
-   * is on screen — an explicit teacher choice, not `getLatestReadyLesson`'s old
-   * auto-pick. Defaults once to the group's next planned lesson as a sensible
-   * starting point; the teacher can click any other lesson in the list instead.
-   */
-  const curriculumUnits = getCurriculumUnitsForSubjectGrade(state, group.subject_id, group.grade_id);
+  const curriculumUnits = getCurriculumUnitsForSubjectGrade(
+    state,
+    group.subject_id,
+    group.grade_id,
+  );
   const [selectedCurriculumLessonId, setSelectedCurriculumLessonId] = useState<string | null>(
     () => getNextPlannedLesson(state, group.subject_id, group.grade_id)?.id ?? null,
   );
@@ -166,7 +189,6 @@ function SessionMode() {
     ? state.electronicHomeworks.find((eh) => eh.lesson_id === selectedLesson.id)
     : undefined;
 
-  /** §13-ب: a lesson that's already been taught opens in review mode instead of the live flow. */
   const reviewSessionRecord = selectedLesson
     ? getSessionRecordForLesson(state, selectedLesson.id)
     : undefined;
@@ -178,10 +200,61 @@ function SessionMode() {
   const activeQuestionPool = selectedLessonReady
     ? getQuestionsForLesson(state, selectedLessonReady.id)
     : state.sessionQuestions.filter((q) => q.lesson_id === null);
-  const suggestedActivity = selectedLessonReady
-    ? getSuggestedActivityForLesson(state, selectedLessonReady.id)
-    : undefined;
   const lessonScores = selectedLesson ? getAssessmentScoresForLesson(state, selectedLesson.id) : [];
+
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [askedCount, setAskedCount] = useState(0);
+  const [released, setReleased] = useState(false);
+  const [eHomeworkReleased, setEHomeworkReleased] = useState(false);
+  const sessionIdRef = useRef(`sess-${Date.now()}`);
+
+  const scores: LiveScore[] = useMemo(
+    () =>
+      sessionStudents.map((s) => {
+        const live = liveScores.find((l) => l.student_id === s.id);
+        return (
+          live ?? {
+            student_id: s.id,
+            student_name: s.full_name,
+            homework_score: null,
+            question_score: null,
+            points: 0,
+          }
+        );
+      }),
+    [sessionStudents, liveScores],
+  );
+
+  const attendanceStatus = useCallback(
+    (studentId: string): AttendanceStatus | null =>
+      attendanceRecords.find((a) => a.student_id === studentId)?.status ?? null,
+    [attendanceRecords],
+  );
+  const attendedStudentIds = useMemo(
+    () =>
+      new Set(
+        sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").map((s) => s.id),
+      ),
+    [sessionStudents, attendanceStatus],
+  );
+
+  const [questionDuration, setQuestionDuration] = useState<number>(QUESTION_DURATIONS[1]);
+  const questionTimer = useCountdown(questionDuration, () => {
+    setAnswered(true);
+    toast.error("انتهى وقت السؤال — لم يتم الرد");
+  });
+
+  const picked = useMemo(
+    () => scores.find((s) => s.student_id === pickedId) ?? null,
+    [scores, pickedId],
+  );
+  const question =
+    activeQuestionPool.length > 0
+      ? (activeQuestionPool[questionIndex % activeQuestionPool.length] ?? null)
+      : null;
 
   const handleUploadFile = useCallback(
     async (file: File) => {
@@ -206,7 +279,14 @@ function SessionMode() {
         setUploading(false);
       }
     },
-    [computeHash, group.id, group.subject, group.subject_id, group.teacher_id, selectedCurriculumLessonId],
+    [
+      computeHash,
+      group.id,
+      group.subject,
+      group.subject_id,
+      group.teacher_id,
+      selectedCurriculumLessonId,
+    ],
   );
 
   const handleRetryLesson = useCallback(async () => {
@@ -220,134 +300,30 @@ function SessionMode() {
     }
   }, [selectedLesson, group.subject]);
 
-  /** CURRICULUM_ENGINE_SPEC.md §13-ج step 1: no prior SessionRecord for this group → nothing to grade yet. */
-  const isFirstSessionForGroup = useMemo(
-    () => getSessionRecordsForGroup(state, group.id).length === 0,
-    [state.sessionRecords, group.id],
-  );
-  const orderedSteps = useMemo(
-    () => SESSION_STEPS.filter((s) => s.key !== "last_homework" || !isFirstSessionForGroup),
-    [isFirstSessionForGroup],
-  );
-  const [stepIndex, setStepIndex] = useState(0);
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [answered, setAnswered] = useState(false);
-  const [pickedId, setPickedId] = useState<string | null>(null);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [askedCount, setAskedCount] = useState(0);
-  const [released, setReleased] = useState(false);
-  const [eHomeworkReleased, setEHomeworkReleased] = useState(false);
-  const [activityMarkedDone, setActivityMarkedDone] = useState(false);
-  const [extendedByStep, setExtendedByStep] = useState<Record<string, number>>({});
-  /** Anchors TimerExtension rows for this run — no SessionRecord to link to yet (Phase 3). */
-  const sessionIdRef = useRef(`sess-${Date.now()}`);
-
-  /** Live scoreboard is derived from the central store, so every rating
-   *  persists beyond this page (student / parent / owner dashboards). */
-  const scores: LiveScore[] = useMemo(
-    () =>
-      sessionStudents.map((s) => {
-        const live = liveScores.find((l) => l.student_id === s.id);
-        return (
-          live ?? {
-            student_id: s.id,
-            student_name: s.full_name,
-            homework_score: null,
-            question_score: null,
-            points: 0,
-          }
-        );
-      }),
-    [sessionStudents, liveScores],
-  );
-
-  const step = orderedSteps[stepIndex] ?? orderedSteps[0]!;
-  const isQuestions = step.key === "questions";
-
-  const attendanceStatus = useCallback(
-    (studentId: string): AttendanceStatus | null =>
-      attendanceRecords.find((a) => a.student_id === studentId)?.status ?? null,
-    [attendanceRecords],
-  );
-  const markAttendance = useCallback((studentId: string, status: AttendanceStatus) => {
-    recordAttendance(studentId, status, "manual", sessionIdRef.current);
-  }, []);
-  /** Present/late/unmarked count as "attended" for fair-pick eligibility — only explicit absence excludes. */
-  const attendedStudentIds = useMemo(
-    () => new Set(sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").map((s) => s.id)),
-    [sessionStudents, attendanceStatus],
-  );
-
-  const stepTimer = useCountdown(step.duration, () =>
-    toast.warning(`انتهى وقت مرحلة: ${step.title}`),
-  );
-
-  const extendedSeconds = extendedByStep[step.key] ?? 0;
-  const reasonableExtension = step.duration * REASONABLE_EXTENSION_RATIO;
-  const withinReasonableExtension = extendedSeconds <= reasonableExtension;
-
-  const handleExtend = useCallback(
-    (seconds: number, reason: string | null) => {
-      stepTimer.setRemaining((r) => r + seconds);
-      recordTimerExtension(sessionIdRef.current, step.key, seconds, reason);
-      setExtendedByStep((prev) => ({ ...prev, [step.key]: (prev[step.key] ?? 0) + seconds }));
-      toast.success(`تم تمديد المرحلة ${Math.round(seconds / 60)} دقيقة`);
-    },
-    [step.key, stepTimer],
-  );
-
-  const [questionDuration, setQuestionDuration] = useState<number>(QUESTION_DURATIONS[1]);
-  const questionTimer = useCountdown(questionDuration, () => {
-    setAnswered(true);
-    toast.error("انتهى وقت السؤال — لم يتم الرد");
-  });
-
-  const picked = useMemo(
-    () => scores.find((s) => s.student_id === pickedId) ?? null,
-    [scores, pickedId],
-  );
-  const question =
-    isQuestions && activeQuestionPool.length > 0
-      ? (activeQuestionPool[questionIndex % activeQuestionPool.length] ?? null)
-      : null;
-
-  /**
-   * CURRICULUM_ENGINE_SPEC.md §4: besides the live in-session point tracking
-   * (`persistHomeworkScore`), also upserts a real `AssessmentScore` row with a
-   * non-null `lesson_id` — previously nothing in the app ever wrote one, so §5's
-   * per-subject rollup had no data to read.
-   */
-  const scoreHomework = useCallback(
-    (studentId: string, value: number) => {
-      persistHomeworkScore(studentId, value, sessionIdRef.current);
-      recordAssessmentScore({
-        studentId,
-        teacherId: group.teacher_id,
-        category: "homework",
-        source: "manual",
-        value,
-        maxValue: 10,
-        sessionId: sessionIdRef.current,
-        lessonId: selectedLesson?.id ?? null,
-      });
-    },
-    [group.teacher_id, selectedLesson],
-  );
-
-  /** §7-هـ: weighted fair pick — excludes anyone absent or already drawn this session. */
   const pickRandom = useCallback(() => {
-    const next = pickFairly(sessionStudents, state.randomPickLogs, sessionIdRef.current, attendedStudentIds);
+    const next = pickFairly(
+      sessionStudents,
+      state.randomPickLogs,
+      sessionIdRef.current,
+      attendedStudentIds,
+    );
     if (!next) {
-      toast.warning("كل الطلاب الحاضرين اتسحبوا في الحصة دي بالفعل");
+      toast.warning("لا يوجد طلاب حاضرون لسحبهم");
       return;
     }
     recordRandomPick(group.id, next.id, sessionIdRef.current);
     setPickedId(next.id);
     setAnswered(false);
-    setQuestionIndex((i) => i + 1);
     questionTimer.reset(questionDuration);
     questionTimer.start();
-  }, [sessionStudents, state.randomPickLogs, attendedStudentIds, group.id, questionTimer, questionDuration]);
+  }, [
+    sessionStudents,
+    state.randomPickLogs,
+    attendedStudentIds,
+    group.id,
+    questionTimer,
+    questionDuration,
+  ]);
 
   const answer = useCallback(
     (correct: boolean) => {
@@ -356,7 +332,6 @@ function SessionMode() {
       setAskedCount((c) => c + 1);
       if (pickedId) {
         recordQuestionAnswer(pickedId, correct, sessionIdRef.current);
-        // CURRICULUM_ENGINE_SPEC.md §4: same lesson_id linkage as scoreHomework above.
         recordAssessmentScore({
           studentId: pickedId,
           teacherId: group.teacher_id,
@@ -383,16 +358,11 @@ function SessionMode() {
     });
   };
 
-  const evaluated = scores.filter((s) => s.homework_score !== null).length;
-
-  /** §7-ط: persists the actual SessionRecord once, when the teacher deliberately ends the session. */
   const handleEndSession = useCallback(() => {
-    const attendeesCount = sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").length;
+    const attendeesCount = sessionStudents.filter(
+      (s) => attendanceStatus(s.id) !== "absent",
+    ).length;
     const absenteesCount = sessionStudents.length - attendeesCount;
-    const totalExtensionSeconds = Object.values(extendedByStep).reduce((sum, s) => sum + s, 0);
-    const lessonStepDuration = SESSION_STEPS.find((s) => s.key === "lesson")!.duration;
-    // Approximation, not a real stopwatch: planned lesson-step duration + any extension logged against it.
-    const explanationDurationSeconds = lessonStepDuration + (extendedByStep["lesson"] ?? 0);
     const sessionStartMs = Number(sessionIdRef.current.slice("sess-".length));
     const durationSeconds = Math.max(0, Math.round((Date.now() - sessionStartMs) / 1000));
     const participantsCount = new Set(
@@ -412,10 +382,10 @@ function SessionMode() {
       participantsCount,
       homeworkLaunchStatus: released ? "sent" : "not_sent",
       eHomeworkLaunchStatus: eHomeworkReleased ? "sent" : "not_sent",
-      activityCompletedInSession: activityMarkedDone,
+      activityCompletedInSession: askedCount > 0,
       durationSeconds,
-      explanationDurationSeconds,
-      extensionSeconds: totalExtensionSeconds,
+      explanationDurationSeconds: durationSeconds,
+      extensionSeconds: 0,
       generalNotes: null,
     });
     toast.success("تم حفظ ملخص الحصة");
@@ -423,7 +393,6 @@ function SessionMode() {
   }, [
     sessionStudents,
     attendanceStatus,
-    extendedByStep,
     state.sessionEvents,
     group.id,
     group.teacher_id,
@@ -431,13 +400,19 @@ function SessionMode() {
     askedCount,
     released,
     eHomeworkReleased,
-    activityMarkedDone,
     navigate,
   ]);
 
+  if (
+    teacher &&
+    group.teacher_id !== teacher.id &&
+    group.teacher_user_id !== teacher.user_id
+  ) {
+    return <Navigate to="/teacher" />;
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-canvas">
-      {/* Presenter header — themed by the group's subject (§7-و) */}
       <header
         className="sticky top-0 z-20 border-b-2 border-border text-navy-foreground"
         style={{ backgroundColor: theme.primary }}
@@ -460,221 +435,173 @@ function SessionMode() {
               <span className="rounded-xl bg-white/15 px-4 py-2 text-sm font-black">
                 وضع مراجعة — {selectedLesson!.title}
               </span>
-            ) : (
-              <>
-                <span className="hidden rounded-xl bg-white/15 px-4 py-2 text-sm font-black md:block">
-                  المرحلة {formatNumber(stepIndex + 1)} من {formatNumber(orderedSteps.length)}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleEndSession}
-                  disabled={!selectedLesson}
-                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-navy hover:opacity-90 disabled:opacity-50"
-                >
-                  <X className="size-4" /> إنهاء الحصة
-                </button>
-              </>
-            )}
+            ) : null}
+            <button
+              type="button"
+              onClick={handleEndSession}
+              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-navy hover:opacity-90"
+            >
+              <X className="size-4" /> إنهاء الحصة
+            </button>
           </div>
         </div>
-
-        {/* Stepper */}
-        {!isReviewMode ? (
-          <div className="mx-auto grid max-w-[1700px] gap-2 px-5 pb-4 md:grid-cols-4 md:px-8 xl:grid-cols-8">
-            {orderedSteps.map((s, i) => (
-              <button
-                key={s.key}
-                onClick={() => setStepIndex(i)}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-right transition-colors",
-                  i === stepIndex
-                    ? "border-white bg-white text-navy"
-                    : i < stepIndex
-                      ? "border-white/40 bg-white/10 text-white"
-                      : "border-white/20 text-white/70 hover:bg-white/10",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black",
-                    i === stepIndex ? "bg-navy text-navy-foreground" : "bg-white/20 text-white",
-                  )}
-                >
-                  {i < stepIndex ? <CheckCircle2 className="size-3.5" /> : i + 1}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-black">{s.title}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </header>
 
-      {/*
-        المرحلة A + B + C (1788573108220) — 7 كروت full-width أعلى الصفحة (2×2 + 3):
-        1) الحضور (قراءة فقط)
-        2) روابط المنهج
-        3) الإطلاق
-        4) تصحيح الواجبات المعلّقة
-        5) النشاط التفاعلي (Excel → Kahoot-like)
-        6) المراجعات والقراءة (PDF/صور)
-        7) تايمر الحصة الحر
-        كل كارت max-h داخلي وscroll منفصل.
-      */}
-      <section className="mx-auto max-w-[1700px] px-5 pt-6 md:px-8">
-        <div className="grid gap-4 xl:grid-cols-2">
-          <AttendanceRosterBox groupId={group.id} />
-          <GroupResourcesPanel
-            groupId={group.id}
-            teacherId={group.teacher_id}
-            teacherIdentifier={teacherIdentifier}
-            variant="session"
-          />
-          <LaunchPanel groupId={group.id} teacherId={group.teacher_id} variant="session" />
-          <CorrectionPanel variant="session" />
-          <InteractiveActivityStudio
-            group={group}
-            teacherId={group.teacher_id}
-            sessionId={sessionIdRef.current}
-          />
-          <ReviewUploadPanel group={group} teacherId={group.teacher_id} />
-        </div>
-        <div className="mt-4 grid gap-4 xl:grid-cols-1">
-          <SessionFreeTimer />
-        </div>
-      </section>
-
       <main className="mx-auto max-w-[1700px] px-5 py-6 md:px-8">
-        <div className={cn("grid gap-6", isReviewMode ? "xl:grid-cols-[300px_1fr]" : "xl:grid-cols-[300px_1fr_320px]")}>
-          {/* CURRICULUM_ENGINE_SPEC.md §13-ب: right column, this group's own curriculum */}
-          <aside className="card-crisp p-5">
-            <h3 className="mb-4 text-lg font-black">منهج المجموعة</h3>
-            <SessionLessonPlanBanner groupId={group.id} teacherId={group.teacher_id} />
-            <SessionCurriculumNav
-              units={curriculumUnits}
-              getLessonsForUnit={(unitId) => getCurriculumLessonsForUnit(state, unitId)}
-              selectedCurriculumLessonId={selectedCurriculumLessonId}
-              onSelect={(id) => {
-                setSelectedCurriculumLessonId(id);
-                setStepIndex(0);
-              }}
+        <div className="grid gap-6 xl:grid-cols-[300px_1fr]">
+          {/* البند 0: القائمة الطولية على يمين الشاشة (RTL) */}
+          <div className="space-y-4">
+            <SessionSideNav
+              sections={SECTIONS}
+              activeKey={activeSection}
+              onSelect={setActiveSection}
             />
-          </aside>
-
-          {isReviewMode && selectedLesson && reviewSessionRecord ? (
-            <section className="card-crisp p-6">
-              <SessionReviewPanel
-                state={state}
-                lesson={selectedLesson}
-                sessionRecord={reviewSessionRecord}
-                students={sessionStudents}
-                teacherId={group.teacher_id}
+            <aside className="card-crisp p-5">
+              <h3 className="mb-4 text-lg font-black">منهج المجموعة</h3>
+              <SessionLessonPlanBanner groupId={group.id} teacherId={group.teacher_id} />
+              <SessionCurriculumNav
+                units={curriculumUnits}
+                getLessonsForUnit={(unitId) => getCurriculumLessonsForUnit(state, unitId)}
+                selectedCurriculumLessonId={selectedCurriculumLessonId}
+                onSelect={(id) => setSelectedCurriculumLessonId(id)}
               />
-            </section>
-          ) : !selectedCurriculumLessonId ? (
-            <section className="card-crisp flex min-h-[400px] items-center justify-center p-6">
-              <p className="text-center text-lg font-black text-muted-foreground">
-                اختر درساً من المنهج على اليمين للبدء
-              </p>
-            </section>
-          ) : (
-            <section className="space-y-6">
+            </aside>
+          </div>
+
+          <section className="space-y-4">
+            {/* البند 7: تايمر حر غير إلزامي ثابت أعلى كل قسم */}
+            <SessionFreeTimer />
+
+            {isReviewMode && selectedLesson && reviewSessionRecord ? (
               <div className="card-crisp p-6">
-                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-black text-foreground">{step.title}</h2>
-                    <p className="mt-1 text-sm font-bold text-muted-foreground">{step.hint}</p>
-                  </div>
-                  <StatusBadge tone="primary">
-                    <Timer className="size-3.5" /> تايمر المرحلة
-                  </StatusBadge>
+                <SessionReviewPanel
+                  state={state}
+                  lesson={selectedLesson}
+                  sessionRecord={reviewSessionRecord}
+                  students={sessionStudents}
+                  teacherId={group.teacher_id}
+                />
+              </div>
+            ) : null}
+
+            {activeSection === "attendance" ? (
+              <div className="grid gap-4 xl:grid-cols-2">
+                <AttendanceRosterBox
+                  groupId={group.id}
+                  editable
+                  sessionId={sessionIdRef.current}
+                />
+                <OwnerNotesCard audience="teacher" />
+              </div>
+            ) : null}
+
+            {activeSection === "lesson" ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <Panel title="نصائح للبدء" description="افتح الحصة بثبات — أول خمس دقائق تحدد الإيقاع.">
+                    <ul className="space-y-2 text-sm font-bold text-muted-foreground">
+                      <li className="flex gap-2">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                        ابدأ بسؤال سريع عن درس الحصة الماضية قبل الشرح.
+                      </li>
+                      <li className="flex gap-2">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                        اكتب هدف الحصة على السبورة في جملة واحدة واضحة.
+                      </li>
+                      <li className="flex gap-2">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                        تأكد أن سجل الحضور مكتمل قبل بدء الشرح.
+                      </li>
+                      <li className="flex gap-2">
+                        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                        خصّص آخر خمس دقائق لإطلاق الواجب وتلخيص النقاط.
+                      </li>
+                    </ul>
+                  </Panel>
+                  <Panel title="مخطط الحصة" description="خطة الدرس المسجّلة لهذه المجموعة.">
+                    <SessionLessonPlanBanner groupId={group.id} teacherId={group.teacher_id} />
+                  </Panel>
                 </div>
 
-                <SessionTimer
-                  remaining={stepTimer.remaining}
-                  running={stepTimer.running}
-                  progress={stepTimer.progress}
-                  onStart={stepTimer.start}
-                  onPause={stepTimer.pause}
-                  onReset={() => stepTimer.reset()}
-                  size={step.key === "last_homework" ? "xl" : "lg"}
+                <GroupResourcesPanel
+                  groupId={group.id}
+                  teacherId={group.teacher_id}
+                  teacherIdentifier={teacherIdentifier}
+                  variant="session"
                 />
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                  <TimerExtendDialog onExtend={handleExtend} />
-                  {extendedSeconds > 0 ? (
-                    <StatusBadge tone={withinReasonableExtension ? "success" : "warning"}>
-                      تمديد {Math.round(extendedSeconds / 60)} دقيقة —{" "}
-                      {withinReasonableExtension ? "ضمن الحد المعقول" : "تجاوز الحد المعقول"}
-                    </StatusBadge>
-                  ) : null}
+                <div className="card-crisp p-6">
+                  {selectedCurriculumLessonId ? (
+                    <InteractiveSlideViewer
+                      activeLesson={selectedLesson ?? null}
+                      busy={uploading}
+                      slides={activeSlides}
+                      index={slideIndex}
+                      onPrev={() => setSlideIndex((i) => Math.max(0, i - 1))}
+                      onNext={() =>
+                        setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))
+                      }
+                      onFile={(file) => void handleUploadFile(file)}
+                      onRetry={() => void handleRetryLesson()}
+                      onEditSlide={(slideId, title, bullets) => {
+                        updateLessonSlide(slideId, title, bullets);
+                        toast.success("تم حفظ التعديل");
+                      }}
+                    />
+                  ) : (
+                    <p className="py-10 text-center text-lg font-black text-muted-foreground">
+                      اختر درساً من المنهج على اليمين للبدء
+                    </p>
+                  )}
                 </div>
               </div>
+            ) : null}
 
-              <div className="card-crisp p-6">
-                {step.key === "last_homework" ? (
-                  <>
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-lg font-black">رصد تقييم الواجب</h3>
-                      <StatusBadge tone={evaluated === scores.length ? "success" : "warning"}>
-                        {formatNumber(evaluated)} / {formatNumber(scores.length)} تم تقييمهم
-                      </StatusBadge>
-                    </div>
-                    <HomeworkStep
-                      scores={scores}
-                      onScore={scoreHomework}
-                      attendanceStatus={attendanceStatus}
-                      onAttendance={markAttendance}
-                    />
-                  </>
-                ) : null}
+            {activeSection === "assessments" ? (
+              <AssessmentsTable
+                students={sessionStudents}
+                teacherId={group.teacher_id}
+                sessionId={sessionIdRef.current}
+                lessonId={selectedLesson?.id ?? null}
+              />
+            ) : null}
 
-                {step.key === "lesson" ? (
-                  <InteractiveSlideViewer
-                    activeLesson={selectedLesson ?? null}
-                    busy={uploading}
-                    slides={activeSlides}
-                    index={slideIndex}
-                    onPrev={() => setSlideIndex((i) => Math.max(0, i - 1))}
-                    onNext={() => setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))}
-                    onFile={(file) => void handleUploadFile(file)}
-                    onRetry={() => void handleRetryLesson()}
-                    onEditSlide={(slideId, title, bullets) => {
-                      updateLessonSlide(slideId, title, bullets);
-                      toast.success("تم حفظ التعديل");
-                    }}
-                  />
-                ) : null}
+            {activeSection === "launch" ? (
+              <LaunchPanel groupId={group.id} teacherId={group.teacher_id} variant="curriculum" />
+            ) : null}
 
-                {step.key === "questions" ? (
-                  <div className="space-y-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-lg font-black">محرك الأسئلة العشوائي</h3>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge tone="neutral">
-                          {formatNumber(askedCount)} سؤال تم رصده
-                        </StatusBadge>
-                        <button
-                          onClick={pickRandom}
-                          className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground hover:opacity-90"
-                        >
-                          <Dices className="size-5" /> اسحب طالباً عشوائياً
-                        </button>
-                      </div>
-                    </div>
+            {activeSection === "activity" ? (
+              <div className="space-y-4">
+                <InteractiveActivityStudio
+                  group={group}
+                  teacherId={group.teacher_id}
+                  sessionId={sessionIdRef.current}
+                />
 
-                    {/* §7-هـ: duration chosen when drawing, based on question difficulty. */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-muted-foreground">مدة تايمر السؤال:</span>
+                <Panel
+                  title="محرك الأسئلة العشوائي"
+                  description="سحب طالب حاضر عشوائياً + تايمر السؤال. كل رصد يُحفظ في سجل التقييمات."
+                  actions={
+                    <button
+                      onClick={pickRandom}
+                      className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90"
+                    >
+                      <Dices className="size-4" /> اسحب طالباً
+                    </button>
+                  }
+                >
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-black text-muted-foreground">
+                        مدة تايمر السؤال:
+                      </span>
                       {QUESTION_DURATIONS.map((seconds) => (
                         <button
                           key={seconds}
                           type="button"
-                          disabled={picked !== null && !answered}
                           onClick={() => setQuestionDuration(seconds)}
                           className={cn(
-                            "rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors disabled:opacity-40",
+                            "rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors",
                             questionDuration === seconds
                               ? "border-navy bg-navy text-navy-foreground"
                               : "border-border hover:border-primary",
@@ -683,13 +610,13 @@ function SessionMode() {
                           {formatNumber(seconds)} ثانية
                         </button>
                       ))}
+                      <StatusBadge tone="neutral">
+                        {formatNumber(askedCount)} سؤال تم رصده
+                      </StatusBadge>
                     </div>
 
                     {picked ? (
                       <div className="rounded-2xl border-2 border-border p-5">
-                        <p className="mb-3 text-center text-sm font-black text-muted-foreground">
-                          تايمر السؤال — {formatNumber(questionDuration)} ثانية
-                        </p>
                         <SessionTimer
                           remaining={questionTimer.remaining}
                           running={questionTimer.running}
@@ -697,7 +624,7 @@ function SessionMode() {
                           onStart={questionTimer.start}
                           onPause={questionTimer.pause}
                           onReset={() => questionTimer.reset(questionDuration)}
-                          size="xl"
+                          size="lg"
                         />
                       </div>
                     ) : null}
@@ -712,72 +639,71 @@ function SessionMode() {
                         toast.success("تم حفظ التعديل");
                       }}
                     />
-                  </div>
-                ) : null}
 
-                {step.key === "book_exercise" ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-black">حل تمارين الكتاب — داخل الحصة</h3>
-                    <BookExerciseCard
-                      title="حل تمارين الكتاب — داخل الحصة"
-                      value={
-                        getBookExerciseTask(state, sessionIdRef.current, group.id, "in_session")
-                          ?.pages_text ?? null
-                      }
-                      onSave={(pagesText) => {
-                        recordBookExerciseTask({
-                          sessionId: sessionIdRef.current,
-                          groupId: group.id,
-                          context: "in_session",
-                          pagesText,
-                        });
-                        toast.success("تم حفظ صفحات التمارين");
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {step.key === "activity_review" ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-black">مراجعة النشاط المقترح</h3>
-                    {suggestedActivity ? (
-                      <div className="rounded-xl border-2 border-border p-5">
-                        <p className="font-black text-foreground">{suggestedActivity.title}</p>
-                        <p className="mt-2 text-sm font-bold text-muted-foreground">
-                          {suggestedActivity.description}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
-                        النشاط المقترح هيظهر هنا بمجرد جاهزية الدرس
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setActivityMarkedDone((v) => !v)}
-                      className={cn(
-                        "flex w-full items-center justify-center gap-2 rounded-xl border-2 px-5 py-3 text-sm font-black transition-colors",
-                        activityMarkedDone
-                          ? "border-success bg-success/10 text-success"
-                          : "border-border hover:border-primary",
-                      )}
-                    >
-                      <CheckCircle2 className="size-5" />
-                      {activityMarkedDone
-                        ? "تم تحديده كمنفَّذ بالفعل خلال الحصة ✓"
-                        : "تحديد كمنفَّذ بالفعل خلال الحصة"}
-                    </button>
-                  </div>
-                ) : null}
-
-                {step.key === "release_homework" ? (
-                  <div className="space-y-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-lg font-black">إطلاق واجب البيت — تمارين الكتاب</h3>
-                      <StatusBadge tone={activityMarkedDone ? "success" : "neutral"}>
-                        حالة النشاط: {activityMarkedDone ? "مكتمل بالفعل" : "ضمن الواجب المُطلَق"}
-                      </StatusBadge>
+                    {/* البند 6: تقليب صريح للسؤال التالي */}
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQuestionIndex((i) => Math.max(0, i - 1))}
+                        className="rounded-xl border-2 border-border px-4 py-2 text-xs font-black"
+                      >
+                        السؤال السابق
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuestionIndex((i) => i + 1);
+                          setAnswered(false);
+                          setPickedId(null);
+                        }}
+                        className="rounded-xl bg-navy px-4 py-2 text-xs font-black text-navy-foreground"
+                      >
+                        السؤال التالي
+                      </button>
                     </div>
+                  </div>
+                </Panel>
+              </div>
+            ) : null}
+
+            {activeSection === "reviews" ? (
+              <div className="space-y-4">
+                <ReviewUploadPanel group={group} teacherId={group.teacher_id} />
+                <ExamsCard
+                  group={group}
+                  teacherId={group.teacher_id}
+                  sessionId={sessionIdRef.current}
+                  students={sessionStudents}
+                />
+              </div>
+            ) : null}
+
+            {activeSection === "wrapup" ? (
+              <div className="space-y-4">
+                <Panel title="حل تمارين الكتاب — داخل الحصة" description="أرقام الصفحات المطلوب حلها الآن.">
+                  <BookExerciseCard
+                    title="حل تمارين الكتاب — داخل الحصة"
+                    value={
+                      getBookExerciseTask(state, sessionIdRef.current, group.id, "in_session")
+                        ?.pages_text ?? null
+                    }
+                    onSave={(pagesText) => {
+                      recordBookExerciseTask({
+                        sessionId: sessionIdRef.current,
+                        groupId: group.id,
+                        context: "in_session",
+                        pagesText,
+                      });
+                      toast.success("تم حفظ صفحات التمارين");
+                    }}
+                  />
+                </Panel>
+
+                <Panel
+                  title="إطلاق واجب البيت — تمارين الكتاب"
+                  description="أرقام الصفحات المطلوبة كواجب منزلي وإرسالها للطلاب وأولياء الأمور."
+                >
+                  <div className="space-y-4">
                     <BookExerciseCard
                       title="حل تمارين الكتاب — كواجب منزلي"
                       value={
@@ -797,19 +723,21 @@ function SessionMode() {
                     <button
                       onClick={releaseTasks}
                       disabled={released}
-                      className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-navy text-lg font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                      className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-navy text-base font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                     >
-                      <Send className="size-6" />
+                      <Send className="size-5" />
                       {released ? "تم الإرسال لجميع الطلاب وأولياء الأمور ✓" : "إطلاق وإرسال الآن"}
                     </button>
                   </div>
-                ) : null}
+                </Panel>
 
-                {step.key === "release_e_homework" ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-black">إطلاق واجب الويب سايت</h3>
+                <Panel
+                  title="واجب الويب سايت"
+                  description="الواجب الإلكتروني متاح للطلاب 24 ساعة من لحظة الإطلاق، ثم يُغلق تلقائياً."
+                >
+                  <div className="space-y-3">
                     {groupElectronicHomework ? (
-                      <div className="rounded-xl border-2 border-border p-5">
+                      <div className="rounded-xl border-2 border-border p-4">
                         <p className="font-black text-foreground">
                           {formatNumber(groupElectronicHomework.questions.length)} سؤال
                         </p>
@@ -829,79 +757,32 @@ function SessionMode() {
                         toast.success("تم تأكيد إتاحة الواجب الإلكتروني");
                       }}
                       disabled={eHomeworkReleased || !groupElectronicHomework}
-                      className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-navy text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-navy text-sm font-black text-navy-foreground disabled:opacity-50"
                     >
-                      <Send className="size-5" />
+                      <Send className="size-4" />
                       {eHomeworkReleased ? "تم تأكيد الإتاحة ✓" : "تأكيد الإتاحة للطلاب"}
                     </button>
                   </div>
-                ) : null}
+                </Panel>
 
-                {step.key === "behavior" ? (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-black">تقييم السلوك</h3>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {scores.map((s) => (
-                        <div key={s.student_id} className="rounded-xl border-2 border-border p-4">
-                          <p className="font-black text-foreground">{s.student_name}</p>
-                          <div className="mt-3">
-                            <BehaviorButtons
-                              current={
-                                lessonScores.find(
-                                  (a) => a.student_id === s.student_id && a.category === "behavior",
-                                )?.value
-                              }
-                              onScore={(value) =>
-                                recordAssessmentScore({
-                                  studentId: s.student_id,
-                                  teacherId: group.teacher_id,
-                                  category: "behavior",
-                                  source: "manual",
-                                  value,
-                                  maxValue: 10,
-                                  sessionId: sessionIdRef.current,
-                                  lessonId: selectedLesson?.id ?? null,
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                <Panel title="ختام الحصة" description="حفظ ملخص الحصة والعودة للوحة المدرس.">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <StatusBadge tone="primary">
+                      <CheckCircle2 className="size-3.5" />
+                      {formatNumber(lessonScores.length)} تقييم مسجَّل في هذا الدرس
+                    </StatusBadge>
+                    <button
+                      type="button"
+                      onClick={handleEndSession}
+                      className="rounded-xl bg-navy px-5 py-2.5 text-sm font-black text-navy-foreground hover:opacity-90"
+                    >
+                      إنهاء الحصة وحفظ الملخص
+                    </button>
                   </div>
-                ) : null}
+                </Panel>
               </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-                  disabled={stepIndex === 0}
-                  className="rounded-xl border-2 border-border px-6 py-3 text-sm font-black disabled:opacity-40"
-                >
-                  المرحلة السابقة
-                </button>
-                <button
-                  onClick={() => setStepIndex((i) => Math.min(orderedSteps.length - 1, i + 1))}
-                  disabled={stepIndex === orderedSteps.length - 1}
-                  className="rounded-xl bg-navy px-6 py-3 text-sm font-black text-navy-foreground disabled:opacity-40"
-                >
-                  المرحلة التالية
-                </button>
-              </div>
-            </section>
-          )}
-
-          {!isReviewMode ? (
-            <aside className="space-y-6">
-              <div className="card-crisp p-5">
-                <h3 className="mb-3 text-lg font-black">عمود السلوك</h3>
-                <p className="mb-3 text-xs font-bold text-muted-foreground">
-                  اضغط على خانة الطالب لتظهر لوحة المفاتيح الرقمية (0..10).
-                </p>
-                <BehaviorScoreColumn students={sessionStudents} showKeyboard={true} compact={true} />
-              </div>
-            </aside>
-          ) : null}
+            ) : null}
+          </section>
         </div>
       </main>
     </div>
