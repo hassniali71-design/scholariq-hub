@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { OwnerPasswordConfirmModal } from "@/components/owner/OwnerPasswordConfirmModal";
 import { ROLES } from "@/config/roles";
 import {
   createStaff,
@@ -28,9 +29,8 @@ import {
   type CreatedCredentials,
 } from "@/lib/auth";
 import {
-  addPayroll,
   createStudentRecord,
-  deleteStudentCompletely,
+  deleteAccountCascade,
   getGradesForStage,
   sumSubjectFees,
   STAGES,
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/owner/access")({
         name: "description",
         content: "إنشاء أكواد الطلاب والمدرسين والموظفين ودعوات الزوار وإدارة صلاحيات الدخول.",
       },
-      { property: "og:title", content: "إدارة وصلاحيات الوصول — لوحة المالك" },
+      { property: "og:title", content: "إدارة وصلاحيات الوصول" },
       {
         property: "og:description",
         content: "توليد أكواد الدخول للطلاب والمدرسين والموظفين والزوار داخل السنتر.",
@@ -78,119 +78,38 @@ function copy(text: string) {
 
 function CredentialCard({ data }: { data: CreatedCredentials }) {
   return (
-    <div className="rounded-xl border-2 border-success bg-success/10 p-4">
-      <p className="flex items-center gap-2 text-sm font-black text-foreground">
-        <BadgeCheck className="size-4 text-success" />
-        تم إنشاء الحساب: {data.full_name}
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="rounded-xl border-2 border-dashed border-primary bg-primary/5 p-4">
+      <p className="text-sm font-black text-primary">تم توليد بيانات الدخول</p>
+      <p className="mt-2 text-base font-black text-foreground">{data.full_name}</p>
+      <div className="mt-2 space-y-1.5">
         <button
           type="button"
           onClick={() => copy(data.identifier)}
-          className="flex items-center gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 font-mono text-sm font-black text-foreground"
+          className="flex w-full items-center justify-between rounded-lg bg-background px-3 py-2 text-sm font-extrabold hover:bg-muted"
         >
-          <Copy className="size-4" />
-          {data.identifier}
+          <span className="text-muted-foreground">الكود</span>
+          <span className="font-mono text-foreground">{data.identifier}</span>
         </button>
         {data.password ? (
           <button
             type="button"
-            onClick={() => copy(data.password!)}
-            className="flex items-center gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 font-mono text-sm font-black text-foreground"
+            onClick={() => data.password && copy(data.password)}
+            className="flex w-full items-center justify-between rounded-lg bg-background px-3 py-2 text-sm font-extrabold hover:bg-muted"
           >
-            <Copy className="size-4" />
-            {data.password}
+            <span className="text-muted-foreground">كلمة السر</span>
+            <span className="font-mono text-foreground">{data.password}</span>
           </button>
         ) : null}
       </div>
+      <p className="mt-2 text-xs font-bold text-muted-foreground">
+        اضغط على كل سطر لنسخه.
+      </p>
     </div>
   );
 }
 
-interface FormCardProps {
-  title: string;
-  hint: string;
-  icon: typeof UserPlus;
-  submitLabel: string;
-  onCreate: (name: string, phone: string) => Promise<CreatedCredentials>;
-}
+/* ---------------- الطالب ---------------- */
 
-function ProvisionForm({ title, hint, icon: Icon, submitLabel, onCreate }: FormCardProps) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [created, setCreated] = useState<CreatedCredentials | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!name.trim() || !phone.trim()) {
-          toast.error("من فضلك أدخل الاسم ورقم الهاتف");
-          return;
-        }
-        setSubmitting(true);
-        try {
-          const result = await onCreate(name.trim(), phone.trim());
-          setCreated(result);
-          setName("");
-          setPhone("");
-          toast.success(`تم توليد الكود: ${result.identifier}`);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
-        } finally {
-          setSubmitting(false);
-        }
-      }}
-      className="card-crisp space-y-3 p-5"
-    >
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="size-5" />
-        </span>
-        <div>
-          <p className="text-lg font-black text-foreground">{title}</p>
-          <p className="text-xs font-bold text-muted-foreground">{hint}</p>
-        </div>
-      </div>
-
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="الاسم بالكامل"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
-      />
-      <input
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="رقم الهاتف"
-        inputMode="tel"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
-      />
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-      >
-        {submitting ? "جارٍ الإنشاء…" : submitLabel}
-      </button>
-
-      {created ? <CredentialCard data={created} /> : null}
-    </form>
-  );
-}
-
-/**
- * CURRICULUM_ENGINE_SPEC.md §7: dedicated form, not the generic `ProvisionForm` —
- * a student needs a group (to derive grade/group_name) and subject checkboxes,
- * neither of which fit the shared name+phone shape used for teacher/staff.
- *
- * Fixes a real pre-existing gap found while building this: the old student
- * `ProvisionForm` only created an `auth.ts` login account — no `Student` record
- * in the central store ever got created from the UI, so a freshly-provisioned
- * student's code matched nothing and `resolveCurrentStudent` silently fell back
- * to `students[0]`. This form now creates both, linked by the same code.
- */
 function StudentProvisionForm() {
   const state = useDataStore();
   const [fullName, setFullName] = useState("");
@@ -267,29 +186,25 @@ function StudentProvisionForm() {
         <div>
           <p className="text-lg font-black text-foreground">إضافة طالب</p>
           <p className="text-xs font-bold text-muted-foreground">
-            يتم توليد كود الطالب (Student ID) تلقائياً
+            النظام يبحث عن مجموعة مطابقة (صف+مادة) تلقائياً
           </p>
         </div>
       </div>
 
-      {/* ١ — اسم الطالب */}
       <input
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
         placeholder="اسم الطالب بالكامل"
         className={inputClass}
       />
-
-      {/* ٢ — رقم الهاتف */}
       <input
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        placeholder="رقم الهاتف"
+        placeholder="رقم هاتف ولي الأمر"
         inputMode="tel"
         className={inputClass}
       />
 
-      {/* ٣ — المرحلة الدراسية */}
       <select
         value={stage}
         onChange={(e) => {
@@ -308,7 +223,6 @@ function StudentProvisionForm() {
         ))}
       </select>
 
-      {/* ٤ — الصف داخل المرحلة */}
       {stage ? (
         <select
           value={gradeId}
@@ -328,7 +242,6 @@ function StudentProvisionForm() {
         </select>
       ) : null}
 
-      {/* ٥ — المواد المتاحة لهذا الصف (متعدد الاختيار) */}
       {gradeId ? (
         <div>
           <p className="mb-2 text-xs font-black text-muted-foreground">
@@ -363,7 +276,6 @@ function StudentProvisionForm() {
         </div>
       ) : null}
 
-      {/* ٦ — نوع الحساب */}
       <div>
         <p className="mb-2 text-xs font-black text-muted-foreground">نوع الحساب</p>
         <div className="grid grid-cols-3 gap-2">
@@ -390,7 +302,6 @@ function StudentProvisionForm() {
         </div>
       </div>
 
-      {/* ٧ — سعر كل مادة لهذا الطالب تحديداً */}
       {selectedSubjects.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs font-black text-muted-foreground">
@@ -428,14 +339,8 @@ function StudentProvisionForm() {
   );
 }
 
-/**
- * Same fix as `StudentProvisionForm` above, for teachers: the generic `ProvisionForm`
- * (name + phone only) used to create an `auth.ts` login account with no `Teacher` record
- * behind it, so `resolveCurrentTeacher` had nothing to match the new account against and
- * silently fell back to `teachers[0]`. A teacher needs one more field the generic form
- * doesn't have — which subject they teach — so this is a dedicated form, not a `ProvisionForm`
- * instance, same reasoning as the student one.
- */
+/* ---------------- المدرس (§0.3 — الراتب المتوقع فقط، لا خصم تلقائي) ---------------- */
+
 function TeacherProvisionForm() {
   const state = useDataStore();
   const { subjects } = state;
@@ -449,9 +354,7 @@ function TeacherProvisionForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const toggleStage = (s: "primary" | "prep" | "secondary") => {
-    setStages((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
+    setStages((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   };
 
   return (
@@ -472,27 +375,21 @@ function TeacherProvisionForm() {
         }
         setSubmitting(true);
         try {
-          const credentials = await createTeacher(fullName.trim(), phone.trim());
+          const credentials = await createTeacher(fullName.trim(), phone.trim(), subjectId);
+          // §0.3 — الراتب المتوقع يُحفظ في Teacher.expected_salary_* فقط.
+          // لا يُخصم من الخزنة ولا يظهر في payroll_records — الخصم الفعلي
+          // عند عملية دفع منفصلة من /owner/treasury.
           const record = createTeacherRecord({
             userId: credentials.identifier,
             fullName: fullName.trim(),
             subjectId,
             stages,
+            expectedSalaryBasis: salaryBasis,
+            expectedSalaryValue: Number(salaryValue || 0),
           });
           if (!record) {
             toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
             return;
-          }
-          const salary = Number(salaryValue || 0);
-          if (salary > 0) {
-            // الراتب يُسجَّل كـ"صادر" حقيقي فوراً فيظهر في التدفق المالي وصافي الربح.
-            addPayroll({
-              personType: "teacher",
-              personId: record.id,
-              personName: record.full_name,
-              basis: salaryBasis,
-              amount: salary,
-            });
           }
           setCreated(credentials);
           setFullName("");
@@ -515,7 +412,9 @@ function TeacherProvisionForm() {
         </span>
         <div>
           <p className="text-lg font-black text-foreground">إضافة مدرس</p>
-          <p className="text-xs font-bold text-muted-foreground">يتم توليد كود المدرس وكلمة السر</p>
+          <p className="text-xs font-bold text-muted-foreground">
+            الراتب هنا "متوقع" فقط — لا يُخصم من الخزنة تلقائياً
+          </p>
         </div>
       </div>
 
@@ -523,15 +422,16 @@ function TeacherProvisionForm() {
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
         placeholder="اسم المدرس بالكامل"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        className={inputClass}
       />
       <input
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         placeholder="رقم الهاتف"
         inputMode="tel"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
+        className={inputClass}
       />
+
       <div>
         <p className="mb-1.5 text-xs font-black text-muted-foreground">المراحل (يمكن اختيار أكثر من مرحلة)</p>
         <div className="grid grid-cols-3 gap-2">
@@ -561,10 +461,11 @@ function TeacherProvisionForm() {
           ))}
         </div>
       </div>
+
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
+        className={inputClass}
       >
         <option value="">اختر المادة</option>
         {subjects.map((s) => (
@@ -574,23 +475,28 @@ function TeacherProvisionForm() {
         ))}
       </select>
 
-      <div className="grid grid-cols-2 gap-2">
-        <select
-          value={salaryBasis}
-          onChange={(e) => setSalaryBasis(e.target.value as PayrollBasis)}
-          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none focus:border-primary"
-        >
-          <option value="per_session">راتب بالحصة</option>
-          <option value="weekly">راتب أسبوعي</option>
-          <option value="monthly">راتب شهري</option>
-        </select>
-        <input
-          value={salaryValue}
-          onChange={(e) => setSalaryValue(e.target.value)}
-          inputMode="numeric"
-          placeholder="قيمة الراتب (ج.م)"
-          className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-extrabold text-foreground outline-none placeholder:font-bold placeholder:text-muted-foreground focus:border-primary"
-        />
+      <div>
+        <p className="mb-1.5 text-xs font-black text-muted-foreground">
+          الراتب المتوقع (لا يُخصم من الخزنة)
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={salaryBasis}
+            onChange={(e) => setSalaryBasis(e.target.value as PayrollBasis)}
+            className={inputClass}
+          >
+            <option value="per_session">بالحصة</option>
+            <option value="weekly">أسبوعي</option>
+            <option value="monthly">شهري</option>
+          </select>
+          <input
+            value={salaryValue}
+            onChange={(e) => setSalaryValue(e.target.value)}
+            inputMode="numeric"
+            placeholder="قيمة الراتب (ج.م)"
+            className={inputClass}
+          />
+        </div>
       </div>
 
       <button
@@ -605,6 +511,120 @@ function TeacherProvisionForm() {
     </form>
   );
 }
+
+/* ---------------- الموظف (§0.3 — نموذج منفصل بدون مراحل/مواد) ---------------- */
+
+function StaffProvisionForm() {
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [salaryBasis, setSalaryBasis] = useState<PayrollBasis>("monthly");
+  const [salaryValue, setSalaryValue] = useState("");
+  const [created, setCreated] = useState<CreatedCredentials | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!fullName.trim() || !phone.trim()) {
+          toast.error("من فضلك أدخل الاسم ورقم الهاتف");
+          return;
+        }
+        setSubmitting(true);
+        try {
+          // §0.3 — الموظف يُنشأ بحساب دخول فقط — لا Teacher record، لا مواد، لا مراحل.
+          // الراتب المتوقع يُحفظ في StaffPermissionRecord.expected_salary (إن وُجد)
+          // أو في حقل ضمني في الـ UI؛ حالياً نمرّر salaryBasis/salaryValue للـ caller
+          // عبر اشتقاق اسم المعرف فقط — الخصم الفعلي عبر payroll_records.
+          const result = await createStaff(fullName.trim(), phone.trim());
+          setCreated(result);
+          setFullName("");
+          setPhone("");
+          setSalaryValue("");
+          // نتذكّر الراتب المتوقع في localStorage الصغير للـ staff salary
+          // (لا يُخصم تلقائياً، فقط للتذكير في صفحة التدفق المالي).
+          try {
+            const stored = JSON.parse(
+              window.localStorage.getItem("staff_expected_salary") ?? "{}",
+            ) as Record<string, { basis: PayrollBasis; value: number }>;
+            stored[result.identifier] = { basis: salaryBasis, value: Number(salaryValue || 0) };
+            window.localStorage.setItem("staff_expected_salary", JSON.stringify(stored));
+          } catch {
+            /* ignore */
+          }
+          toast.success(`تم توليد الكود: ${result.identifier}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء إنشاء الحساب");
+        } finally {
+          setSubmitting(false);
+        }
+      }}
+      className="card-crisp space-y-3 p-5"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <UserPlus className="size-5" />
+        </span>
+        <div>
+          <p className="text-lg font-black text-foreground">إضافة موظف</p>
+          <p className="text-xs font-bold text-muted-foreground">
+            كود دخول وكلمة سر — لا حقول تدريس
+          </p>
+        </div>
+      </div>
+
+      <input
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        placeholder="اسم الموظف بالكامل"
+        className={inputClass}
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="رقم الهاتف"
+        inputMode="tel"
+        className={inputClass}
+      />
+
+      <div>
+        <p className="mb-1.5 text-xs font-black text-muted-foreground">
+          الراتب المتوقع (لا يُخصم تلقائياً)
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={salaryBasis}
+            onChange={(e) => setSalaryBasis(e.target.value as PayrollBasis)}
+            className={inputClass}
+          >
+            <option value="monthly">شهري</option>
+            <option value="weekly">أسبوعي</option>
+            <option value="per_session">بالحصة</option>
+          </select>
+          <input
+            value={salaryValue}
+            onChange={(e) => setSalaryValue(e.target.value)}
+            inputMode="numeric"
+            placeholder="قيمة الراتب (ج.م)"
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full rounded-xl bg-navy px-4 py-3 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {submitting ? "جارٍ الإنشاء…" : "توليد بيانات الموظف"}
+      </button>
+
+      {created ? <CredentialCard data={created} /> : null}
+    </form>
+  );
+}
+
+/* ---------------- الصفحة الرئيسية ---------------- */
 
 function AccessManagement() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -634,13 +654,7 @@ function AccessManagement() {
       <div className="grid gap-4 lg:grid-cols-3">
         <StudentProvisionForm />
         <TeacherProvisionForm />
-        <ProvisionForm
-          title="إضافة موظف"
-          hint="يتم توليد كود الموظف وكلمة السر"
-          icon={UserPlus}
-          submitLabel="توليد بيانات الموظف"
-          onCreate={createStaff}
-        />
+        <StaffProvisionForm />
       </div>
 
       <div className="card-crisp space-y-3 p-5">
@@ -682,6 +696,9 @@ function AccessManagement() {
           <p className="text-lg font-black text-foreground">
             الحسابات المُنشأة ({accounts.length})
           </p>
+          <p className="mt-1 text-xs font-bold text-muted-foreground">
+            الحذف الجذري يتطلب تأكيد كلمة سر المالك — يحذف كل البيانات المرتبطة فعلياً
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
@@ -706,40 +723,30 @@ function AccessManagement() {
   );
 }
 
-/** صف حساب واحد — عرض + تعديل (الاسم / الكود / كلمة السر) + حذف. */
+/* ---------------- صف حساب (مع حذف جذري) ---------------- */
+
 function AccountRow({ account }: { account: Account }) {
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState(account.full_name);
   const [identifier, setIdentifier] = useState(account.identifier);
   const [password, setPassword] = useState(account.password ?? "");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const inputClass =
+  const inputCls =
     "w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-base font-extrabold text-foreground outline-none focus:border-primary";
 
   if (editing) {
     return (
       <tr className="border-t-2 border-border text-base font-extrabold">
         <td className="px-5 py-3">
-          <input
-            className={inputClass}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
+          <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </td>
         <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
         <td className="px-5 py-3">
-          <input
-            className={inputClass}
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-          />
+          <input className={inputCls} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
         </td>
         <td className="px-5 py-3">
-          <input
-            className={inputClass}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <input className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
         </td>
         <td className="px-5 py-3">
           <div className="flex gap-2">
@@ -775,49 +782,82 @@ function AccountRow({ account }: { account: Account }) {
     );
   }
 
+  function runCascadeDelete() {
+    const role = account.role as "teacher" | "staff" | "student" | "visitor";
+    const result = deleteAccountCascade(account.id, role);
+    if (result.ok) {
+      const details: string[] = [];
+      if (result.deletedGroups) details.push(`${result.deletedGroups} مجموعة`);
+      if (result.orphanedStudents) details.push(`${result.orphanedStudents} طالب أيتم`);
+      if (result.deletedPayroll) details.push(`${result.deletedPayroll} سجل راتب`);
+      if (result.deletedSessions) details.push(`${result.deletedSessions} سجل حصة`);
+      toast.success(
+        details.length
+          ? `تم حذف الحساب وكل البيانات المرتبطة: ${details.join("، ")}`
+          : "تم حذف الحساب",
+      );
+    } else {
+      toast.error(result.error ?? "فشل الحذف");
+    }
+    // حذف الـ account row نفسه (server fn) — لا يحدث داخل deleteAccountCascade
+    // لأنه محمي بـ try/catch ولا يوقف الباقي.
+    void deleteAccount(account.id).catch((e) =>
+      toast.error(e instanceof Error ? e.message : "فشل حذف الحساب من accounts"),
+    );
+  }
+
   return (
-    <tr className="border-t-2 border-border text-base font-extrabold">
-      <td className="px-5 py-3 text-foreground">{account.full_name}</td>
-      <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
-      <td className="px-5 py-3 font-mono text-foreground">{account.identifier}</td>
-      <td className="px-5 py-3 font-mono text-muted-foreground">{account.password ?? "—"}</td>
-      <td className="px-5 py-3">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-sm font-black text-foreground hover:border-primary"
-          >
-            <Pencil className="size-4" />
-            تعديل
-          </button>
-          {account.role === "owner" ? null : (
+    <>
+      <tr className="border-t-2 border-border text-base font-extrabold">
+        <td className="px-5 py-3 text-foreground">{account.full_name}</td>
+        <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
+        <td className="px-5 py-3 font-mono text-foreground">{account.identifier}</td>
+        <td className="px-5 py-3 font-mono text-muted-foreground">{account.password ?? "—"}</td>
+        <td className="px-5 py-3">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  await deleteAccount(account.id);
-                  if (account.role === "student") {
-                    // حذف الطالب يمسح معه كل حركته المالية والحضور حتى لا يظل أثره في التدفق المالي.
-                    const student = getData().students.find((s) => s.code === account.identifier);
-                    if (student) deleteStudentCompletely(student.id);
-                  }
-                  toast.success("تم حذف الحساب");
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء الحذف");
-                }
-              }}
-              className="flex items-center gap-1.5 rounded-lg border-2 border-destructive/40 px-3 py-1.5 text-sm font-black text-destructive"
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1.5 rounded-lg border-2 border-border px-3 py-1.5 text-sm font-black text-foreground hover:border-primary"
             >
-              <Trash2 className="size-4" />
-              حذف
+              <Pencil className="size-4" />
+              تعديل
             </button>
-          )}
-        </div>
-      </td>
-    </tr>
+            {account.role === "owner" ? null : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="flex items-center gap-1.5 rounded-lg border-2 border-destructive/40 px-3 py-1.5 text-sm font-black text-destructive"
+              >
+                <Trash2 className="size-4" />
+                حذف جذري
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+      <OwnerPasswordConfirmModal
+        open={confirmingDelete}
+        title="حذف جذري — لا يمكن التراجع"
+        description={
+          account.role === "teacher"
+            ? "سيتم حذف كل مجموعات المدرس وجدوله ورواتبه وتقييماته، والطلاب يتحولون لأيتيام."
+            : account.role === "staff"
+              ? "سيتم حذف صلاحيات الموظف وسجلات رواتبه."
+              : account.role === "student"
+                ? "سيتم حذف كل سجلات الطالب المالية والحضور والواجبات."
+                : "سيتم حذف حساب الزائر فقط."
+        }
+        confirmLabel="حذف نهائي"
+        destructive
+        onClose={() => setConfirmingDelete(false)}
+        onConfirm={runCascadeDelete}
+      />
+    </>
   );
 }
+
+/* ---------------- صلاحيات الموظفين ---------------- */
 
 const PERMISSION_LABELS: Record<StaffPermissionKey, string> = {
   attendance_gate: "تشغيل بوابة الحضور",
@@ -830,7 +870,6 @@ const PERMISSION_LABELS: Record<StaffPermissionKey, string> = {
   safe_handover: "تسليم الخزنة للمدير",
 };
 
-/** صلاحيات حقيقية ومحددة لكل موظف — مين يقدر يعمل إيه بالظبط. */
 function StaffPermissionsPanel({ accounts }: { accounts: Account[] }) {
   const state = useDataStore();
   const staff = accounts.filter((a) => a.role === "staff");

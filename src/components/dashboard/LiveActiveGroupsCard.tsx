@@ -1,8 +1,9 @@
-import { Clock, PlayCircle, Users } from "lucide-react";
+import { CheckCircle2, Clock, PlayCircle, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import { useDataStore } from "@/lib/data-store";
+import { startGroupSession, useDataStore } from "@/lib/data-store";
 import { formatNumber } from "@/lib/format";
 import type { Group } from "@/types";
 
@@ -197,12 +198,32 @@ function LiveRow({ row }: { row: LiveGroup }) {
           {group.time}
         </p>
       </div>
-      <div className="text-left">
-        <StatusBadge tone={tone}>{label}</StatusBadge>
-        <p className="mt-1 flex items-center justify-end gap-1 font-mono text-lg font-black text-foreground">
-          <Clock className="size-4 text-primary" />
-          {display}
-        </p>
+      <div className="flex items-center gap-2">
+        {started && !activated ? (
+          <button
+            type="button"
+            onClick={() => {
+              const result = startGroupSession(group.id);
+              if (result.marked === 0) {
+                toast.info(`كل طلاب ${group.name} حضورهم مسجَّل بالفعل`);
+              } else {
+                toast.success(
+                  `تم تسجيل بدء حصة ${group.name} — ${result.marked} طالب`,
+                );
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-xl bg-navy px-3 py-1.5 text-xs font-black text-navy-foreground hover:opacity-90"
+          >
+            <CheckCircle2 className="size-3.5" /> سجّل بدء الحصة
+          </button>
+        ) : null}
+        <div className="text-left">
+          <StatusBadge tone={tone}>{label}</StatusBadge>
+          <p className="mt-1 flex items-center justify-end gap-1 font-mono text-lg font-black text-foreground">
+            <Clock className="size-4 text-primary" />
+            {display}
+          </p>
+        </div>
       </div>
     </div>
   );

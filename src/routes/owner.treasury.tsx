@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Banknote, Calculator, HandCoins, Settings2, Wallet } from "lucide-react";
+import { Banknote, Calculator, HandCoins, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
-import {
-  ExpensesPanel,
-  PayrollPanel,
-  SubjectPricingPanel,
-} from "@/components/owner/FinanceOpsPanels";
+import { Panel, StatCard } from "@/components/dashboard/StatCard";
+import { SubjectPricingPanel, ExpensesPanel, PayrollPanel } from "@/components/owner/FinanceOpsPanels";
+import { MonthOverMonthPanel } from "@/components/owner/MonthOverMonthPanel";
+import { PaperCreditsPanel } from "@/components/owner/PaperCreditsPanel";
 import { AppShell } from "@/components/layout/AppShell";
 import { getAccounts, subscribeAuth, type Account } from "@/lib/auth";
 import {
@@ -18,38 +16,19 @@ import {
   useDataStore,
 } from "@/lib/data-store";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
-import type { BillingMode, StaffSalaryBasis } from "@/types";
 
 export const Route = createFileRoute("/owner/treasury")({
   head: () => ({
     meta: [
-      { title: "الخزنة والنظام المالي — لوحة المالك" },
+      { title: "الخزنة — لوحة المالك" },
       {
         name: "description",
-        content:
-          "اختيار نظام التعامل المالي للسنتر (شهري/بالحصة/بالسيزون) وسجل تسليم واستلام الخزنة.",
-      },
-      { property: "og:title", content: "الخزنة والنظام المالي — لوحة المالك" },
-      {
-        property: "og:description",
-        content: "إعداد نظام الرسوم وأساس رواتب الموظفين وسجل استلام الخزنة الكامل.",
+        content: "مقارنة الأداء المالي، تسليم واستلام الخزنة، أسعار المواد، المصروفات، والرواتب.",
       },
     ],
   }),
   component: TreasuryPage,
 });
-
-const BILLING_MODES: { key: BillingMode; label: string; hint: string }[] = [
-  { key: "monthly", label: "اشتراك شهري", hint: "الطالب يدفع مبلغاً ثابتاً كل شهر" },
-  { key: "per_session", label: "بالحصة", hint: "الطالب يدفع عن كل حصة يحضرها" },
-  { key: "season", label: "بالسيزون", hint: "مبلغ واحد لعدد حصص محدد (ترم / سيزون)" },
-];
-
-const SALARY_BASIS: { key: StaffSalaryBasis; label: string; hint: string }[] = [
-  { key: "fixed", label: "راتب ثابت", hint: "مبلغ شهري ثابت لكل موظف" },
-  { key: "per_session", label: "بالحصة", hint: "مبلغ عن كل حصة عمل" },
-  { key: "revenue_share", label: "نسبة من الإيراد", hint: "نسبة مئوية من إيراد الشهر" },
-];
 
 function TreasuryPage() {
   const state = useDataStore();
@@ -67,27 +46,7 @@ function TreasuryPage() {
     return subscribeAuth(refresh);
   }, []);
 
-  const [mode, setMode] = useState<BillingMode>(settings.billing_mode);
-  const [monthlyFee, setMonthlyFee] = useState(String(settings.monthly_fee));
-  const [sessionFee, setSessionFee] = useState(String(settings.per_session_fee));
-  const [seasonFee, setSeasonFee] = useState(String(settings.season_fee));
-  const [seasonSessions, setSeasonSessions] = useState(String(settings.season_sessions));
-  const [salaryBasis, setSalaryBasis] = useState<StaffSalaryBasis>(settings.staff_salary_basis);
-  const [salaryValue, setSalaryValue] = useState(String(settings.staff_salary_value));
-  const [synced, setSynced] = useState(false);
-
-  // البيانات بتوصل من الخادم بعد أول رندر — نزامن الفورم مرة واحدة أول ما توصل.
-  useEffect(() => {
-    if (synced || !settings.updated_at) return;
-    setMode(settings.billing_mode);
-    setMonthlyFee(String(settings.monthly_fee));
-    setSessionFee(String(settings.per_session_fee));
-    setSeasonFee(String(settings.season_fee));
-    setSeasonSessions(String(settings.season_sessions));
-    setSalaryBasis(settings.staff_salary_basis);
-    setSalaryValue(String(settings.staff_salary_value));
-    setSynced(true);
-  }, [settings, synced]);
+  // §1.16 — تم حذف "السعة الافتراضية" من هنا؛ تُعرَّف per-group عند إنشائها.
 
   const [staffName, setStaffName] = useState("");
   const [amount, setAmount] = useState("");
@@ -102,143 +61,55 @@ function TreasuryPage() {
     [state.payments],
   );
   const pendingInStaffHands = Math.max(0, collected - totalReceived);
-
-  const expectedMonthlyRevenue = useMemo(() => {
-    const activeStudents = state.students.length;
-    if (mode === "monthly") return activeStudents * Number(monthlyFee || 0);
-    if (mode === "season")
-      return Number(seasonSessions || 0) > 0
-        ? Math.round((activeStudents * Number(seasonFee || 0)) / 4)
-        : 0;
-    // بالحصة: تقدير 8 حصص شهرياً لكل طالب
-    return activeStudents * Number(sessionFee || 0) * 8;
-  }, [mode, monthlyFee, seasonFee, seasonSessions, sessionFee, state.students.length]);
-
-  const salaryEstimate = useMemo(() => {
-    const value = Number(salaryValue || 0);
-    if (salaryBasis === "fixed") return value * Math.max(1, staff.length);
-    if (salaryBasis === "per_session") return value * state.groups.length * 4;
-    return Math.round((expectedMonthlyRevenue * value) / 100);
-  }, [salaryBasis, salaryValue, staff.length, state.groups.length, expectedMonthlyRevenue]);
+  const totalExpenses = useMemo(
+    () => state.expenses.reduce((s, e) => s + Number(e.amount), 0),
+    [state.expenses],
+  );
+  const totalPayroll = useMemo(
+    () => state.payrollRecords.reduce((s, p) => s + Number(p.amount), 0),
+    [state.payrollRecords],
+  );
+  const biggestPayment = useMemo(
+    () => state.payments.reduce<number>((m, p) => Math.max(m, Number(p.amount)), 0),
+    [state.payments],
+  );
 
   return (
     <AppShell
       role="owner"
-      title="الخزنة والنظام المالي"
-      description="اختيار نظام التعامل المالي للسنتر وتسجيل كل استلام من الموظفين"
+      title="الخزنة"
+      description="مقارنة الأداء المالي، تسليم واستلام الخزنة، ورواتب الموظفين"
     >
+      {/* 4 كروت حوكمة إضافية (القسم 7) */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="إجمالي التحصيل المسجَّل"
+          label="إجمالي الإيرادات"
           value={formatCurrency(collected)}
           icon={Banknote}
-        />
-        <StatCard
-          label="المستلم في الخزنة"
-          value={formatCurrency(totalReceived)}
-          icon={Wallet}
           tone="success"
+          trend="مدى الحياة"
         />
         <StatCard
-          label="لسه مع الموظفين"
-          value={formatCurrency(pendingInStaffHands)}
+          label="صافي الشهر الحالي"
+          value={formatCurrency(collected - totalExpenses - totalPayroll)}
+          icon={Wallet}
+          tone={collected > totalExpenses + totalPayroll ? "success" : "destructive"}
+          trend="تحصيل − مصروفات − رواتب"
+        />
+        <StatCard
+          label="مصروفات مفتوحة"
+          value={formatCurrency(totalExpenses)}
           icon={HandCoins}
-          tone={pendingInStaffHands > 0 ? "warning" : "success"}
+          tone={totalExpenses > 0 ? "warning" : "success"}
         />
         <StatCard
-          label="الإيراد المتوقع شهرياً"
-          value={formatCurrency(expectedMonthlyRevenue)}
-          icon={Calculator}
+          label="أكبر تحصيل"
+          value={formatCurrency(biggestPayment)}
+          icon={Banknote}
         />
       </div>
 
-      <Panel
-        title="نظام التعامل المالي للسنتر"
-        description="اختيار المركز نفسه — كل حسابات الرسوم ورواتب الموظفين تُبنى عليه"
-      >
-        <div className="space-y-6">
-          <div className="grid gap-3 md:grid-cols-3">
-            {BILLING_MODES.map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => setMode(m.key)}
-                className={`rounded-xl border-2 p-4 text-right transition-colors ${
-                  mode === m.key
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <p className="text-base font-black text-foreground">{m.label}</p>
-                <p className="mt-1 text-sm font-bold text-muted-foreground">{m.hint}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Field label="الاشتراك الشهري (ج.م)" value={monthlyFee} onChange={setMonthlyFee} />
-            <Field label="سعر الحصة (ج.م)" value={sessionFee} onChange={setSessionFee} />
-            <Field label="سعر السيزون (ج.م)" value={seasonFee} onChange={setSeasonFee} />
-            <Field label="عدد حصص السيزون" value={seasonSessions} onChange={setSeasonSessions} />
-          </div>
-
-          <div>
-            <p className="mb-3 flex items-center gap-2 text-base font-black text-foreground">
-              <Settings2 className="size-5 text-primary" />
-              أساس حساب رواتب الموظفين
-            </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {SALARY_BASIS.map((b) => (
-                <button
-                  key={b.key}
-                  type="button"
-                  onClick={() => setSalaryBasis(b.key)}
-                  className={`rounded-xl border-2 p-4 text-right transition-colors ${
-                    salaryBasis === b.key
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <p className="text-base font-black text-foreground">{b.label}</p>
-                  <p className="mt-1 text-sm font-bold text-muted-foreground">{b.hint}</p>
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field
-                label={salaryBasis === "revenue_share" ? "النسبة (٪)" : "القيمة (ج.م)"}
-                value={salaryValue}
-                onChange={setSalaryValue}
-              />
-              <div className="rounded-xl border-2 border-border p-4">
-                <p className="text-sm font-bold text-muted-foreground">
-                  تقدير إجمالي الرواتب شهرياً
-                </p>
-                <p className="kpi-number mt-1 text-2xl">{formatCurrency(salaryEstimate)}</p>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              saveFinanceSettings({
-                billing_mode: mode,
-                monthly_fee: Number(monthlyFee || 0),
-                per_session_fee: Number(sessionFee || 0),
-                season_fee: Number(seasonFee || 0),
-                season_sessions: Number(seasonSessions || 0),
-                staff_salary_basis: salaryBasis,
-                staff_salary_value: Number(salaryValue || 0),
-              });
-              toast.success("تم حفظ النظام المالي للسنتر");
-            }}
-            className="rounded-xl bg-navy px-6 py-3 text-base font-black text-navy-foreground transition-opacity hover:opacity-90"
-          >
-            حفظ الإعدادات المالية
-          </button>
-        </div>
-      </Panel>
+      <MonthOverMonthPanel />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <Panel title="تسجيل استلام من الخزنة" description="كل مبلغ يستلمه المدير من موظف">
@@ -307,7 +178,7 @@ function TreasuryPage() {
               لا يوجد أي استلام مسجّل بعد.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
               {state.safeHandovers.map((h) => (
                 <div
                   key={h.id}
@@ -322,7 +193,9 @@ function TreasuryPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {h.staff_identifier ? (
-                      <StatusBadge tone="neutral">{h.staff_identifier}</StatusBadge>
+                      <span className="rounded-xl border-2 border-border px-3 py-1 text-sm font-black text-foreground">
+                        {h.staff_identifier}
+                      </span>
                     ) : null}
                     <span className="text-lg font-black text-success">
                       {formatCurrency(Number(h.amount))}
@@ -338,28 +211,9 @@ function TreasuryPage() {
       <SubjectPricingPanel />
       <ExpensesPanel />
       <PayrollPanel />
+      <PaperCreditsPanel />
     </AppShell>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-black text-muted-foreground">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        inputMode="numeric"
-        className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-base font-extrabold text-foreground outline-none focus:border-primary"
-      />
-    </label>
-  );
-}
+void Calculator;

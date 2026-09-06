@@ -11,6 +11,15 @@ import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  owner: "مالك السنتر",
+  teacher: "مدرس",
+  staff: "موظف",
+  student: "طالب",
+  parent: "ولي أمر",
+  visitor: "زائر",
+};
+
 interface AppShellProps {
   role: UserRole;
   /** Page title shown in the sticky top bar. */
@@ -114,14 +123,10 @@ export function AppShell({ role, title, description, actions, children }: AppShe
         </nav>
 
         <div className="border-t border-white/15 p-4">
-          <div className="mb-3 rounded-xl bg-white/10 p-3">
-            <p className="text-[11px] font-bold text-white/60">معرّف السنتر (RLS)</p>
-            <p className="font-mono text-sm font-black">{center.id}</p>
-          </div>
           <div className="mb-2 px-1">
             <p className="truncate text-sm font-black text-white">{session.full_name}</p>
-            <p className="truncate font-mono text-[11px] font-bold text-white/60">
-              {session.identifier}
+            <p className="truncate text-xs font-bold text-white/70">
+              {ROLE_LABELS[role] ?? config.title}
             </p>
           </div>
           <button

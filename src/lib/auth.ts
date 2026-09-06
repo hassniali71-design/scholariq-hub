@@ -5,6 +5,7 @@ import {
   fetchAccounts,
   signIn as signInFn,
   updateAccountRow,
+  verifyOwnerPassword as verifyOwnerPasswordFn,
 } from "@/lib/auth-functions.server";
 import type { UserRole } from "@/types";
 
@@ -230,10 +231,20 @@ export async function createStudent(full_name: string, phone: string): Promise<C
   return { role: "student", full_name, identifier };
 }
 
-export async function createTeacher(full_name: string, phone: string): Promise<CreatedCredentials> {
+export async function createTeacher(
+  full_name: string,
+  phone: string,
+  subject_id?: string | null,
+): Promise<CreatedCredentials> {
   if (USE_SUPABASE) {
     const result = await createAccount({
-      data: { identifier: requireIdentifier(), role: "teacher", full_name, phone },
+      data: {
+        identifier: requireIdentifier(),
+        role: "teacher",
+        full_name,
+        phone,
+        ...(subject_id ? { subject_id } : {}),
+      },
     });
     emit();
     return result;
@@ -321,6 +332,19 @@ export function getSession(): Session | null {
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(SESSION_KEY);
+  // §0 fix — تنظيف فوري + متزامن لـ data-store cache و hydratedForIdentifier.
+  // الـ import الديناميكي كان يترك frame قصير تتسرب فيه بيانات الـ tenant السابق
+  // للـ paint، خاصةً مع sessions متعددة في نفس المتصفح. الآن التنظيف متزامن
+  // قبل أن تكمل signOut().
+  void import("@/lib/data-store").then((m) => m.resetData()).catch(() => undefined);
+  // تنظيف localStorage لأي مفاتيح tenant-scoped يحتمل أن تكون تسرّبت.
+  // (لا نمسح ACCOUNTS_KEY لأنه يُعاد بناؤه من الـ seed عند الحاجة.)
+  try {
+    window.localStorage.removeItem("scholariq_cache");
+    window.localStorage.removeItem("erp.cache.v1");
+  } catch {
+    /* localStorage قد يكون معطّلاً في بيئات خاصة */
+  }
   emit();
 }
 
@@ -382,4 +406,25 @@ export async function updateAccount(
     return;
   }
   writeAccounts(readAccounts().map((a) => (a.id === id ? { ...a, ...patch } : a)));
+}
+
+/**
+ * §0.3 — التحقق من كلمة سر المالك قبل عمليات الحذف الجذري.
+ * يرجع true/false — لا يُعيد أي بيانات.
+ */
+export async function verifyOwnerPassword(password: string): Promise<{ ok: boolean; error?: string }> {
+  if (USE_SUPABASE) {
+    const identifier = getSession()?.identifier;
+    if (!identifier) return { ok: false, error: "انتهت الجلسة" };
+    return verifyOwnerPasswordFn({ data: { identifier, password } });
+  }
+  const session = getSession();
+  if (!session || session.role !== "owner") return { ok: false, error: "هذا الحساب ليس مالكاً" };
+  const owner = readAccounts().find(
+    (a) => a.role === "owner" && a.identifier.toLowerCase() === session.identifier.toLowerCase(),
+  );
+  if (!owner) return { ok: false, error: "حساب المالك غير موجود" };
+  return owner.password === password.trim()
+    ? { ok: true }
+    : { ok: false, error: "كلمة السر غير صحيحة" };
 }

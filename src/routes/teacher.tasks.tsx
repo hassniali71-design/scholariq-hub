@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
+import { DailyStaffEvents } from "@/components/staff/DailyStaffEvents";
 import { getSession } from "@/lib/auth";
 import { getTasksForAssignee, setTaskStatus, useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -24,6 +24,13 @@ export const Route = createFileRoute("/teacher/tasks")({
   component: TeacherTasksPage,
 });
 
+function startOfWeek(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d.getTime();
+}
+
 function TeacherTasksPage() {
   const state = useDataStore();
   const session = typeof window !== "undefined" ? getSession() : null;
@@ -31,38 +38,46 @@ function TeacherTasksPage() {
     () => getTasksForAssignee(state, "teacher", session?.identifier ?? null),
     [state, session?.identifier],
   );
+  const now = new Date();
+  const weekStart = startOfWeek();
   const open = myTasks.filter((t) => t.status === "pending" || t.status === "in_progress");
   const done = myTasks.filter((t) => t.status === "done");
-  const urgent = open.filter((t) => t.is_urgent);
+  const urgent = open.filter(
+    (t) => t.is_urgent || (t.due_at && new Date(t.due_at) < now && t.status !== "done"),
+  );
+  const weekDone = done.filter(
+    (t) => t.completed_at && Date.parse(t.completed_at) >= weekStart,
+  ).length;
 
   return (
     <AppShell
       role="teacher"
       title="مهامي"
-      description={`كل المهام الموكلة لك في ${state.center.name}`}
+      description={`المهام الموكلة لك شخصياً في ${state.center.name} — للاطلاع فقط، لا يمكن إضافة مهام من هنا`}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard label="مهام مفتوحة" value={formatNumber(open.length)} icon={ListTodo} tone="warning" />
-        <StatCard label="مهام مستعجلة" value={formatNumber(urgent.length)} icon={Clock} tone="destructive" />
-        <StatCard label="مهام منجزة" value={formatNumber(done.length)} icon={ListTodo} tone="success" />
+        <StatCard
+          label="مهام مستعجلة/متأخرة"
+          value={formatNumber(urgent.length)}
+          icon={Clock}
+          tone="destructive"
+        />
+        <StatCard
+          label="منجزة هذا الأسبوع"
+          value={formatNumber(weekDone)}
+          icon={Clock}
+          tone="success"
+        />
       </div>
 
-      <Panel
-        title="الأحداث اليومية"
-        description="إضافة مهمة جديدة لنفسك أو لزميل"
-      >
-        <DailyTasksCard
-          role="teacher"
-          assigneeId={session?.identifier ?? null}
-          assigneeName={session?.full_name}
-        />
-      </Panel>
+      <DailyStaffEvents />
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Panel title="مهامي المستعجلة">
+        <Panel title="مستعجل/متأخر" description="أولوية قصوى أو مرّ الموعد">
           <TaskList tasks={urgent} />
         </Panel>
-        <Panel title="مهامي المفتوحة">
+        <Panel title="مهامي المفتوحة" description="مرتبة بالأحدث">
           <TaskList
             tasks={[...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))}
           />

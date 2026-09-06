@@ -16,6 +16,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { computeStudentFees, useDataStore } from "@/lib/data-store";
 import { buildTeacherFinance, computeOwnerKpis } from "@/lib/owner-metrics";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/owner/finance")({
   head: () => ({
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/owner/finance")({
 
 const METHOD_LABEL: Record<string, string> = {
   cash: "كاش",
-  wallet: "محفظة",
+  wallet: "محفظة (كاش/إنستاباي/تحويل)",
   instapay: "إنستاباي",
 };
 
@@ -90,11 +91,23 @@ function FinancePage() {
   const marginBefore = grossBefore ? 100 : 0;
   const lastPayment = payments[0];
 
-  const byMethod = ["cash", "wallet", "instapay"].map((m) => ({
-    method: m,
-    total: payments.filter((p) => p.method === m).reduce((s, p) => s + Number(p.amount), 0),
-    count: payments.filter((p) => p.method === m).length,
-  }));
+  /**
+   * Section 1.11: collapse instapay into wallet — 2 buckets, not 3.
+   * The user's analytics only needs cash vs digital; the "wallet" card
+   * now also covers instapay and any bank transfer.
+   */
+  const byMethod = (() => {
+    const cashTotal = payments
+      .filter((p) => p.method === "cash")
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const walletTotal = payments
+      .filter((p) => p.method === "wallet" || p.method === "instapay")
+      .reduce((s, p) => s + Number(p.amount), 0);
+    return [
+      { method: "cash", total: cashTotal, count: payments.filter((p) => p.method === "cash").length },
+      { method: "wallet", total: walletTotal, count: payments.filter((p) => p.method === "wallet" || p.method === "instapay").length },
+    ];
+  })();
 
   return (
     <AppShell
@@ -127,6 +140,53 @@ function FinancePage() {
           icon={TrendingUp}
           tone={kpis.netProfit >= 0 ? "success" : "destructive"}
           trend={`هامش ${formatPercent(kpis.netMarginPct)}`}
+        />
+      </div>
+
+      {/* 4 كروت إضافية (§0.3) — اشتراكات + مؤشرات التحصيل */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="اشتراكات نشطة"
+          value={formatNumber(students.filter((s) => s.payment_status === "paid").length)}
+          icon={Wallet}
+          tone="success"
+          trend={`من إجمالي ${formatNumber(students.length)} طالب`}
+        />
+        <StatCard
+          label="إجمالي قيمة اشتراكات المواد"
+          value={formatCurrency(
+            students.reduce((s, st) => {
+              const fees = st.subject_fees ?? {};
+              return s + Object.values(fees).reduce((a: number, b: unknown) => a + Number(b), 0);
+            }, 0),
+          )}
+          icon={Wallet}
+        />
+        <StatCard
+          label="متوسط قيمة الاشتراك للطالب"
+          value={formatCurrency(
+            students.length === 0
+              ? 0
+              : Math.round(
+                  students.reduce((s, st) => {
+                    const fees = st.subject_fees ?? {};
+                    return s + Object.values(fees).reduce((a: number, b: unknown) => a + Number(b), 0);
+                  }, 0) / students.length,
+                ),
+          )}
+          icon={Wallet}
+        />
+        <StatCard
+          label="نسبة التحصيل الفعلي من المستحق"
+          value={formatPercent(
+            kpis.overdueTotal + kpis.monthRevenue > 0
+              ? Math.round(
+                  (kpis.monthRevenue / (kpis.overdueTotal + kpis.monthRevenue)) * 100,
+                )
+              : 0,
+          )}
+          icon={ArrowDownRight}
+          tone={kpis.overdueTotal === 0 ? "success" : "warning"}
         />
       </div>
 
@@ -224,33 +284,43 @@ function FinancePage() {
           <Empty text="لا يوجد مدرسون مسجّلون بعد." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-base">
+            <table className="w-full text-right text-lg">
               <thead>
-                <tr className="border-b-2 border-border text-muted-foreground">
-                  <th className="pb-3">المدرس</th>
-                  <th className="pb-3">المادة</th>
-                  <th className="pb-3">الطلاب</th>
-                  <th className="pb-3">إيراد طلابه</th>
-                  <th className="pb-3">راتبه</th>
-                  <th className="pb-3">صافي السنتر</th>
+                <tr className="border-b-2 border-border text-base font-black text-muted-foreground">
+                  <th className="px-4 py-4">المدرس</th>
+                  <th className="px-4 py-4">المادة</th>
+                  <th className="px-4 py-4">الطلاب</th>
+                  <th className="px-4 py-4">إيراد طلابه</th>
+                  <th className="px-4 py-4">راتبه</th>
+                  <th className="px-4 py-4">صافي السنتر</th>
                 </tr>
               </thead>
               <tbody>
                 {teacherFinance.map((t) => (
-                  <tr key={t.teacherId} className="border-b border-border last:border-0">
-                    <td className="py-3 font-black text-foreground">{t.name}</td>
-                    <td className="py-3 font-bold text-muted-foreground">{t.subject}</td>
-                    <td className="py-3 font-extrabold">{formatNumber(t.studentsCount)}</td>
-                    <td className="py-3 font-extrabold text-success">
+                  <tr
+                    key={t.teacherId}
+                    className="border-b border-border last:border-0 transition-colors hover:bg-muted/40"
+                  >
+                    <td className="px-4 py-4 text-lg font-black text-foreground">{t.name}</td>
+                    <td className="px-4 py-4 text-base font-bold text-muted-foreground">{t.subject}</td>
+                    <td className="px-4 py-4 text-lg font-extrabold">{formatNumber(t.studentsCount)}</td>
+                    <td className="px-4 py-4 text-lg font-extrabold text-success">
                       {formatCurrency(t.revenue)}
                     </td>
-                    <td className="py-3 font-extrabold text-destructive">
+                    <td className="px-4 py-4 text-lg font-extrabold text-destructive">
                       {formatCurrency(t.salary)}
                     </td>
-                    <td className="py-3">
-                      <StatusBadge tone={t.net >= 0 ? "success" : "destructive"}>
+                    <td className="px-4 py-4">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-xl border-2 px-3 py-1.5 text-lg font-black",
+                          t.net >= 0
+                            ? "border-blue-500/40 bg-blue-500/10 text-blue-700"
+                            : "border-destructive/40 bg-destructive/5 text-destructive",
+                        )}
+                      >
                         {formatCurrency(t.net)}
-                      </StatusBadge>
+                      </span>
                     </td>
                   </tr>
                 ))}

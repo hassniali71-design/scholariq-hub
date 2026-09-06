@@ -25,6 +25,7 @@ import { Route as ParentMessagesRouteImport } from './routes/parent.messages'
 import { Route as PlatformClientsRouteImport } from './routes/platform.clients'
 import { Route as PlatformLoginRouteImport } from './routes/platform.login'
 import { Route as PlatformNewCenterRouteImport } from './routes/platform.new-center'
+import { Route as PlatformTeacherNotesRouteImport } from './routes/platform.teacher-notes'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffBookletsRouteImport } from './routes/staff.booklets'
 import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
@@ -35,6 +36,7 @@ import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderb
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherAssessmentsRouteImport } from './routes/teacher.assessments'
 import { Route as TeacherCurriculumRouteImport } from './routes/teacher.curriculum'
+import { Route as TeacherScheduleRouteImport } from './routes/teacher.schedule'
 import { Route as TeacherTasksRouteImport } from './routes/teacher.tasks'
 import { Route as VisitorIndexRouteImport } from './routes/visitor.index'
 import { Route as TeacherSessionGroupIdRouteImport } from './routes/teacher.session.$groupId'
@@ -119,6 +121,11 @@ const PlatformNewCenterRoute = PlatformNewCenterRouteImport.update({
   path: '/platform/new-center',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformTeacherNotesRoute = PlatformTeacherNotesRouteImport.update({
+  id: '/platform/teacher-notes',
+  path: '/platform/teacher-notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/staff/',
   path: '/staff/',
@@ -169,6 +176,11 @@ const TeacherCurriculumRoute = TeacherCurriculumRouteImport.update({
   path: '/teacher/curriculum',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeacherScheduleRoute = TeacherScheduleRouteImport.update({
+  id: '/teacher/schedule',
+  path: '/teacher/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherTasksRoute = TeacherTasksRouteImport.update({
   id: '/teacher/tasks',
   path: '/teacher/tasks',
@@ -200,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
+  '/platform/teacher-notes': typeof PlatformTeacherNotesRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -207,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/schedule': typeof TeacherScheduleRoute
   '/teacher/tasks': typeof TeacherTasksRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
@@ -231,6 +245,7 @@ export interface FileRoutesByTo {
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
+  '/platform/teacher-notes': typeof PlatformTeacherNotesRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -238,6 +253,7 @@ export interface FileRoutesByTo {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/schedule': typeof TeacherScheduleRoute
   '/teacher/tasks': typeof TeacherTasksRoute
   '/owner': typeof OwnerIndexRoute
   '/parent': typeof ParentIndexRoute
@@ -263,6 +279,7 @@ export interface FileRoutesById {
   '/platform/clients': typeof PlatformClientsRoute
   '/platform/login': typeof PlatformLoginRoute
   '/platform/new-center': typeof PlatformNewCenterRoute
+  '/platform/teacher-notes': typeof PlatformTeacherNotesRoute
   '/staff/booklets': typeof StaffBookletsRoute
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
@@ -270,6 +287,7 @@ export interface FileRoutesById {
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
+  '/teacher/schedule': typeof TeacherScheduleRoute
   '/teacher/tasks': typeof TeacherTasksRoute
   '/owner/': typeof OwnerIndexRoute
   '/parent/': typeof ParentIndexRoute
@@ -296,6 +314,7 @@ export interface FileRouteTypes {
     | '/platform/clients'
     | '/platform/login'
     | '/platform/new-center'
+    | '/platform/teacher-notes'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -303,6 +322,7 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/schedule'
     | '/teacher/tasks'
     | '/owner/'
     | '/parent/'
@@ -327,6 +347,7 @@ export interface FileRouteTypes {
     | '/platform/clients'
     | '/platform/login'
     | '/platform/new-center'
+    | '/platform/teacher-notes'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -334,6 +355,7 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/schedule'
     | '/teacher/tasks'
     | '/owner'
     | '/parent'
@@ -358,6 +380,7 @@ export interface FileRouteTypes {
     | '/platform/clients'
     | '/platform/login'
     | '/platform/new-center'
+    | '/platform/teacher-notes'
     | '/staff/booklets'
     | '/staff/cashier'
     | '/staff/shift'
@@ -365,6 +388,7 @@ export interface FileRouteTypes {
     | '/student/leaderboard'
     | '/teacher/assessments'
     | '/teacher/curriculum'
+    | '/teacher/schedule'
     | '/teacher/tasks'
     | '/owner/'
     | '/parent/'
@@ -389,6 +413,7 @@ export interface RootRouteChildren {
   PlatformClientsRoute: typeof PlatformClientsRoute
   PlatformLoginRoute: typeof PlatformLoginRoute
   PlatformNewCenterRoute: typeof PlatformNewCenterRoute
+  PlatformTeacherNotesRoute: typeof PlatformTeacherNotesRoute
   StaffBookletsRoute: typeof StaffBookletsRoute
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
@@ -396,6 +421,7 @@ export interface RootRouteChildren {
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
   TeacherCurriculumRoute: typeof TeacherCurriculumRoute
+  TeacherScheduleRoute: typeof TeacherScheduleRoute
   TeacherTasksRoute: typeof TeacherTasksRoute
   OwnerIndexRoute: typeof OwnerIndexRoute
   ParentIndexRoute: typeof ParentIndexRoute
@@ -520,6 +546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformNewCenterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/teacher-notes': {
+      id: '/platform/teacher-notes'
+      path: '/platform/teacher-notes'
+      fullPath: '/platform/teacher-notes'
+      preLoaderRoute: typeof PlatformTeacherNotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/staff/': {
       id: '/staff/'
       path: '/staff'
@@ -590,6 +623,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherCurriculumRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teacher/schedule': {
+      id: '/teacher/schedule'
+      path: '/teacher/schedule'
+      fullPath: '/teacher/schedule'
+      preLoaderRoute: typeof TeacherScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher/tasks': {
       id: '/teacher/tasks'
       path: '/teacher/tasks'
@@ -638,6 +678,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformClientsRoute: PlatformClientsRoute,
   PlatformLoginRoute: PlatformLoginRoute,
   PlatformNewCenterRoute: PlatformNewCenterRoute,
+  PlatformTeacherNotesRoute: PlatformTeacherNotesRoute,
   StaffBookletsRoute: StaffBookletsRoute,
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,
@@ -645,6 +686,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudentLeaderboardRoute: StudentLeaderboardRoute,
   TeacherAssessmentsRoute: TeacherAssessmentsRoute,
   TeacherCurriculumRoute: TeacherCurriculumRoute,
+  TeacherScheduleRoute: TeacherScheduleRoute,
   TeacherTasksRoute: TeacherTasksRoute,
   OwnerIndexRoute: OwnerIndexRoute,
   ParentIndexRoute: ParentIndexRoute,

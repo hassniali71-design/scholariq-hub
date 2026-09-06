@@ -3,8 +3,11 @@ import {
   Award,
   BookOpenCheck,
   CalendarCheck,
+  FileUp,
   Flame,
+  Heart,
   Minus,
+  Send,
   Target,
   TrendingDown,
   TrendingUp,
@@ -24,11 +27,13 @@ import { formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
   diagnoseWeakPoint,
+  getAverageBehaviorScore,
   getElectronicHomeworkForGroup,
   getElectronicHomeworkScore,
   getOverallStudentPerformance,
   getPerformanceLabel,
   getSubjectPerformanceSummary,
+  getTeacherLaunchesForGroup,
   recordAssessmentScore,
   useDataStore,
   type DataState,
@@ -199,10 +204,20 @@ function StudentPortal() {
           tone="warning"
         />
         <StatCard
-          label="ترتيبي"
-          value={myRank ? formatNumber(myRank) : "—"}
-          icon={Flame}
-          trend="+١ عن الأسبوع الماضي"
+          label="درجة السلوك"
+          value={(() => {
+            const b = getAverageBehaviorScore(state, me.id);
+            return b === null ? "—" : `${Math.round(b * 10)}/10`;
+          })()}
+          icon={Heart}
+          tone="primary"
+          trend={(() => {
+            const b = getAverageBehaviorScore(state, me.id);
+            if (b === null) return "لم يُقيَّم بعد";
+            if (b >= 0.8) return "ممتاز — استمر";
+            if (b >= 0.5) return "جيد";
+            return "يحتاج تحسين";
+          })()}
         />
       </div>
 
@@ -265,6 +280,14 @@ function StudentPortal() {
       ) : null}
 
       <ElectronicHomeworkSection state={state} studentId={me.id} />
+
+      {/*
+        Migration 0023 / خطة C (C6): مهام المدرس الجديدة — واجبات + مراجعات
+        + أنشطة + قراءات أطلاقها مدرّس مجموعتك. آخر 10 بالأحدث.
+      */}
+      {me.group_id ? (
+        <TeacherLaunchesPanel state={state} groupId={me.group_id} />
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="منحنى نتائجي" description="نسبة الدرجات في آخر التقييمات">
@@ -366,5 +389,80 @@ function StudentPortal() {
         </div>
       </Panel>
     </AppShell>
+  );
+}
+
+/* ---------------- Migration 0023 / خطة C (C6): مهام المدرس الجديدة للطالب ---------------- */
+
+const STUDENT_LAUNCH_LABEL: Record<string, string> = {
+  homework: "واجب بيتي",
+  homework_with_correction: "واجب مع تصحيح",
+  in_class_task: "مهمة داخل الحصة",
+  interactive_activity: "نشاط تفاعلي",
+  online_homework: "واجب إلكتروني",
+  online_quiz: "اختبار إلكتروني",
+  reading_assignment: "مراجعة / قراءة",
+  oral_recitation: "تسميع",
+};
+
+function TeacherLaunchesPanel({ state, groupId }: { state: DataState; groupId: string }) {
+  const launches = getTeacherLaunchesForGroup(state, groupId).slice(0, 10);
+  if (launches.length === 0) return null;
+
+  return (
+    <Panel
+      title="مهامي الجديدة من المدرس"
+      description="آخر ما أطلقه مدرّسك — واجبات، أنشطة، مراجعات"
+    >
+      <div className="space-y-2">
+        {launches.map((l) => {
+          const isReading = l.launch_type === "reading_assignment";
+          const isFile = isReading && !!l.file_data;
+          const Icon = isFile ? FileUp : Send;
+          return (
+            <div
+              key={l.id}
+              className="flex flex-wrap items-start justify-between gap-2 rounded-xl border-2 border-border bg-background p-3"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-3.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-[11px] font-black text-primary">
+                      {STUDENT_LAUNCH_LABEL[l.launch_type] ?? l.launch_type}
+                    </span>
+                    <p className="truncate text-sm font-black text-foreground">{l.title}</p>
+                  </div>
+                  {l.body ? (
+                    <p className="mt-1 line-clamp-2 text-xs font-bold text-muted-foreground">
+                      {l.body}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[11px] font-bold text-muted-foreground">
+                    {new Date(l.created_at).toLocaleString("ar-EG", { numberingSystem: "latn" })}
+                    {l.due_at
+                      ? ` · يُسلَّم قبل ${new Date(l.due_at).toLocaleString("ar-EG", { numberingSystem: "latn" })}`
+                      : null}
+                  </p>
+                </div>
+              </div>
+              {isFile && l.file_data ? (
+                <a
+                  href={`data:${l.file_mime ?? "application/octet-stream"};base64,${l.file_data}`}
+                  download={l.file_name ?? l.title}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-lg border-2 border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-black text-primary hover:bg-primary/20"
+                >
+                  تحميل
+                </a>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }

@@ -52,7 +52,23 @@ export interface Student {
    * السعر شخصي لكل طالب وليس سعراً عاماً ثابتاً للمادة.
    */
   subject_fees?: Record<UUID, number> | null;
+  /**
+   * Migration 0022: billing mode. `'monthly'` = charged on a fixed day each
+   * month (see `due_day_of_month`); `'per_session'` = charged per attended
+   * session (due day derived from group weekday + time).
+   * Default: 'monthly' to preserve existing student data.
+   */
+  billing_mode?: "monthly" | "per_session";
+  /**
+   * Migration 0022: day of month (1..28) when this student is billed.
+   * Null when `billing_mode = 'per_session'` (the due day is implicit from
+   * the group's scheduled weekday).
+   */
+  due_day_of_month?: number | null;
 }
+
+/** نوع دورة الراتب — مشترك بين الراتب المتوقع (المتفق عليه) والراتب المدفوع فعلياً. */
+export type PayrollBasis = "per_session" | "weekly" | "monthly";
 
 export interface Teacher {
   id: UUID;
@@ -64,8 +80,17 @@ export interface Teacher {
    */
   user_id: UUID | null;
   full_name: string;
+  /**
+   * اسم المادة المعروض — نص فارغ مقبول (مدرس متعدد مواد أو مدرس قبل ربط المادة).
+   * @see 0021_teachers_subject_nullable.sql
+   */
   subject: string;
-  subject_id: UUID;
+  /**
+   * معرّف المادة — nullable بعد migration 0021. المدرس قد يُنشأ أولاً ثم تُربط
+   * المادة لاحقاً، أو قد يكون متعدد مواد.
+   * @see 0021_teachers_subject_nullable.sql
+   */
+  subject_id: UUID | null;
   groups: number;
   students: number;
   /** % of sessions where the 4 timer steps were fully respected */
@@ -76,6 +101,56 @@ export interface Teacher {
   stages?: ("primary" | "prep" | "secondary")[];
   /** أول مرحلة رئيسية يستعملها في الـ UI عند عدم تحديد المراحل. */
   primary_stage?: ("primary" | "prep" | "secondary");
+  /**
+   * الراتب المتوقع (المتفق عليه مع المدرس) — **ليس راتباً مدفوعاً**.
+   * لا يُخصم من الخزنة ولا يظهر في صافي الربح.
+   * الخصم الفعلي يحدث عند عملية دفع منفصلة (payroll_records).
+   */
+  expected_salary_basis?: PayrollBasis | undefined;
+  expected_salary_value?: number | undefined;
+  /**
+   * صيغة المخاطبة: "مستر"/"آنسة"/"مس" بالعربي. الافتراضي "mr" = "مستر".
+   * @see 0019_teacher_planning.sql
+   */
+  honorific?: "mr" | "miss" | "mrs";
+  /**
+   * مفتاح صورة الغلاف في /public/branding/covers/ — تُعرض كمستطيل عرض-كامل
+   * فوق اسم المدرس. لو `null` أو الملف غير موجود، يعرض placeholder ملوّن.
+   */
+  cover_image_key?: string | null;
+}
+
+/** خطط الدروس التي يضيفها المدرس بنفسه — منفصلة تماماً عن `tasks` و `lessons`. */
+export interface LessonPlan {
+  id: UUID;
+  center_id: UUID;
+  teacher_id: UUID;
+  group_id: UUID;
+  lesson_name: string;
+  unit?: string | null;
+  notes?: string | null;
+  /** ISO timestamp — لحظة تعليم "تم الإعداد" */
+  prepared_at?: string | null;
+  prepared_done: boolean;
+  /** ISO timestamp — لحظة تعليم "تم التدريس" */
+  taught_at?: string | null;
+  taught_done: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * رسالة "مقاولة" من مدير المنصة لمدرسي مادة معيّنة عبر كل المراكز.
+ * لاحظ غياب `center_id` — هذا متعمَّد: الرسالة ليست tenant-scoped.
+ */
+export interface PlatformTeacherNote {
+  id: UUID;
+  subject_id: UUID;
+  body: string;
+  author_identifier: string;
+  author_name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Group {
@@ -86,6 +161,8 @@ export interface Group {
   subject_id: UUID;
   teacher_name: string;
   teacher_id: UUID;
+  /** Migration 0022: secondary join key to survive client/server id divergence. */
+  teacher_user_id?: string | null;
   grade: string;
   grade_id: UUID;
   weekday: string;
@@ -93,6 +170,10 @@ export interface Group {
   room: string;
   enrolled: number;
   capacity: number;
+  /** Migration 0020: المجموعة في "pending" حتى تُجدول من غرفة الجدولة. */
+  scheduling_status: "pending" | "scheduled";
+  created_at: string;
+  notes?: string | null;
 }
 
 /** Reference table — replaces free-text `subject`/`subject_id` pairs with a real lookup. */
@@ -132,9 +213,13 @@ export interface AttendanceRecord {
   method: "qr" | "barcode" | "manual";
   /** Links to `SessionRecord.id` for session-mode marks; null for QR-gate/legacy check-ins with no session context. */
   session_id: UUID | null;
+  /** Minutes late (0 when present or absent-without-roll-call). Set by markAttendanceForGroup mutator (§1.4 of staff-rebuild plan). */
+  late_minutes?: number;
+  /** Becomes true after the 50-min window closes — locked records refuse further edits. */
+  locked?: boolean;
 }
 
-export type PaymentMethod = "cash" | "wallet" | "instapay";
+export type PaymentMethod = "cash" | "wallet" | "instapay" | "bank_transfer" | "fawry";
 
 export interface PaymentRecord {
   id: UUID;
@@ -147,6 +232,8 @@ export interface PaymentRecord {
   created_at: string;
 }
 
+export type BookletKind = "book" | "booklet" | "exam";
+
 export interface BookletItem {
   id: UUID;
   center_id: UUID;
@@ -155,6 +242,53 @@ export interface BookletItem {
   price: number;
   in_stock: number;
   delivered: number;
+  kind: BookletKind;
+  page_count: number;
+  printed: number;
+  paper_per_unit: number;
+}
+
+/** رصيد ورق صادر من المالك للموظف (الورقة تُستهلك لاحقاً عبر paper_transactions). */
+export interface PaperCredit {
+  id: UUID;
+  center_id: UUID;
+  staff_id: string;
+  staff_name: string;
+  total_sheets: number;
+  unit_price: number;
+  issued_at: string;
+  note: string | null;
+  created_at: string;
+}
+
+/** حركة ورق (+ إضافة / - استهلاك) — الخصم بيخصم من رصيد الموظف المتاح. */
+export interface PaperTransaction {
+  id: UUID;
+  center_id: UUID;
+  staff_id: string;
+  staff_name: string;
+  delta_sheets: number;
+  reason: "issue" | "sale" | "admin_print" | "preorder";
+  related_booklet_id: string | null;
+  related_sale_id: string | null;
+  created_at: string;
+}
+
+/** عملية بيع كتاب/ملزمة/امتحان لطالب — تُخصم من in_stock ومن paper_transactions. */
+export interface BookletSale {
+  id: UUID;
+  center_id: UUID;
+  student_id: UUID;
+  student_name: string;
+  student_code: string;
+  booklet_id: UUID;
+  booklet_title: string;
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+  paper_consumed: number;
+  sold_by: string;
+  sold_at: string;
 }
 
 /* ---------------- In-class session engine ---------------- */
@@ -395,7 +529,14 @@ export interface WhatsAppLog {
   center_id: UUID;
   student_id: UUID;
   sent_at: string;
-  template: "attendance" | "payment" | "grade" | "homework" | "absence";
+  template:
+    | "attendance"
+    | "payment"
+    | "grade"
+    | "homework"
+    | "absence"
+    | "award"
+    | "alert";
   message: string;
   delivered: boolean;
 }
@@ -565,7 +706,15 @@ export interface StaffPermissionRecord {
 
 /* ---------------- محرك الماليات والجدولة (db/0010) ---------------- */
 
-export type ExpenseCategory = "maintenance" | "bills" | "rent" | "supplies" | "marketing" | "other";
+export type ExpenseCategory =
+  | "maintenance"
+  | "bills"
+  | "rent"
+  | "supplies"
+  | "marketing"
+  | "printing"
+  | "admin"
+  | "other";
 
 /** مصروف عام خارجي (صيانة، فواتير، إيجار...) — يُخصم من صافي الربح مباشرة. */
 export interface Expense {
@@ -578,8 +727,6 @@ export interface Expense {
   note: string | null;
   created_at: string;
 }
-
-export type PayrollBasis = "per_session" | "weekly" | "monthly";
 
 /** راتب مسجّل كـ"صادر" حقيقي لمدرس أو موظف. */
 export interface PayrollRecord {
@@ -624,4 +771,82 @@ export interface ScheduleSlot {
   room: string;
   group_id: UUID | null;
   updated_at: string;
+}
+
+/** Migration 0023 (المرحلة A): روابط شرح/PDF/مرفقات يحفظها المدرس على مستوى المجموعة. */
+export type GroupResourceType = "lesson_url" | "pdf" | "external_link" | "video" | "other";
+
+export interface GroupResource {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  resource_type: GroupResourceType;
+  url: string;
+  name: string;
+  unit: string | null;
+  created_by: UUID;
+  created_at: string;
+}
+
+/**
+ * Migration 0023 (المرحلة A): إطلاقات المدرس (واجب، نشاط، اختبار تفاعلي، قراءة...).
+ * منفصل تماماً عن `homeworkTasks` (اللي هو واجبات إدارية عامة).
+ */
+export type TeacherLaunchType =
+  | "homework"
+  | "homework_with_correction"
+  | "in_class_task"
+  | "interactive_activity"
+  | "online_homework"
+  | "online_quiz"
+  | "reading_assignment"
+  | "oral_recitation";
+
+export interface TeacherLaunch {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  teacher_id: UUID;
+  launch_type: TeacherLaunchType;
+  title: string;
+  body: string | null;
+  notes: string | null;
+  due_at: string | null;
+  duration_min: number | null;
+  source_launch_id: UUID | null;
+  created_at: string;
+  /** Migration 0024 (المرحلة C): محتوى المرفوع (PDF/صورة) كـ base64. */
+  file_data: string | null;
+  file_name: string | null;
+  file_mime: string | null;
+}
+
+/**
+ * Migration 0023 (المرحلة A): محاولة طالب على واجب إلكتروني صادر من `teacher_launches`.
+ * مفتاح التكرار `(launch_id, student_id)` — محاولة واحدة لكل طالب لكل إطلاق.
+ */
+export interface HomeworkAttempt {
+  id: UUID;
+  center_id: UUID;
+  launch_id: UUID;
+  student_id: UUID;
+  student_name: string;
+  answer: string | null;
+  score: number | null;
+  max_score: number | null;
+  submitted_at: string;
+}
+
+/** Migration 0022: snapshot for the "إغلاق شهري" feature on the owner treasury page. */
+export interface MonthlyClosing {
+  id: UUID;
+  center_id: UUID;
+  year: number;
+  month: number;
+  revenue: number;
+  expenses: number;
+  salaries: number;
+  net: number;
+  closed_at: string;
+  closed_by: UUID | null;
 }

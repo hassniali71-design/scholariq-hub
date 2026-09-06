@@ -163,6 +163,9 @@ export const createAccount = createServerFn({ method: "POST" })
       role: "student" | "teacher" | "staff" | "visitor";
       full_name: string;
       phone?: string;
+      honorific?: "mr" | "miss" | "mrs";
+      cover_image_key?: string | null;
+      subject_id?: string | null;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -192,6 +195,26 @@ export const createAccount = createServerFn({ method: "POST" })
 
     const { error } = await supabase.from("accounts").insert(row);
     if (error) throw new Error(error.message);
+
+    // 0019: لو role = teacher، أنشئ سجل teachers مربوط (user_id = login code).
+    if (data.role === "teacher") {
+      const { error: tErr } = await supabase.from("teachers").insert({
+        id: `tc-${Date.now()}`,
+        center_id: centerId,
+        user_id: newIdentifier,
+        full_name: data.full_name,
+        subject: "",
+        subject_id: data.subject_id ?? null,
+        groups: 0,
+        students: 0,
+        timer_compliance: 0,
+        sla_breaches: 0,
+        monthly_revenue: 0,
+        honorific: data.honorific ?? "mr",
+        cover_image_key: data.cover_image_key ?? null,
+      });
+      if (tErr) throw new Error(tErr.message);
+    }
 
     return { role: data.role, full_name: data.full_name, identifier: newIdentifier, password };
   });
@@ -338,4 +361,43 @@ export const updateAccountRow = createServerFn({ method: "POST" })
       .eq("id", data.accountId)
       .eq("center_id", centerId);
     if (error) throw new Error(error.message);
+  });
+
+/**
+ * §0.3 — التحقق من كلمة سر المالك قبل أي عملية حساسة (حذف جذري، حذف الكل).
+ * لا نُعيد كلمة السر — فقط true/false.
+ */
+export const verifyOwnerPassword = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; password: string }) => data)
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseAdmin();
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("password, role")
+      .eq("identifier", data.identifier.trim())
+      .maybeSingle<{ password: string | null; role: UserRole }>();
+    if (!account || account.role !== "owner") {
+      return { ok: false as const, error: "هذا الحساب ليس مالكاً" };
+    }
+    if ((account.password ?? "").trim() !== data.password.trim()) {
+      return { ok: false as const, error: "كلمة السر غير صحيحة" };
+    }
+    return { ok: true as const };
+  });
+
+/**
+ * §0.3 — الحصول على رابط القبول (slug) للسنتر الحالي — لتوليد رابط دخول خاص بالسنتر.
+ * (مُكمل لـ /login/$slug إن لم يُحفظ في `cache` بعد.)
+ */
+export const fetchMyCenterSlug = createServerFn({ method: "GET" })
+  .validator((data: { identifier: string }) => data)
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { data: row } = await supabase
+      .from("centers")
+      .select("slug, name, accent_color")
+      .eq("id", centerId)
+      .maybeSingle<{ slug: string | null; name: string; accent_color: string | null }>();
+    return row ?? null;
   });

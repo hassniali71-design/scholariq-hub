@@ -33,6 +33,8 @@ const templateLabel: Record<WhatsAppLog["template"], string> = {
   grade: "درجات",
   homework: "واجب",
   absence: "غياب",
+  award: "وسام",
+  alert: "تنبيه",
 };
 
 function MessagesPage() {

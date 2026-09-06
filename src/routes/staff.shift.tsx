@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Banknote, ClipboardCheck, LockKeyhole, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Banknote, CheckCircle2, ClipboardCheck, LockKeyhole, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { formatCurrency, formatNumber } from "@/lib/format";
 import { closeShift, useDataStore } from "@/lib/data-store";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/shift")({
   head: () => ({
@@ -16,22 +17,38 @@ export const Route = createFileRoute("/staff/shift")({
         name: "description",
         content: "مطابقة النقدية وتقرير نهاية الوردية قبل تسليم الخزنة.",
       },
-      { property: "og:title", content: "تقفيل الوردية — السكرتارية" },
-      {
-        property: "og:description",
-        content: "مطابقة النقدية وإصدار تقرير نهاية الوردية للسنتر.",
-      },
     ],
   }),
   component: ShiftPage,
 });
 
 function ShiftPage() {
-  const { payments, attendanceRecords } = useDataStore();
+  const { payments, attendanceRecords, shiftClosures } = useDataStore();
   const expected = payments.reduce((s, p) => s + p.amount, 0);
   const [counted, setCounted] = useState(expected);
   const [closed, setClosed] = useState(false);
   const diff = counted - expected;
+
+  const last5 = useMemo(() => shiftClosures.slice(0, 5), [shiftClosures]);
+  const avgCounted = last5.length
+    ? last5.reduce((s, c) => s + Number(c.counted), 0) / last5.length
+    : 0;
+  const avgExpected = last5.length
+    ? last5.reduce((s, c) => s + Number(c.expected), 0) / last5.length
+    : 0;
+  const avgDiff = last5.length
+    ? last5.reduce((s, c) => s + Number(c.diff), 0) / last5.length
+    : 0;
+
+  const lastHourAbsent = attendanceRecords.some(
+    (a) =>
+      a.status === "absent" &&
+      (() => {
+        const t = Date.parse(a.checked_in_at);
+        return !Number.isNaN(t) && Date.now() - t < 3600000;
+      })(),
+  );
+  const cleanShift = diff === 0 && !lastHourAbsent && !closed;
 
   return (
     <AppShell role="staff" title="تقفيل الوردية" description="مطابقة النقدية وتسليم تقرير اليوم">
@@ -55,6 +72,13 @@ function ShiftPage() {
           tone={diff === 0 ? "success" : "destructive"}
         />
       </div>
+
+      {cleanShift ? (
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-success/40 bg-success/15 p-3 text-sm font-black text-success">
+          <CheckCircle2 className="size-4" />
+          وردية نظيفة — الخزنة مطابقة ولا حالات غياب في الساعة الأخيرة.
+        </div>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="مطابقة النقدية" description="أدخل المبلغ الفعلي داخل الدرج">
@@ -91,27 +115,74 @@ function ShiftPage() {
           </div>
         </Panel>
 
-        <Panel title="تقرير الوردية" description="ملخص العمليات المرسل للمالك">
-          <div className="space-y-3">
-            {payments.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-black text-foreground">{p.student_name}</p>
-                  <p className="truncate text-xs font-bold text-muted-foreground">{p.item}</p>
-                </div>
-                <span className="font-black text-primary">{formatCurrency(p.amount)}</span>
-              </div>
-            ))}
-            <div className="flex items-center justify-between rounded-xl border-2 border-navy bg-navy p-4 text-navy-foreground">
-              <span className="font-black">الإجمالي المسلَّم</span>
-              <span className="text-xl font-black">{formatCurrency(counted)}</span>
-            </div>
-          </div>
+        <Panel
+          title="مقارنة مع آخر 5 ورديات"
+          description={last5.length ? `متوسط ${formatNumber(last5.length)} ورديات سابقة` : "لا يوجد سجل ورديات بعد"}
+          actions={
+            <span className="flex items-center gap-1 text-xs font-black text-muted-foreground">
+              <TrendingUp className="size-3" /> مرجع
+            </span>
+          }
+        >
+          <table className="w-full text-sm">
+            <thead className="text-xs font-black text-muted-foreground">
+              <tr>
+                <th className="py-2 text-right">البند</th>
+                <th className="py-2 text-right">اليوم</th>
+                <th className="py-2 text-right">المتوسط</th>
+                <th className="py-2 text-right">الفرق</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t border-border">
+                <td className="py-2 font-black">المتوقع</td>
+                <td className="py-2 font-black">{formatCurrency(expected)}</td>
+                <td className="py-2">{formatCurrency(avgExpected)}</td>
+                <td className={cn("py-2", expected - avgExpected >= 0 ? "text-success" : "text-destructive")}>
+                  {expected - avgExpected >= 0 ? "+" : ""}
+                  {formatCurrency(expected - avgExpected)}
+                </td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="py-2 font-black">الفعلي</td>
+                <td className="py-2 font-black">{formatCurrency(counted)}</td>
+                <td className="py-2">{formatCurrency(avgCounted)}</td>
+                <td className={cn("py-2", counted - avgCounted >= 0 ? "text-success" : "text-destructive")}>
+                  {counted - avgCounted >= 0 ? "+" : ""}
+                  {formatCurrency(counted - avgCounted)}
+                </td>
+              </tr>
+              <tr className="border-t border-border">
+                <td className="py-2 font-black">الفرق</td>
+                <td className="py-2 font-black">{formatCurrency(diff)}</td>
+                <td className="py-2">{formatCurrency(avgDiff)}</td>
+                <td className="py-2 text-muted-foreground">—</td>
+              </tr>
+            </tbody>
+          </table>
         </Panel>
       </div>
+
+      <Panel title="تقرير الوردية" description="ملخص العمليات المرسل للمالك">
+        <div className="space-y-3">
+          {payments.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-black text-foreground">{p.student_name}</p>
+                <p className="truncate text-xs font-bold text-muted-foreground">{p.item}</p>
+              </div>
+              <span className="font-black text-primary">{formatCurrency(p.amount)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between rounded-xl border-2 border-navy bg-navy p-4 text-navy-foreground">
+            <span className="font-black">الإجمالي المسلَّم</span>
+            <span className="text-xl font-black">{formatCurrency(counted)}</span>
+          </div>
+        </div>
+      </Panel>
     </AppShell>
   );
 }

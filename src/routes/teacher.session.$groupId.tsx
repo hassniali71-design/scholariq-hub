@@ -1,24 +1,35 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Dices, Send, Timer, X } from "lucide-react";
+import { Navigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
+import { AttendanceRosterBox } from "@/components/teacher/AttendanceRosterBox";
+import { BehaviorScoreColumn } from "@/components/teacher/BehaviorScoreColumn";
+import { CorrectionPanel } from "@/components/teacher/CorrectionPanel";
+import { GroupResourcesPanel } from "@/components/teacher/GroupResourcesPanel";
+import { InteractiveActivityStudio } from "@/components/teacher/InteractiveActivityStudio";
+import { LaunchPanel } from "@/components/teacher/LaunchPanel";
+import { ReviewUploadPanel } from "@/components/teacher/ReviewUploadPanel";
+import { SessionFreeTimer } from "@/components/teacher/SessionFreeTimer";
 import { pickFairly } from "@/components/session/FairRandomPicker";
 import { InteractiveSlideViewer } from "@/components/session/InteractiveSlideViewer";
 import { SessionCurriculumNav } from "@/components/session/SessionCurriculumNav";
+import { SessionLessonPlanBanner } from "@/components/session/SessionLessonPlanBanner";
 import { SessionReviewPanel } from "@/components/session/SessionReviewPanel";
 import {
   BehaviorButtons,
   BookExerciseCard,
   HomeworkStep,
-  LiveScoreboard,
   QuestionCard,
 } from "@/components/session/SessionSteps";
 import { SessionTimer } from "@/components/session/SessionTimer";
 import { TimerExtendDialog } from "@/components/session/TimerExtendDialog";
 import { useContentHash } from "@/hooks/use-content-hash";
 import { useCountdown } from "@/hooks/use-countdown";
+import { useCurrentTeacher } from "@/hooks/use-current-teacher";
+import { useSession } from "@/hooks/use-current-student";
 import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
 import { formatNumber } from "@/lib/format";
 import {
@@ -97,6 +108,34 @@ function SessionMode() {
   /** `beforeLoad` already guarantees this group exists. */
   const group = groups.find((g) => g.id === groupId)!;
   const navigate = useNavigate();
+  /**
+   * Ownership check (Section 0): this group MUST belong to the signed-in
+   * teacher. The previous `beforeLoad` only verified group existence, so any
+   * teacher could open any group's session URL. Now we compare against the
+   * current session's `user_id` (or, belt-and-suspenders, the legacy
+   * `teacher_id` link) and redirect to the teacher dashboard on mismatch.
+   */
+  const teacher = useCurrentTeacher();
+  const session = useSession();
+  /** Login identifier (e.g. "TCH-2001") — يُحفظ في `group_resources.created_by`. */
+  const teacherIdentifier = session?.identifier ?? teacher?.user_id ?? teacher?.id ?? "";
+  useEffect(() => {
+    if (
+      teacher &&
+      group.teacher_id !== teacher.id &&
+      group.teacher_user_id !== teacher.user_id
+    ) {
+      toast.error("هذه المجموعة لا تخص المدرس الحالي");
+      navigate({ to: "/teacher" });
+    }
+  }, [teacher, group, navigate]);
+  if (
+    teacher &&
+    group.teacher_id !== teacher.id &&
+    group.teacher_user_id !== teacher.user_id
+  ) {
+    return <Navigate to="/teacher" />;
+  }
   const sessionStudents = useMemo(
     () => getStudentsForGroup(state, group.id),
     [state.students, group.id],
@@ -472,11 +511,46 @@ function SessionMode() {
         ) : null}
       </header>
 
+      {/*
+        المرحلة A + B + C (1788573108220) — 7 كروت full-width أعلى الصفحة (2×2 + 3):
+        1) الحضور (قراءة فقط)
+        2) روابط المنهج
+        3) الإطلاق
+        4) تصحيح الواجبات المعلّقة
+        5) النشاط التفاعلي (Excel → Kahoot-like)
+        6) المراجعات والقراءة (PDF/صور)
+        7) تايمر الحصة الحر
+        كل كارت max-h داخلي وscroll منفصل.
+      */}
+      <section className="mx-auto max-w-[1700px] px-5 pt-6 md:px-8">
+        <div className="grid gap-4 xl:grid-cols-2">
+          <AttendanceRosterBox groupId={group.id} />
+          <GroupResourcesPanel
+            groupId={group.id}
+            teacherId={group.teacher_id}
+            teacherIdentifier={teacherIdentifier}
+            variant="session"
+          />
+          <LaunchPanel groupId={group.id} teacherId={group.teacher_id} variant="session" />
+          <CorrectionPanel variant="session" />
+          <InteractiveActivityStudio
+            group={group}
+            teacherId={group.teacher_id}
+            sessionId={sessionIdRef.current}
+          />
+          <ReviewUploadPanel group={group} teacherId={group.teacher_id} />
+        </div>
+        <div className="mt-4 grid gap-4 xl:grid-cols-1">
+          <SessionFreeTimer />
+        </div>
+      </section>
+
       <main className="mx-auto max-w-[1700px] px-5 py-6 md:px-8">
         <div className={cn("grid gap-6", isReviewMode ? "xl:grid-cols-[300px_1fr]" : "xl:grid-cols-[300px_1fr_320px]")}>
           {/* CURRICULUM_ENGINE_SPEC.md §13-ب: right column, this group's own curriculum */}
           <aside className="card-crisp p-5">
             <h3 className="mb-4 text-lg font-black">منهج المجموعة</h3>
+            <SessionLessonPlanBanner groupId={group.id} teacherId={group.teacher_id} />
             <SessionCurriculumNav
               units={curriculumUnits}
               getLessonsForUnit={(unitId) => getCurriculumLessonsForUnit(state, unitId)}
@@ -820,35 +894,16 @@ function SessionMode() {
           {!isReviewMode ? (
             <aside className="space-y-6">
               <div className="card-crisp p-5">
-                <h3 className="mb-4 text-lg font-black">لوحة الدرجات اللحظية</h3>
-                <LiveScoreboard scores={scores} />
-              </div>
-
-              <div className="card-crisp p-5">
-                <h3 className="mb-3 text-lg font-black">ملخص الحصة</h3>
-                <div className="space-y-2 text-sm font-extrabold">
-                  <SummaryRow label="الطلاب الحاضرون" value={formatNumber(scores.length)} />
-                  <SummaryRow label="تم تقييم واجبهم" value={formatNumber(evaluated)} />
-                  <SummaryRow label="أسئلة تم رصدها" value={formatNumber(askedCount)} />
-                  <SummaryRow
-                    label="حالة إطلاق المهام"
-                    value={released ? "تم الإرسال" : "لم يُرسل بعد"}
-                  />
-                </div>
+                <h3 className="mb-3 text-lg font-black">عمود السلوك</h3>
+                <p className="mb-3 text-xs font-bold text-muted-foreground">
+                  اضغط على خانة الطالب لتظهر لوحة المفاتيح الرقمية (0..10).
+                </p>
+                <BehaviorScoreColumn students={sessionStudents} showKeyboard={true} compact={true} />
               </div>
             </aside>
           ) : null}
         </div>
       </main>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2.5">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground">{value}</span>
     </div>
   );
 }

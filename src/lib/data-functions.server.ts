@@ -52,6 +52,13 @@ const TABLES = [
   "subject_prices",
   "schedule_slots",
   "tasks",
+  "paper_credits",
+  "paper_transactions",
+  "booklet_sales",
+  "lesson_plans",
+  "group_resources",
+  "teacher_launches",
+  "homework_attempts",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -195,6 +202,14 @@ async function fetchAllTablesForCenter(centerId: string) {
     payrollRecords,
     subjectPrices,
     scheduleSlots,
+    tasks,
+    paperCredits,
+    paperTransactions,
+    bookletSales,
+    lessonPlans,
+    groupResources,
+    teacherLaunches,
+    homeworkAttempts,
   ] = await Promise.all([
     optional("center_finance_settings"),
     optional("safe_handovers"),
@@ -205,6 +220,14 @@ async function fetchAllTablesForCenter(centerId: string) {
     optional("payroll_records"),
     optional("subject_prices"),
     optional("schedule_slots"),
+    optional("tasks"),
+    optional("paper_credits"),
+    optional("paper_transactions"),
+    optional("booklet_sales"),
+    optional("lesson_plans"),
+    optional("group_resources"),
+    optional("teacher_launches"),
+    optional("homework_attempts"),
   ]);
 
   if (centerRow.error) {
@@ -231,6 +254,14 @@ async function fetchAllTablesForCenter(centerId: string) {
     payrollRecords,
     subjectPrices,
     scheduleSlots,
+    tasks,
+    paperCredits,
+    paperTransactions,
+    bookletSales,
+    lessonPlans,
+    groupResources,
+    teacherLaunches,
+    homeworkAttempts,
   } as unknown as {
     centerId: string;
     center: {
@@ -250,7 +281,15 @@ async function fetchAllTablesForCenter(centerId: string) {
       | "expenses"
       | "payrollRecords"
       | "subjectPrices"
-      | "scheduleSlots",
+      | "scheduleSlots"
+      | "tasks"
+      | "paperCredits"
+      | "paperTransactions"
+      | "bookletSales"
+      | "lessonPlans"
+      | "groupResources"
+      | "teacherLaunches"
+      | "homeworkAttempts",
       unknown[]
     >;
 }
@@ -406,4 +445,236 @@ export const deleteRows = createServerFn({ method: "POST" })
     }
     const { error } = await query;
     if (error) throw new Error(error.message);
+  });
+
+/* ---------------- 0019: lesson_plans (teacher-owned) + platform_teacher_notes (cross-tenant) ---------------- */
+
+/** جلب خطط الدروس لمدرس معيّن في مركزه الحالي. */
+export const fetchLessonPlans = createServerFn({ method: "GET", strict: { output: false } })
+  .validator((data: { identifier: string; teacherId: string }) => data)
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { data: rows, error } = await supabase
+      .from("lesson_plans")
+      .select("*")
+      .eq("center_id", centerId)
+      .eq("teacher_id", data.teacherId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+/** upsert خطة درس (إنشاء أو تحديث). */
+export const upsertLessonPlanRow = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      row: {
+        id: string;
+        center_id: string;
+        teacher_id: string;
+        group_id: string;
+        lesson_name: string;
+        unit?: string | null;
+        notes?: string | null;
+        prepared_at?: string | null;
+        prepared_done?: boolean;
+        taught_at?: string | null;
+        taught_done?: boolean;
+        created_at: string;
+        updated_at: string;
+      };
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const row = { ...data.row, center_id: centerId };
+    const { error } = await supabase
+      .from("lesson_plans")
+      .upsert(row, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** حذف خطة درس. */
+export const deleteLessonPlanRow = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; id: string }) => data)
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("lesson_plans")
+      .delete()
+      .eq("center_id", centerId)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** جلب رسائل مدير المنصة لمادة معيّنة — **بدون فلتر center_id** (عبر كل المراكز). */
+export const fetchPlatformTeacherNotes = createServerFn({ method: "GET", strict: { output: false } })
+  .validator((data: { identifier: string; subjectId: string }) => data)
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseAdmin();
+    const { data: rows, error } = await supabase
+      .from("platform_teacher_notes")
+      .select("*")
+      .eq("subject_id", data.subjectId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+/** upsert رسالة مدير المنصة. */
+export const upsertPlatformTeacherNote = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      row: {
+        id: string;
+        subject_id: string;
+        body: string;
+        author_identifier: string;
+        author_name: string;
+        created_at: string;
+        updated_at: string;
+      };
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("platform_teacher_notes")
+      .upsert(data.row, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** حذف رسالة مدير المنصة. */
+export const deletePlatformTeacherNote = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; id: string }) => data)
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("platform_teacher_notes")
+    .delete()
+    .eq("id", data.id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+});
+
+/* ---------------- 0020: groups real source (createGroup / updateGroup / deleteGroup + addStudentToGroup / removeStudentFromGroup) ---------------- */
+
+/** إنشاء مجموعة جديدة (المصدر الوحيد = جدول groups). */
+export const createGroupRow = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      row: {
+        id: string;
+        center_id: string;
+        name: string;
+        subject: string;
+        subject_id: string;
+        teacher_name: string;
+        teacher_id: string;
+        grade: string;
+        grade_id: string;
+        weekday: string;
+        time: string;
+        room: string;
+        enrolled: number;
+        capacity: number;
+        scheduling_status: "pending" | "scheduled";
+        created_at: string;
+        notes?: string | null;
+      };
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const row = { ...data.row, center_id: centerId };
+    await withColumnFallback(row, async (r) => {
+      const { error } = await supabase.from("groups").insert(r);
+      return { error };
+    });
+    return { ok: true };
+  });
+
+/** تحديث مجموعة (capacity / notes / scheduling fields). */
+export const updateGroupRow = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      id: string;
+      patch: Record<string, unknown>;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    await withColumnFallback(data.patch, async (patch) => {
+      const { error } = await supabase
+        .from("groups")
+        .update(patch)
+        .eq("id", data.id)
+        .eq("center_id", centerId);
+      return { error };
+    });
+    return { ok: true };
+  });
+
+/** حذف مجموعة. */
+export const deleteGroupRow = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; id: string }) => data)
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("groups")
+      .delete()
+      .eq("center_id", centerId)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** إضافة طالب إلى مجموعة (يحدّث group_id و group_name). */
+export const addStudentToGroupRow = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      identifier: string;
+      studentId: string;
+      groupId: string;
+      groupName: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("students")
+      .update({ group_id: data.groupId, group_name: data.groupName })
+      .eq("center_id", centerId)
+      .eq("id", data.studentId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** إزالة طالب من مجموعة (يعود إلى "بدون مجموعة"). */
+export const removeStudentFromGroupRow = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; studentId: string }) => data)
+  .handler(async ({ data }) => {
+    const centerId = await resolveCenterId(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("students")
+      .update({ group_id: null, group_name: "بدون مجموعة" })
+      .eq("center_id", centerId)
+      .eq("id", data.studentId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

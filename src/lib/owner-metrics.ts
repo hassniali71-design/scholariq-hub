@@ -91,7 +91,9 @@ export function buildTeacherPerformance(state: DataState): TeacherPerformanceRow
   return state.teachers.map((t) => {
     const groups = state.groups.filter((g) => g.teacher_id === t.id);
     const groupNames = new Set(groups.map((g) => g.name));
-    const students = state.students.filter((s) => s.subject_ids.includes(t.subject_id));
+    const students = t.subject_id
+      ? state.students.filter((s) => s.subject_ids.includes(t.subject_id!))
+      : [];
 
     const attendanceForTeacher = state.attendanceRecords.filter((a) =>
       groupNames.has(a.group_name),
@@ -195,10 +197,20 @@ export function buildActiveGroupsNow(state: DataState, now = new Date()): Active
     .map((g) => {
       const start = parseSlotMinutes(g.time);
       const started = start !== null && nowMinutes >= start;
+      /**
+       * Section 0 fix: the previous code matched `attendanceRecords` by
+       * `group_name` and `homeworkTasks` by `subject` — both string fields
+       * that silently cross-attributed activity when two groups shared a
+       * name/subject. Now strictly by `group_id` (the immutable join key)
+       * via `sessionRecords` and any attendance linked to a student in
+       * this group.
+       */
+      const studentsInGroup = new Set(
+        state.students.filter((s) => s.group_id === g.id).map((s) => s.id),
+      );
       const activated =
-        state.attendanceRecords.some((a) => a.group_name === g.name) ||
         state.sessionRecords.some((s) => s.group_id === g.id) ||
-        state.homeworkTasks.some((h) => h.subject === g.subject && h.status !== "pending");
+        state.attendanceRecords.some((a) => studentsInGroup.has(a.student_id));
       const lateMinutes = started && !activated && start !== null ? nowMinutes - start : 0;
       return { group: g, started, activated, lateMinutes };
     })
@@ -252,21 +264,13 @@ export function buildDecisionAlerts(state: DataState, now = new Date()): Decisio
     });
   }
 
-  // 4) نقص المخزون أو بنك الأسئلة.
+  // 4) نقص المخزون — لم نعد نُنبّه على "بنك الأسئلة" (خارج النطاق بعد التشخيص).
   for (const b of state.booklets.filter((b) => b.in_stock <= 5)) {
     alerts.push({
       id: `stk-${b.id}`,
       severity: b.in_stock === 0 ? "critical" : "warning",
       title: `نقص مخزون: ${b.title}`,
       body: `المتبقي ${b.in_stock} نسخة فقط · ${b.subject}`,
-    });
-  }
-  if (state.sessionQuestions.length < 10) {
-    alerts.push({
-      id: "qbank",
-      severity: "warning",
-      title: "بنك الأسئلة شبه فاضي",
-      body: `${state.sessionQuestions.length} سؤال فقط متاح لوضع الحصة`,
     });
   }
 
@@ -289,7 +293,9 @@ export interface TeacherFinanceRow {
 export function buildTeacherFinance(state: DataState): TeacherFinanceRow[] {
   return state.teachers
     .map((t) => {
-      const students = state.students.filter((s) => s.subject_ids.includes(t.subject_id));
+      const students = t.subject_id
+        ? state.students.filter((s) => s.subject_ids.includes(t.subject_id!))
+        : [];
       const codes = new Set(students.map((s) => s.code));
       const revenue = state.payments
         .filter((p) => codes.has(p.student_code))
@@ -308,4 +314,65 @@ export function buildTeacherFinance(state: DataState): TeacherFinanceRow[] {
       };
     })
     .sort((a, b) => b.net - a.net);
+}
+
+/* ---------------- §0.3 — مؤشرات أسبوعية حقيقية من أفعال المدرس ---------------- */
+
+function weekStart(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 6); // آخر 7 أيام
+  return d.getTime();
+}
+
+function isThisWeek(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && t >= weekStart();
+}
+
+export interface TeacherWeeklyMetrics {
+  homeworkLaunchedWeek: number;
+  homeworkGradedWeek: number;
+  engagementWeek: number;
+}
+
+/** يُحسب من أفعال المدرس الفعلية في آخر 7 أيام. */
+export function buildTeacherWeeklyMetrics(
+  state: DataState,
+  teacherId: string,
+): TeacherWeeklyMetrics {
+  // 1) إطلاق واجبات هذا الأسبوع — assessmentScores من المدرس هذا الأسبوع بنوع homework أو e_homework
+  const homeworkLaunchedWeek = state.assessmentScores.filter(
+    (a) =>
+      a.recorded_by_teacher_id === teacherId &&
+      (a.category === "homework" || a.category === "e_homework") &&
+      isThisWeek(a.recorded_at),
+  ).length;
+
+  // 2) تصحيح/متابعة واجبات — homeworkTasks بحالة !== pending تم إنشاؤها هذا الأسبوع
+  // (لا توجد teacher_id مباشرة في homeworkTasks — نستعمل المواد كمؤشر).
+  const teacher = state.teachers.find((t) => t.id === teacherId);
+  const homeworkGradedWeek = teacher
+    ? state.homeworkTasks.filter(
+        (h) =>
+          h.subject === teacher.subject &&
+          h.status !== "pending" &&
+          isThisWeek(h.created_at),
+      ).length
+    : 0;
+
+  // 3) التفاعل مع الطلاب — randomPickLogs (سحب عشوائي) + teacherNotes (ملاحظات)
+  const engagementWeek =
+    state.randomPickLogs.filter(
+      (r) =>
+        state.sessionRecords.some(
+          (s) => s.teacher_id === teacherId && s.id === r.session_id,
+        ) && isThisWeek(r.picked_at),
+    ).length +
+    state.teacherNotes.filter(
+      (n) => n.teacher_id === teacherId && isThisWeek(n.date),
+    ).length;
+
+  return { homeworkLaunchedWeek, homeworkGradedWeek, engagementWeek };
 }

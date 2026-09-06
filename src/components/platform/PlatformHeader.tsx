@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Building2, LogOut, Users } from "lucide-react";
+import { Building2, LogOut, ScrollText, Users } from "lucide-react";
 
 import { signOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ export function PlatformHeader({
 }: {
   title: string;
   subtitle: string;
-  active: "clients" | "new-center";
+  active: "clients" | "new-center" | "teacher-notes";
 }) {
   const navigate = useNavigate();
 
@@ -52,6 +52,15 @@ export function PlatformHeader({
             )}
           >
             <Building2 className="size-4" /> إضافة عميل جديد
+          </Link>
+          <Link
+            to="/platform/teacher-notes"
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black transition-colors",
+              active === "teacher-notes" ? "bg-white/20" : "hover:bg-white/10",
+            )}
+          >
+            <ScrollText className="size-4" /> مقاولات المدرسين
           </Link>
         </nav>
         <button

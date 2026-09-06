@@ -1,11 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock, TrendingDown, TrendingUp, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { BEHAVIOR_LEVELS } from "@/components/session/SessionSteps";
+import { AwardsAndAlertsPanel } from "@/components/teacher/AwardsAndAlertsPanel";
+import { BehaviorScoreColumn } from "@/components/teacher/BehaviorScoreColumn";
+import { GroupMetricsPanel } from "@/components/teacher/GroupMetricsPanel";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
+import { BarChart } from "@/components/ui/BarChart";
 import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import { formatNumber, formatPercent } from "@/lib/format";
 import {
@@ -42,21 +47,38 @@ const ALL = "all" as const;
 function AssessmentsPage() {
   const state = useDataStore();
   const teacher = useCurrentTeacher();
+  useEffect(() => {
+    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [teacher]);
+  if (!teacher) return <Navigate to="/login" />;
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const grades = useMemo(
-    () => Array.from(new Set(myGroups.map((g) => g.grade))),
+    () =>
+      Array.from(
+        new Set(
+          myGroups
+            .map((g) => g.grade)
+            .filter((x): x is string => typeof x === "string" && x.trim().length > 0),
+        ),
+      ),
     [myGroups],
   );
 
   const [gradeFilter, setGradeFilter] = useState<string | typeof ALL>(ALL);
   const [groupFilter, setGroupFilter] = useState<string | typeof ALL>(ALL);
 
-  const gradeGroups = gradeFilter === ALL ? myGroups : myGroups.filter((g) => g.grade === gradeFilter);
-  const visibleGroups = groupFilter === ALL ? gradeGroups : gradeGroups.filter((g) => g.id === groupFilter);
+  const gradeGroups =
+    gradeFilter === ALL ? myGroups : myGroups.filter((g) => g.grade === gradeFilter);
+  const visibleGroups =
+    groupFilter === ALL ? gradeGroups : gradeGroups.filter((g) => g.id === groupFilter);
   const visibleStudents = useMemo(
     () => visibleGroups.flatMap((g) => getStudentsForGroup(state, g.id)),
     [visibleGroups, state.students],
   );
+
+  // المجموعة المختارة فعلياً (عند الفلتر بمجموعة واحدة) — للـ 8 كروت.
+  const selectedGroup: Group | null =
+    groupFilter === ALL ? null : visibleGroups[0] ?? null;
 
   const scoreOf = (studentId: string, category: "homework" | "activity" | "behavior") =>
     getAssessmentScore(state, studentId, category);
@@ -115,6 +137,39 @@ function AssessmentsPage() {
         />
       </div>
 
+      {selectedGroup ? (
+        <>
+          <Panel
+            title={`بطاقات وصفية — ${selectedGroup.name}`}
+            description="8 مؤشرات حقيقية لمجموعة معيّنة"
+          >
+            <GroupMetricsPanel group={selectedGroup} />
+          </Panel>
+        </>
+      ) : null}
+
+      <Panel
+        title="الأوسمة والتنبيهات"
+        description="للمتفوقين: وسام تشجيعي · للضعاف: تنبيه لولي الأمر / حديث فردي / ملاحظة"
+      >
+        <AwardsAndAlertsPanel teacherId={teacher.id} students={visibleStudents} />
+      </Panel>
+
+      {/*
+        Migration 0023 / خطة B (B7): عمود السلوك التفاعلي — المدرس يضغط على خانة
+        الطالب لتظهر لوحة المفاتيح الرقمية 0..10.
+      */}
+      {visibleStudents.length > 0 ? (
+        <Panel
+          title="درجة السلوك (قابلة للتعديل)"
+          description="اضغط على خانة الطالب لتظهر لوحة المفاتيح الرقمية 0..10"
+        >
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <BehaviorScoreColumn students={visibleStudents} />
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel title="سجل الحضور" description="آخر الحصص المسجَّلة لكل مجموعة — قراءة فقط">
         <AttendanceGrid state={state} groups={visibleGroups} />
       </Panel>
@@ -149,8 +204,12 @@ function AssessmentsPage() {
                   return (
                     <tr key={s.id} className="border-b border-border last:border-0">
                       <td className="py-3 font-black text-foreground">{s.full_name}</td>
-                      <td className="py-3 font-extrabold">{formatPercent(s.attendance_rate)}</td>
-                      <td className="py-3 font-black text-primary">{formatNumber(s.avg_score)}</td>
+                      <td className="min-w-[120px] py-3">
+                        <BarChart value={s.attendance_rate} />
+                      </td>
+                      <td className="min-w-[120px] py-3">
+                        <BarChart value={s.avg_score} />
+                      </td>
                       <td className="py-3 font-bold text-muted-foreground">
                         {homework ? `${formatNumber(homework.value)}/${formatNumber(homework.max_value)}` : "—"}
                       </td>

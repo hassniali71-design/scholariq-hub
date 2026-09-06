@@ -40,6 +40,7 @@ import type {
   AttendanceStatus,
   BookExerciseTask,
   BookletItem,
+  BookletSale,
   CenterNotification,
   CurriculumLesson,
   CurriculumUnit,
@@ -48,19 +49,25 @@ import type {
   Grade,
   GradeSubject,
   Group,
+  GroupResource,
+  HomeworkAttempt,
   HomeworkTask,
   LeaderboardEntry,
   Lesson,
   LessonSlide,
   LiveScore,
+  PaperCredit,
+  PaperTransaction,
   PaymentMethod,
   PaymentRecord,
   QuizQuestion,
   PayrollRecord,
+  PayrollBasis,
   QuizResult,
   RandomPickLog,
   ScheduleSlot,
   StudentBillingPlan,
+  MonthlyClosing,
   SubjectPrice,
   SafeHandover,
   SessionEvent,
@@ -68,6 +75,8 @@ import type {
   SessionStepKey,
   StaffPermissionKey,
   StaffPermissionRecord,
+  LessonPlan,
+  PlatformTeacherNote,
   Student,
   Subject,
   SuggestedActivity,
@@ -77,6 +86,7 @@ import type {
   TaskStatus,
   TaskType,
   Teacher,
+  TeacherLaunch,
   TeacherNote,
   TimerExtension,
   WhatsAppLog,
@@ -289,6 +299,21 @@ export interface DataState {
   scheduleSlots: ScheduleSlot[];
   /* نظام المهام (db/0012) */
   tasks: Task[];
+  /* مخزون الورق ومبيعات الملازم (db/0017/0018) */
+  paperCredits: PaperCredit[];
+  paperTransactions: PaperTransaction[];
+  bookletSales: BookletSale[];
+  /* خطط الدروس ورسائل مدير المنصة (db/0019) */
+  lessonPlans: LessonPlan[];
+  platformTeacherNotes: PlatformTeacherNote[];
+  /** Migration 0022: monthly closing snapshots for the treasury "إغلاق شهري" feature. */
+  monthlyClosings: MonthlyClosing[];
+  /** Migration 0023 (المرحلة A): روابط شرح/PDF/مرفقات لكل مجموعة. */
+  groupResources: GroupResource[];
+  /** Migration 0023 (المرحلة A): الإطلاقات (واجبات، أنشطة، اختبارات تفاعلية، مراجعات). */
+  teacherLaunches: TeacherLaunch[];
+  /** Migration 0023 (المرحلة A): محاولات الطلاب على الواجبات الإلكترونية. */
+  homeworkAttempts: HomeworkAttempt[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -389,6 +414,15 @@ function seedState(): DataState {
     subjectPrices: [],
     scheduleSlots: [],
     tasks: [],
+    paperCredits: [],
+    paperTransactions: [],
+    bookletSales: [],
+    lessonPlans: [],
+    platformTeacherNotes: [],
+    monthlyClosings: [],
+    groupResources: [],
+    teacherLaunches: [],
+    homeworkAttempts: [],
   };
 }
 
@@ -420,18 +454,43 @@ export function subscribeData(listener: () => void) {
 let hydratedForIdentifier: string | null = null;
 let hydrating = false;
 
+export function isHydrating(): boolean {
+  return hydrating;
+}
+
+/**
+ * §0 fix — Drop the in-memory cache to the seed placeholder so `useSyncExternalStore`
+ * can't paint the previous tenant's rows for the RTT between the identifier change and
+ * the Supabase response. We also force `hydratedForIdentifier = null` (so the next
+ * `bootstrapFromSupabase` does a real fetch) and emit so React re-renders immediately
+ * with the empty placeholder. Without this, a refresh or a signOut→signIn-as-other-tenant
+ * flashes the *previous* center's data for ~50-300ms.
+ */
+function resetCacheToPlaceholder() {
+  if (cache === null) cache = seedState();
+  else cache = seedState();
+  hydratedForIdentifier = null;
+  emit();
+}
+
 function bootstrapFromSupabase() {
   if (!USE_SUPABASE || typeof window === "undefined") return;
   const identifier = currentIdentifier();
 
   if (!identifier) {
     if (hydratedForIdentifier !== null) {
-      hydratedForIdentifier = null;
-      cache = seedState();
+      resetCacheToPlaceholder();
     }
     return;
   }
-  if (hydrating || hydratedForIdentifier === identifier) return;
+  if (hydrating) return;
+  if (hydratedForIdentifier === identifier) return;
+
+  // §0 fix — identifier changed (refresh after signOut, or a new tenant signing in).
+  // Wipe the cache *before* kicking off the fetch so the UI never paints stale rows.
+  if (hydratedForIdentifier !== null && hydratedForIdentifier !== identifier) {
+    resetCacheToPlaceholder();
+  }
 
   hydrating = true;
   fetchCenterData({ data: { identifier } })
@@ -547,9 +606,24 @@ export function resolveCurrentStudent(state: DataState, identifier?: string | nu
  * teacher account used to resolve to `teachers[0]` regardless of who
  * actually logged in.
  */
-export function resolveCurrentTeacher(state: DataState, identifier?: string | null): Teacher {
-  const match = identifier ? state.teachers.find((t) => t.user_id === identifier) : undefined;
-  return match ?? state.teachers[0]!;
+/**
+ * Resolves the teacher the current session belongs to, by login identifier
+ * (`Teacher.user_id`, same join-key mechanism as `Student.code` above —
+ * `Session` never carries a real account id, only `identifier`).
+ *
+ * Returns `null` when no match — caller MUST handle this. The previous
+ * `?? state.teachers[0]!` fallback caused the cross-teacher flash bug:
+ * during SSR / pre-hydration `useSession()` is `null`, so every teacher
+ * saw the seeded `tc-1` ("أ. علي حسونة") for ~3s after navigation.
+ * Returning `null` forces consumers to redirect instead of silently
+ * rendering another teacher's data.
+ */
+export function resolveCurrentTeacher(
+  state: DataState,
+  identifier?: string | null,
+): Teacher | null {
+  if (!identifier) return null;
+  return state.teachers.find((t) => t.user_id === identifier) ?? null;
 }
 
 export interface CreateStudentInput {
@@ -670,6 +744,9 @@ export interface CreateTeacherInput {
   subjectId: string;
   /** المراحل التي يدرّسها المدرس — يسمح بأكثر من مرحلة (ابتدائي/إعدادي/ثانوي). */
   stages?: ("primary" | "prep" | "secondary")[];
+  /** §0.3 — الراتب المتوقع (المتفق عليه). لا يُخصم من الخزنة — الخصم الفعلي عند الدفع. */
+  expectedSalaryBasis?: PayrollBasis;
+  expectedSalaryValue?: number;
 }
 
 /**
@@ -700,6 +777,8 @@ export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
     monthly_revenue: 0,
     stages,
     primary_stage: stages[0]!,
+    expected_salary_basis: input.expectedSalaryBasis,
+    expected_salary_value: input.expectedSalaryValue ?? 0,
   };
 
   update((s) => ({ ...s, teachers: [...s.teachers, teacher] }));
@@ -714,8 +793,25 @@ export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
  * Always filter internally; never return another teacher's rows, even for a
  * bad/missing id (empty array, not an error that would leak existence).
  */
+/**
+ * Teacher-scoped reads — the logical equivalent of Supabase RLS on `teacher_id`
+ * until a real backend exists (see CLAUDE.md §4-د / TEACHER_MODULE_SPEC.md §4-د).
+ * Always filter internally; never return another teacher's rows, even for a
+ * bad/missing id (empty array, not an error that would leak existence).
+ *
+ * Migration 0022: dual-key match — `teacher_id` (legacy) OR `teacher_user_id`
+ * (added in 0022). Survives the client/server `id` divergence when a Supabase
+ * bootstrap replaces a teacher record with a server-minted id while old
+ * `Group.teacher_id` values still hold the client-minted one.
+ */
 export function getGroupsForTeacher(state: DataState, teacherId: string): Group[] {
-  return state.groups.filter((g) => g.teacher_id === teacherId);
+  const teacher = state.teachers.find((t) => t.id === teacherId);
+  const teacherUserId = teacher?.user_id ?? null;
+  return state.groups.filter(
+    (g) =>
+      g.teacher_id === teacherId ||
+      (teacherUserId !== null && g.teacher_user_id === teacherUserId),
+  );
 }
 
 export function getStudentsForTeacher(state: DataState, teacherId: string): Student[] {
@@ -725,6 +821,17 @@ export function getStudentsForTeacher(state: DataState, teacherId: string): Stud
 
 export function getStudentsForGroup(state: DataState, groupId: string): Student[] {
   return state.students.filter((s) => s.group_id === groupId);
+}
+
+/** كل التقييمات المسجَّلة لكل طلاب مجموعة معيّنة (يُستخدم في GroupMetricsPanel). */
+export function getAssessmentScoresForGroup(
+  state: DataState,
+  groupId: string,
+): AssessmentScore[] {
+  const studentIds = new Set(
+    state.students.filter((s) => s.group_id === groupId).map((s) => s.id),
+  );
+  return state.assessmentScores.filter((a) => studentIds.has(a.student_id));
 }
 
 /** A group's past sessions, newest-first (§18-3's attendance grid columns). */
@@ -1078,6 +1185,87 @@ export function recordAttendance(
   if (event) syncInsert("session_events", event);
 }
 
+/**
+ * Migration 0023 / خطة C (C14): "بدأت الحصة" — الموظف يفتح الحصة ويُسجّل
+ * كل طلاب المجموعة كـ "حاضر" في انتظار تأكيد المدرس. لا يمسح الحالات
+ * اليدوية الموجودة (المتأخر/الغائب) — فقط الطلاب بلا سجل لليوم.
+ *
+ * sessionId يُربط بـ `sess-${Date.now()}` للاستخدام في SessionEvent
+ * و `getAttendanceForSession` لاحقاً.
+ */
+export function startGroupSession(groupId: string): { sessionId: string; marked: number } {
+  const sessionId = `sess-${Date.now()}`;
+  const state = readState();
+  const students = getStudentsForGroup(state, groupId);
+  let marked = 0;
+  for (const s of students) {
+    // تخطّي الطلاب اللي عندهم سجل حضور/تأخر لليوم
+    const alreadyToday = state.attendanceRecords.some((r) => {
+      if (r.student_id !== s.id) return false;
+      return r.checked_in_at && r.checked_in_at !== "—";
+    });
+    if (alreadyToday) continue;
+    recordAttendance(s.id, "present", "manual", sessionId);
+    marked += 1;
+  }
+  return { sessionId, marked };
+}
+
+/**
+ * Migration 0023 / خطة C (C14): قائمة المجموعات اللي حصّتها "النهارده/قريباً"
+ * بناءً على `scheduleSlots.weekday` و `time`. تُستخدم في بوابة الكاشير
+ * للموظف ليتحمّس لبدء الحصة.
+ */
+export interface UpcomingGroup {
+  group: Group;
+  teacher: Teacher | undefined;
+  /** "now" = الحصة الجارية (يوم مطابق + الوقت ±30 دقيقة). "today" = باقي اليوم. */
+  status: "now" | "today" | "later";
+  /** كم دقيقة تفصلنا عن وقت الحصة. */
+  minutesUntil: number;
+  /** عدد الطلاب اللي تم تسجيل حضورهم اليوم بالفعل. */
+  attendanceMarkedToday: number;
+}
+
+export function getUpcomingGroupsForToday(
+  state: DataState,
+  now: Date = new Date(),
+): UpcomingGroup[] {
+  const weekday = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][now.getDay()] ?? "";
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const result: UpcomingGroup[] = [];
+  for (const slot of state.scheduleSlots) {
+    if (!slot.group_id) continue;
+    const group = state.groups.find((g) => g.id === slot.group_id);
+    if (!group) continue;
+    if (slot.weekday !== weekday) continue;
+    const parts = (slot.time ?? "0:0").split(":");
+    const hh = Number(parts[0]) || 0;
+    const mm = Number(parts[1]) || 0;
+    const slotMin = hh * 60 + mm;
+    const delta = slotMin - nowMin;
+    let status: UpcomingGroup["status"];
+    if (delta >= -30 && delta <= 30) status = "now";
+    else if (delta > 30 && delta <= 24 * 60) status = "today";
+    else status = "later";
+    const teacher = state.teachers.find((t) => t.id === group.teacher_id);
+    const attendanceMarkedToday = state.attendanceRecords.filter((r) => {
+      if (r.student_id == null) return false;
+      const stu = state.students.find((s) => s.id === r.student_id);
+      return stu?.group_id === group.id && r.checked_in_at && r.checked_in_at !== "—";
+    }).length;
+    result.push({ group, teacher, status, minutesUntil: delta, attendanceMarkedToday });
+  }
+  // ترتيب: الحصة اللي وقتها دلوقتي أولاً، ثم الأقرب
+  result.sort((a, b) => {
+    if (a.status === "now" && b.status !== "now") return -1;
+    if (b.status === "now" && a.status !== "now") return 1;
+    return Math.abs(a.minutesUntil) - Math.abs(b.minutesUntil);
+  });
+  return result;
+}
+
+
 /** The recorded status for a student in one specific past session — a grid cell (§18-3). */
 export function getAttendanceForSession(
   state: DataState,
@@ -1146,6 +1334,7 @@ export function recordPayment(
   amount: number,
   method: PaymentMethod,
   item: string,
+  referenceNumber?: string | null,
 ) {
   let payment: PaymentRecord | null = null;
   let log: WhatsAppLog | null = null;
@@ -1155,6 +1344,8 @@ export function recordPayment(
   update((state) => {
     const student = findStudentByCode(state, studentCode);
     if (!student) return state;
+    const ref = referenceNumber?.trim() ?? "";
+    const finalItem = method === "cash" || !ref ? item : `${item} | مرجع: ${ref}`;
     payment = {
       id: `pm-${Date.now()}`,
       center_id: student.center_id,
@@ -1162,7 +1353,7 @@ export function recordPayment(
       student_code: student.code,
       amount,
       method,
-      item,
+      item: finalItem,
       created_at: nowTime(),
     };
     const remaining = Math.max(0, student.balance_due - amount);
@@ -1225,6 +1416,669 @@ export function deliverBooklet(bookletId: string) {
   if (nextInStock !== null) {
     syncUpdate("booklets", bookletId, { in_stock: nextInStock, delivered: nextDelivered });
   }
+}
+
+/* ---------------- §1 — بوابة الحضور (mutator مخصص بنوافذ 10/50) ---------------- */
+
+const ATTENDANCE_GRACE_MIN = 10;
+const ATTENDANCE_WINDOW_MIN = 50;
+
+function parseSlotToMs(time: string, now: Date): number | null {
+  const match = /(\d{1,2})[:.](\d{2})/.exec(time);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (/م|pm/i.test(time) && hours < 12) hours += 12;
+  if (/ص|am/i.test(time) && hours === 12) hours = 0;
+  const d = new Date(now);
+  d.setHours(hours, minutes, 0, 0);
+  return d.getTime();
+}
+
+export type MarkAttendanceResult = "ok" | "WINDOW_CLOSED" | "STUDENT_NOT_FOUND" | "GROUP_NOT_FOUND";
+
+/**
+ * Mutator مخصص لبوابة الحضور (staff.index.tsx):
+ *  - نافذة 10 دقائق: أي تسجيل = `present` بدون late_minutes.
+ *  - 11-50 دقيقة: لو الطالب مسجَّل absent وضُغط "حضور" → late مع دقائق.
+ *  - بعد 50 دقيقة: الزرارين معطلين + تُسجَّل absence تلقائياً.
+ *  - `checked_in_at` يُكتب ISO كامل (timestamp مع وقت/ثانية) لتطابق عمود timestamptz.
+ */
+export function markAttendanceForGroup(
+  groupId: string,
+  studentId: string,
+  intent: "present" | "absent",
+): MarkAttendanceResult {
+  let result: MarkAttendanceResult = "ok";
+  let record: AttendanceRecord | null = null;
+  let log: WhatsAppLog | null = null;
+  update((state) => {
+    const group = state.groups.find((g) => g.id === groupId);
+    if (!group) {
+      result = "GROUP_NOT_FOUND";
+      return state;
+    }
+    const student = state.students.find((s) => s.id === studentId);
+    if (!student) {
+      result = "STUDENT_NOT_FOUND";
+      return state;
+    }
+    const now = new Date();
+    const startMs = parseSlotToMs(group.time, now);
+    const elapsedMin = startMs ? (now.getTime() - startMs) / 60000 : 0;
+
+    const existing = state.attendanceRecords.find(
+      (a) =>
+        a.student_id === studentId &&
+        a.group_name === group.name &&
+        sameDay(a.checked_in_at, now),
+    );
+
+    if (existing?.locked) {
+      result = "WINDOW_CLOSED";
+      return state;
+    }
+
+    let status: AttendanceStatus;
+    let lateMinutes = 0;
+    if (elapsedMin > ATTENDANCE_WINDOW_MIN) {
+      if (!existing) {
+        status = "absent";
+        record = {
+          id: `at-${Date.now()}`,
+          center_id: student.center_id,
+          student_id: student.id,
+          student_name: student.full_name,
+          group_name: group.name,
+          status,
+          checked_in_at: "—",
+          method: "manual",
+          session_id: null,
+          late_minutes: 0,
+          locked: true,
+        };
+        const lateLog: WhatsAppLog = {
+          id: `wa-${Date.now()}`,
+          center_id: student.center_id,
+          student_id: student.id,
+          sent_at: todayLabel(),
+          template: "absence",
+          message: `تنبيه: لم يتم تسجيل حضور الطالب ${student.full_name} في حصة ${group.name}.`,
+          delivered: true,
+        };
+        log = lateLog;
+        result = "WINDOW_CLOSED";
+        return {
+          ...state,
+          attendanceRecords: [record, ...state.attendanceRecords],
+          whatsappLogs: [lateLog, ...state.whatsappLogs],
+        };
+      }
+      result = "WINDOW_CLOSED";
+      return state;
+    }
+
+    if (intent === "absent") {
+      status = "absent";
+    } else if (existing?.status === "absent") {
+      if (elapsedMin > ATTENDANCE_GRACE_MIN) {
+        status = "late";
+        lateMinutes = Math.max(1, Math.round(elapsedMin));
+      } else {
+        status = "present";
+      }
+    } else {
+      status = elapsedMin > ATTENDANCE_GRACE_MIN ? "late" : "present";
+      if (status === "late") lateMinutes = Math.max(1, Math.round(elapsedMin));
+    }
+
+    record = {
+      id: existing?.id ?? `at-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      student_name: student.full_name,
+      group_name: group.name,
+      status,
+      checked_in_at: status === "absent" ? "—" : new Date().toISOString(),
+      method: "manual",
+      session_id: null,
+      late_minutes: lateMinutes,
+      locked: elapsedMin > ATTENDANCE_WINDOW_MIN,
+    };
+
+    log = {
+      id: `wa-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      sent_at: todayLabel(),
+      template: status === "absent" ? "absence" : "attendance",
+      message:
+        status === "absent"
+          ? `تنبيه: لم يتم تسجيل حضور الطالب ${student.full_name} في حصة ${group.name}.`
+          : `تم تسجيل حضور الطالب ${student.full_name} في حصة ${group.name}.`,
+      delivered: true,
+    };
+
+    const attendanceRecords = existing
+      ? state.attendanceRecords.map((a) => (a.id === existing.id ? record! : a))
+      : [record, ...state.attendanceRecords];
+    return {
+      ...state,
+      attendanceRecords,
+      whatsappLogs: [log, ...state.whatsappLogs],
+    };
+  });
+  if (record) syncUpsert("attendance_records", record);
+  if (log) syncInsert("whatsapp_logs", log);
+  return result;
+}
+
+function sameDay(iso: string, ref: Date): boolean {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) {
+    const label = iso;
+    return label.startsWith("اليوم") || label === "—";
+  }
+  const d = new Date(t);
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
+  );
+}
+
+/* ---------------- §3 — الملازم وبيع الكتب (mutators) ---------------- */
+
+export function addBookletItem(input: {
+  title: string;
+  subject: string;
+  kind: BookletItem["kind"];
+  pageCount: number;
+  price: number;
+  paperPerUnit: number;
+  initialStock: number;
+}): BookletItem | null {
+  let row: BookletItem | null = null;
+  update((state) => {
+    row = {
+      id: `bk-${Date.now()}`,
+      center_id: state.center.id,
+      title: input.title.trim(),
+      subject: input.subject.trim(),
+      price: Number(input.price) || 0,
+      in_stock: Math.max(0, Number(input.initialStock) || 0),
+      delivered: 0,
+      kind: input.kind,
+      page_count: Math.max(0, Number(input.pageCount) || 0),
+      printed: 0,
+      paper_per_unit: Math.max(1, Number(input.paperPerUnit) || 1),
+    };
+    return { ...state, booklets: [row, ...state.booklets] };
+  });
+  if (row) syncInsert("booklets", row);
+  return row;
+}
+
+export function sellBookletToStudent(input: {
+  bookletId: string;
+  studentId: string;
+  quantity: number;
+  sellerId: string;
+  sellerName: string;
+}): BookletSale | null {
+  let sale: BookletSale | null = null;
+  let updatedBooklet: { id: string; in_stock: number; delivered: number } | null = null;
+  let paperTx: PaperTransaction | null = null;
+  let studentPatch: { id: string; balance_due: number; payment_status: Student["payment_status"] } | null = null;
+  let paymentRow: PaymentRecord | null = null;
+  const finalize = (state: DataState) => {
+    if (!sale || !updatedBooklet || !studentPatch || !paymentRow) return state;
+    return {
+      ...state,
+      booklets: state.booklets.map((b) => (b.id === updatedBooklet!.id ? { ...b, ...updatedBooklet! } : b)),
+      students: state.students.map((s) => (s.id === studentPatch!.id ? { ...s, ...studentPatch! } : s)),
+      bookletSales: [sale, ...state.bookletSales],
+      paperTransactions: paperTx ? [paperTx, ...state.paperTransactions] : state.paperTransactions,
+      payments: [paymentRow, ...state.payments],
+    };
+  };
+  update((state) => {
+    const booklet = state.booklets.find((b) => b.id === input.bookletId);
+    const student = state.students.find((s) => s.id === input.studentId);
+    if (!booklet || !student) return state;
+    const qty = Math.max(1, Math.floor(input.quantity));
+    if (booklet.in_stock < qty) return state;
+
+    const unitPrice = Number(booklet.price) || 0;
+    const totalAmount = qty * unitPrice;
+    const paperConsumed = qty * (booklet.paper_per_unit || 1);
+    const nowLabel = new Date().toISOString();
+
+    sale = {
+      id: `bs-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      student_name: student.full_name,
+      student_code: student.code,
+      booklet_id: booklet.id,
+      booklet_title: booklet.title,
+      quantity: qty,
+      unit_price: unitPrice,
+      total_amount: totalAmount,
+      paper_consumed: paperConsumed,
+      sold_by: input.sellerName || input.sellerId,
+      sold_at: nowLabel,
+    };
+    updatedBooklet = {
+      id: booklet.id,
+      in_stock: booklet.in_stock - qty,
+      delivered: booklet.delivered + qty,
+    };
+    paperTx = {
+      id: `pt-${Date.now()}`,
+      center_id: state.center.id,
+      staff_id: input.sellerId,
+      staff_name: input.sellerName,
+      delta_sheets: -paperConsumed,
+      reason: "sale",
+      related_booklet_id: booklet.id,
+      related_sale_id: sale.id,
+      created_at: nowLabel,
+    };
+    const remaining = Math.max(0, student.balance_due - totalAmount);
+    studentPatch = {
+      id: student.id,
+      balance_due: remaining,
+      payment_status: remaining === 0 ? "paid" : student.payment_status,
+    };
+    paymentRow = {
+      id: `pm-${Date.now()}`,
+      center_id: student.center_id,
+      student_name: student.full_name,
+      student_code: student.code,
+      amount: totalAmount,
+      method: "cash",
+      item: `بيع: ${booklet.title} × ${qty}`,
+      created_at: nowTime(),
+    };
+    return finalize(state);
+  });
+  if (sale) syncInsert("booklet_sales", sale);
+  if (updatedBooklet !== null) {
+    const ub: { id: string; in_stock: number; delivered: number } = updatedBooklet;
+    syncUpdate("booklets", ub.id, {
+      in_stock: ub.in_stock,
+      delivered: ub.delivered,
+    });
+  }
+  if (paperTx) syncInsert("paper_transactions", paperTx);
+  if (studentPatch !== null) {
+    const sp: { id: string; balance_due: number; payment_status: Student["payment_status"] } = studentPatch;
+    syncUpdate("students", sp.id, {
+      balance_due: sp.balance_due,
+      payment_status: sp.payment_status,
+    });
+  }
+  if (paymentRow) syncInsert("payments", paymentRow);
+  return sale;
+}
+
+export function preorderBooklet(input: {
+  bookletId: string;
+  quantity: number;
+}): boolean {
+  let updated: { id: string; printed: number } | null = null;
+  let paperTx: PaperTransaction | null = null;
+  const finalize = (state: DataState) => {
+    if (!updated || !paperTx) return state;
+    return {
+      ...state,
+      booklets: state.booklets.map((b) => (b.id === updated!.id ? { ...b, printed: updated!.printed } : b)),
+      paperTransactions: [paperTx!, ...state.paperTransactions],
+    };
+  };
+  update((state) => {
+    const booklet = state.booklets.find((b) => b.id === input.bookletId);
+    if (!booklet) return state;
+    const qty = Math.max(1, Math.floor(input.quantity));
+    updated = { id: booklet.id, printed: booklet.printed + qty };
+    paperTx = {
+      id: `pt-${Date.now()}`,
+      center_id: state.center.id,
+      staff_id: "system",
+      staff_name: "النظام",
+      delta_sheets: -qty * (booklet.paper_per_unit || 1),
+      reason: "preorder",
+      related_booklet_id: booklet.id,
+      related_sale_id: null,
+      created_at: new Date().toISOString(),
+    };
+    return finalize(state);
+  });
+  if (updated !== null) {
+    const u: { id: string; printed: number } = updated;
+    syncUpdate("booklets", u.id, { printed: u.printed });
+  }
+  if (paperTx) syncInsert("paper_transactions", paperTx);
+  return !!updated;
+}
+
+export function adminPrintBooklet(input: {
+  bookletId: string;
+  quantity: number;
+  staffId: string;
+  staffName: string;
+  reason: string;
+}): Expense | null {
+  let paperTx: PaperTransaction | null = null;
+  let printedRow: { id: string; printed: number } | null = null;
+  let expense: Expense | null = null;
+  const finalize = (state: DataState) => {
+    if (!printedRow || !paperTx || !expense) return state;
+    return {
+      ...state,
+      booklets: state.booklets.map((b) => (b.id === printedRow!.id ? { ...b, printed: printedRow!.printed } : b)),
+      paperTransactions: [paperTx!, ...state.paperTransactions],
+      expenses: [expense, ...state.expenses],
+    };
+  };
+  update((state) => {
+    const booklet = state.booklets.find((b) => b.id === input.bookletId);
+    if (!booklet) return state;
+    const qty = Math.max(1, Math.floor(input.quantity));
+    const paperConsumed = qty * (booklet.paper_per_unit || 1);
+    printedRow = { id: booklet.id, printed: booklet.printed + qty };
+    paperTx = {
+      id: `pt-${Date.now()}`,
+      center_id: state.center.id,
+      staff_id: input.staffId,
+      staff_name: input.staffName,
+      delta_sheets: -paperConsumed,
+      reason: "admin_print",
+      related_booklet_id: booklet.id,
+      related_sale_id: null,
+      created_at: new Date().toISOString(),
+    };
+    expense = {
+      id: `exp-${Date.now()}`,
+      center_id: state.center.id,
+      category: "printing",
+      title: `طباعة إدارية: ${booklet.title} × ${qty}`,
+      amount: 0,
+      spent_at: new Date().toISOString(),
+      note: input.reason,
+      created_at: new Date().toISOString(),
+    };
+    return finalize(state);
+  });
+  if (printedRow !== null) {
+    const pr: { id: string; printed: number } = printedRow;
+    syncUpdate("booklets", pr.id, { printed: pr.printed });
+  }
+  if (paperTx) syncInsert("paper_transactions", paperTx);
+  if (expense) syncInsert("expenses", expense);
+  return expense;
+}
+
+export function issuePaperCredit(input: {
+  staffId: string;
+  staffName: string;
+  totalSheets: number;
+  unitPrice: number;
+  note?: string | null;
+}): { credit: PaperCredit; tx: PaperTransaction } | null {
+  let credit: PaperCredit | null = null;
+  let tx: PaperTransaction | null = null;
+  update((state) => {
+    const now = new Date().toISOString();
+    credit = {
+      id: `pc-${Date.now()}`,
+      center_id: state.center.id,
+      staff_id: input.staffId,
+      staff_name: input.staffName,
+      total_sheets: Math.max(0, Math.floor(input.totalSheets)),
+      unit_price: Number(input.unitPrice) || 0,
+      issued_at: now,
+      note: input.note ?? null,
+      created_at: now,
+    };
+    tx = {
+      id: `pt-${Date.now()}`,
+      center_id: state.center.id,
+      staff_id: input.staffId,
+      staff_name: input.staffName,
+      delta_sheets: credit.total_sheets,
+      reason: "issue",
+      related_booklet_id: null,
+      related_sale_id: null,
+      created_at: now,
+    };
+    return {
+      ...state,
+      paperCredits: [credit, ...state.paperCredits],
+      paperTransactions: [tx, ...state.paperTransactions],
+    };
+  });
+  if (credit) syncInsert("paper_credits", credit);
+  if (tx) syncInsert("paper_transactions", tx);
+  return credit && tx ? { credit, tx } : null;
+}
+
+/** رصيد الورق المتاح لموظف = مجموع الإصدارات + مجموع delta (issue موجبة، استهلاك سالب). */
+export function getPaperCreditBalance(state: DataState, staffId: string): number {
+  return state.paperTransactions
+    .filter((tx) => tx.staff_id === staffId)
+    .reduce((sum, tx) => sum + tx.delta_sheets, 0);
+}
+
+/* ---------------- 0019: lesson_plans mutators ---------------- */
+
+export interface CreateLessonPlanInput {
+  teacherId: string;
+  groupId: string;
+  lessonName: string;
+  unit?: string;
+  notes?: string;
+}
+
+/**
+ * ينشئ خطة درس جديدة مع prepared_done=false و taught_done=false.
+ * العزل: `teacher_id` و `group_id` ينتميان لنفس المركز (يُفترض أن الـ caller تحقّق).
+ */
+export function createLessonPlan(input: CreateLessonPlanInput): LessonPlan {
+  const now = new Date().toISOString();
+  const row: LessonPlan = {
+    id: `lp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    center_id: "", // يُملأ بـ state.center.id في الـ mutator
+    teacher_id: input.teacherId,
+    group_id: input.groupId,
+    lesson_name: input.lessonName,
+    unit: input.unit ?? null,
+    notes: input.notes ?? null,
+    prepared_at: null,
+    prepared_done: false,
+    taught_at: null,
+    taught_done: false,
+    created_at: now,
+    updated_at: now,
+  };
+  update((state) => {
+    const full: LessonPlan = { ...row, center_id: state.center.id };
+    return { ...state, lessonPlans: [full, ...state.lessonPlans] };
+  });
+  // sync إلى Supabase (لو متاح)
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    const state = readState();
+    const created = state.lessonPlans.find((p) => p.id === row.id);
+    if (!created) return;
+    try {
+      await m.upsertLessonPlanRow({
+        data: { identifier: id, row: created },
+      });
+    } catch (err) {
+      reportSyncFailure("lesson_plans", err);
+    }
+  });
+  return row;
+}
+
+/**
+ * يعلِّم "تم الإعداد" أو "تم التدريس" — مع تسجيل الـ timestamp.
+ * @param flag "prepared" | "taught"
+ */
+export function markLessonPlanState(
+  planId: string,
+  flag: "prepared" | "taught",
+  done: boolean,
+): void {
+  const now = new Date().toISOString();
+  update((state) => ({
+    ...state,
+    lessonPlans: state.lessonPlans.map((p) =>
+      p.id === planId
+        ? flag === "prepared"
+          ? { ...p, prepared_done: done, prepared_at: done ? now : null, updated_at: now }
+          : { ...p, taught_done: done, taught_at: done ? now : null, updated_at: now }
+        : p,
+    ),
+  }));
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    const updated = readState().lessonPlans.find((p) => p.id === planId);
+    if (!updated) return;
+    try {
+      await m.upsertLessonPlanRow({ data: { identifier: id, row: updated } });
+    } catch (err) {
+      reportSyncFailure("lesson_plans", err);
+    }
+  });
+}
+
+export function updateLessonPlan(
+  planId: string,
+  patch: { lessonName?: string; unit?: string | null; notes?: string | null },
+): void {
+  const now = new Date().toISOString();
+  update((state) => ({
+    ...state,
+    lessonPlans: state.lessonPlans.map((p) =>
+      p.id === planId ? { ...p, ...patch, updated_at: now } : p,
+    ),
+  }));
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    const updated = readState().lessonPlans.find((p) => p.id === planId);
+    if (!updated) return;
+    try {
+      await m.upsertLessonPlanRow({ data: { identifier: id, row: updated } });
+    } catch (err) {
+      reportSyncFailure("lesson_plans", err);
+    }
+  });
+}
+
+export function deleteLessonPlan(planId: string): void {
+  update((state) => ({
+    ...state,
+    lessonPlans: state.lessonPlans.filter((p) => p.id !== planId),
+  }));
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    try {
+      await m.deleteLessonPlanRow({ data: { identifier: id, id: planId } });
+    } catch (err) {
+      reportSyncFailure("lesson_plans", err);
+    }
+  });
+}
+
+/** خطط المدرس لمجموعة معيّنة — مفلترة ومُرتَّبة بالأحدث. */
+export function getLessonPlansForGroup(
+  state: DataState,
+  teacherId: string,
+  groupId: string,
+): LessonPlan[] {
+  return state.lessonPlans
+    .filter((p) => p.teacher_id === teacherId && p.group_id === groupId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+/** خطط المدرس لكل مجموعاته — مفلترة بالمدرس فقط. */
+export function getLessonPlansForTeacher(state: DataState, teacherId: string): LessonPlan[] {
+  return state.lessonPlans
+    .filter((p) => p.teacher_id === teacherId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+/* ---------------- 0019: platform_teacher_notes mutators ---------------- */
+
+export function createPlatformTeacherNote(
+  subjectId: string,
+  body: string,
+  authorIdentifier: string,
+  authorName: string,
+): PlatformTeacherNote {
+  const now = new Date().toISOString();
+  const row: PlatformTeacherNote = {
+    id: `ptn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    subject_id: subjectId,
+    body,
+    author_identifier: authorIdentifier,
+    author_name: authorName,
+    created_at: now,
+    updated_at: now,
+  };
+  update((state) => ({
+    ...state,
+    platformTeacherNotes: [row, ...state.platformTeacherNotes],
+  }));
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    try {
+      await m.upsertPlatformTeacherNote({ data: { identifier: id, row } });
+    } catch (err) {
+      reportSyncFailure("platform_teacher_notes", err);
+    }
+  });
+  return row;
+}
+
+export function deletePlatformTeacherNote(noteId: string): void {
+  update((state) => ({
+    ...state,
+    platformTeacherNotes: state.platformTeacherNotes.filter((n) => n.id !== noteId),
+  }));
+  void import("@/lib/data-functions.server").then(async (m) => {
+    if (!USE_SUPABASE) return;
+    const id = getSession()?.identifier;
+    if (!id) return;
+    try {
+      await m.deletePlatformTeacherNote({ data: { identifier: id, id: noteId } });
+    } catch (err) {
+      reportSyncFailure("platform_teacher_notes", err);
+    }
+  });
+}
+
+/** رسائل مدير المنصة لمادة معيّنة — بدون فلتر center_id (عبر كل المراكز). */
+export function getPlatformNotesForSubject(
+  state: DataState,
+  subjectId: string,
+): PlatformTeacherNote[] {
+  return state.platformTeacherNotes
+    .filter((n) => n.subject_id === subjectId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
 export function closeShift(countedAmount: number) {
@@ -1416,6 +2270,42 @@ export function addTeacherNote(studentId: string, teacherId: string, note: strin
     return { ...state, teacherNotes: [entry, ...state.teacherNotes] };
   });
   if (entry) syncInsert("teacher_notes", entry);
+}
+
+/* ---------------- Awards & Alerts (§4.4) — رسائل المدرس للطالب ---------------- */
+
+export type TeacherMessageKind = "award" | "alert";
+
+/**
+ * إرسال رسالة للمدرس إلى الطالب (للأولياء الأمور ضمنياً).
+ * - kind: "award" = وسام تشجيعي (للمتفوقين فقط)
+ * - kind: "alert" = تنبيه للضعفاء (تواصل ولي الأمر / حديث فردي / ملاحظة)
+ * يستخدم whatsapp_logs مع template = "award" | "alert".
+ */
+export function sendTeacherMessage(
+  studentId: string,
+  body: string,
+  kind: TeacherMessageKind,
+  teacherId: string,
+): WhatsAppLog | null {
+  let log: WhatsAppLog | null = null;
+  update((state) => {
+    const student = findStudentById(state, studentId);
+    const teacher = state.teachers.find((t) => t.id === teacherId);
+    if (!student || !teacher || !body.trim()) return state;
+    log = {
+      id: `wa-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      center_id: student.center_id,
+      student_id: student.id,
+      sent_at: new Date().toISOString(),
+      template: kind,
+      message: body.trim(),
+      delivered: true,
+    };
+    return { ...state, whatsappLogs: [log, ...state.whatsappLogs] };
+  });
+  if (log) syncInsert("whatsapp_logs", log);
+  return log;
 }
 
 /* ---------------- Session mode: lessons (PDF → AI pipeline, §7-د/10) ---------------- */
@@ -2164,16 +3054,16 @@ export function computeStudentFees(
 
 /** حفظ خانة في غرفة الجدولة (إنشاء أو تعديل مباشر شبيه بـ Excel). */
 export function upsertScheduleSlot(input: {
-  id?: string;
+  id?: string | undefined;
   teacherId: string;
   teacherName: string;
-  subjectId?: string | null;
+  subjectId?: string | null | undefined;
   subject: string;
-  grade?: string;
+  grade?: string | undefined;
   weekday: string;
   time: string;
-  room?: string;
-  groupId?: string | null;
+  room?: string | undefined;
+  groupId?: string | null | undefined;
 }): ScheduleSlot | null {
   let row: ScheduleSlot | null = null;
   update((state) => {
@@ -2377,4 +3267,817 @@ export function getTasksForAssignee(
   return state.tasks.filter(
     (t) => t.assignee_role === role && (identifier ? t.assignee_id === identifier : true),
   );
+}
+
+/* ---------------- §0.3 — حذف جذري كامل (Cascade) ---------------- */
+
+import { deleteAccount as deleteAccountAuth } from "@/lib/auth";
+
+export interface CascadeDeleteResult {
+  ok: boolean;
+  deletedGroups: number;
+  orphanedStudents: number;
+  deletedPayroll: number;
+  deletedSessions: number;
+  error?: string;
+}
+
+/**
+ * حذف جذري لمستخدم (مدرس / موظف / زائر / طالب):
+ *  - للمدرس: حذف كل المجموعات + جدول حصصه + رواتبه + تقييماته + تحويل طلابه لأيتام.
+ *  - للموظف: حذف صلاحياته + رواتبه.
+ *  - للطالب: استدعاء deleteStudentCompletely (موجود فعلاً).
+ *  - للزائر: حذف من accounts فقط.
+ *
+ * يعتمد على `accountId` (id من جدول accounts).
+ */
+export function deleteAccountCascade(
+  accountId: string,
+  role: "teacher" | "staff" | "visitor" | "student",
+): CascadeDeleteResult {
+  const state = getData();
+  const result: CascadeDeleteResult = {
+    ok: true,
+    deletedGroups: 0,
+    orphanedStudents: 0,
+    deletedPayroll: 0,
+    deletedSessions: 0,
+  };
+
+  if (role === "teacher") {
+    const teacher = state.teachers.find((t) => t.id === accountId || t.user_id === accountId);
+    if (teacher) {
+      const teacherGroups = state.groups.filter((g) => g.teacher_id === teacher.id);
+      const teacherGroupIds = new Set(teacherGroups.map((g) => g.id));
+      result.deletedGroups = teacherGroupIds.size;
+
+      // الطلاب في مجموعات هذا المدرس → يتحولون لأيتيام (group_id = null)
+      const orphanIds: string[] = [];
+      const newStudents = state.students.map((s) => {
+        if (s.group_id && teacherGroupIds.has(s.group_id)) {
+          orphanIds.push(s.id);
+          return { ...s, group_id: null, group_name: "بدون مجموعة" };
+        }
+        return s;
+      });
+      result.orphanedStudents = orphanIds.length;
+
+      // رواتب المدرس
+      const payrollIds = state.payrollRecords
+        .filter((p) => p.person_id === teacher.id || p.person_name === teacher.full_name)
+        .map((p) => p.id);
+      result.deletedPayroll = payrollIds.length;
+
+      // سجلات الحصص
+      const sessionIds = state.sessionRecords
+        .filter((s) => s.teacher_id === teacher.id)
+        .map((s) => s.id);
+      result.deletedSessions = sessionIds.length;
+
+      // تحديث الذاكرة
+      update((s) => ({
+        ...s,
+        students: newStudents,
+        groups: s.groups.filter((g) => !teacherGroupIds.has(g.id)),
+        scheduleSlots: s.scheduleSlots.filter((slot) => slot.teacher_id !== teacher.id),
+        payrollRecords: s.payrollRecords.filter((p) => !payrollIds.includes(p.id)),
+        sessionRecords: s.sessionRecords.filter((sr) => !sessionIds.includes(sr.id)),
+        sessionEvents: s.sessionEvents.filter((ev) => !sessionIds.includes(ev.session_id)),
+        assessmentScores: s.assessmentScores.filter((a) => a.recorded_by_teacher_id !== teacher.id),
+        teachers: s.teachers.filter((t) => t.id !== teacher.id),
+      }));
+
+      // مزامنة Supabase
+      syncDeleteIds("groups", [...teacherGroupIds]);
+      syncDeleteIds("schedule_slots", state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).map((s) => s.id));
+      syncDeleteIds("payroll_records", payrollIds);
+      syncDeleteIds("session_records", sessionIds);
+      syncDeleteIds("session_events", state.sessionEvents.filter((ev) => sessionIds.includes(ev.session_id)).map((ev) => ev.id));
+      syncDeleteIds("assessment_scores", state.assessmentScores.filter((a) => a.recorded_by_teacher_id === teacher.id).map((a) => a.id));
+      orphanIds.forEach((sid) =>
+        syncUpdate("students", sid, { group_id: null, group_name: "بدون مجموعة" }),
+      );
+      syncDeleteIds("teachers", [teacher.id]);
+    }
+  } else if (role === "staff") {
+    // للموظف: حذف صلاحياته + رواتبه
+    const staffPerm = state.staffPermissions.find(
+      (p) => p.account_identifier === accountId || p.id === accountId,
+    );
+    const payrollIds = state.payrollRecords
+      .filter((p) => p.person_id === accountId)
+      .map((p) => p.id);
+    result.deletedPayroll = payrollIds.length;
+
+    update((s) => ({
+      ...s,
+      staffPermissions: s.staffPermissions.filter((p) => p.id !== staffPerm?.id),
+      payrollRecords: s.payrollRecords.filter((p) => !payrollIds.includes(p.id)),
+    }));
+
+    if (staffPerm) syncDeleteIds("staff_permissions", [staffPerm.id]);
+    syncDeleteIds("payroll_records", payrollIds);
+  } else if (role === "student") {
+    const student = state.students.find((s) => s.id === accountId);
+    if (student) {
+      deleteStudentCompletely(student.id);
+    }
+  }
+  // للزائر: لا توجد بيانات مرتبطة — فقط حذف الحساب
+
+  // حذف الحساب نفسه من accounts (server fn)
+  try {
+    void deleteAccountAuth(accountId);
+  } catch (e) {
+    result.error = e instanceof Error ? e.message : "فشل حذف الحساب";
+    result.ok = false;
+  }
+  return result;
+}
+
+/** حذف كل الإشعارات أو كل سجل النشاط (مع تأكيد بكلمة سر المالك قبل الاستدعاء). */
+export function deleteAllNotifications(): void {
+  const ids = getData().notifications.map((n) => n.id);
+  if (ids.length === 0) return;
+  update((state) => ({ ...state, notifications: [] }));
+  syncDeleteIds("notifications", ids);
+}
+
+/* ---------------- Migration 0023 (المرحلة A): group_resources + teacher_launches + homework_attempts ---------------- */
+
+export interface CreateGroupResourceInput {
+  groupId: string;
+  resourceType: GroupResource["resource_type"];
+  url: string;
+  name: string;
+  unit?: string | null;
+  createdBy: string;
+}
+
+export function addGroupResource(input: CreateGroupResourceInput): GroupResource {
+  const now = new Date().toISOString();
+  const row: GroupResource = {
+    id: `gr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    center_id: "",
+    group_id: input.groupId,
+    resource_type: input.resourceType,
+    url: input.url.trim(),
+    name: input.name.trim(),
+    unit: input.unit ?? null,
+    created_by: input.createdBy,
+    created_at: now,
+  };
+  update((state) => {
+    const full: GroupResource = { ...row, center_id: state.center.id };
+    return { ...state, groupResources: [full, ...state.groupResources] };
+  });
+  const inserted = readState().groupResources[0];
+  syncInsert("group_resources", inserted ? { ...inserted } : row);
+  return row;
+}
+
+export function getGroupResourcesForGroup(state: DataState, groupId: string): GroupResource[] {
+  return state.groupResources
+    .filter((r) => r.group_id === groupId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+export function getGroupResourcesForTeacher(state: DataState, teacherId: string): GroupResource[] {
+  const teacherGroups = new Set(
+    state.groups
+      .filter((g) => g.teacher_id === teacherId || g.teacher_user_id === teacherId)
+      .map((g) => g.id),
+  );
+  return state.groupResources
+    .filter((r) => teacherGroups.has(r.group_id))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+export function deleteGroupResource(resourceId: string): void {
+  update((state) => ({
+    ...state,
+    groupResources: state.groupResources.filter((r) => r.id !== resourceId),
+  }));
+  syncDeleteIds("group_resources", [resourceId]);
+}
+
+export interface CreateTeacherLaunchInput {
+  groupId: string;
+  teacherId: string;
+  launchType: TeacherLaunch["launch_type"];
+  title: string;
+  body?: string | null;
+  notes?: string | null;
+  dueAt?: string | null;
+  durationMin?: number | null;
+  sourceLaunchId?: string | null;
+  fileData?: string | null;
+  fileName?: string | null;
+  fileMime?: string | null;
+}
+
+export function addTeacherLaunch(input: CreateTeacherLaunchInput): TeacherLaunch {
+  const now = new Date().toISOString();
+  const row: TeacherLaunch = {
+    id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    center_id: "",
+    group_id: input.groupId,
+    teacher_id: input.teacherId,
+    launch_type: input.launchType,
+    title: input.title.trim(),
+    body: input.body ?? null,
+    notes: input.notes ?? null,
+    due_at: input.dueAt ?? null,
+    duration_min: input.durationMin ?? null,
+    source_launch_id: input.sourceLaunchId ?? null,
+    file_data: input.fileData ?? null,
+    file_name: input.fileName ?? null,
+    file_mime: input.fileMime ?? null,
+    created_at: now,
+  };
+  update((state) => {
+    const full: TeacherLaunch = { ...row, center_id: state.center.id };
+    return { ...state, teacherLaunches: [full, ...state.teacherLaunches] };
+  });
+  const inserted = readState().teacherLaunches[0];
+  syncInsert("teacher_launches", inserted ? { ...inserted } : row);
+  return row;
+}
+
+export function getTeacherLaunchesForGroup(state: DataState, groupId: string): TeacherLaunch[] {
+  return state.teacherLaunches
+    .filter((l) => l.group_id === groupId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+export function getTeacherLaunchesForTeacher(state: DataState, teacherId: string): TeacherLaunch[] {
+  return state.teacherLaunches
+    .filter((l) => l.teacher_id === teacherId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
+export function deleteTeacherLaunch(launchId: string): void {
+  const attemptIds = readState().homeworkAttempts.filter((a) => a.launch_id === launchId).map((a) => a.id);
+  update((state) => ({
+    ...state,
+    teacherLaunches: state.teacherLaunches.filter((l) => l.id !== launchId),
+    homeworkAttempts: state.homeworkAttempts.filter((a) => a.launch_id !== launchId),
+  }));
+  syncDeleteIds("teacher_launches", [launchId]);
+  syncDeleteIds("homework_attempts", attemptIds);
+}
+
+export interface RecordHomeworkAttemptInput {
+  launchId: string;
+  studentId: string;
+  studentName: string;
+  answer?: string | null;
+  score?: number | null;
+  maxScore?: number | null;
+}
+
+export function recordHomeworkAttempt(input: RecordHomeworkAttemptInput): HomeworkAttempt {
+  const now = new Date().toISOString();
+  const idSeed = `ha-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let row: HomeworkAttempt = {
+    id: idSeed,
+    center_id: "",
+    launch_id: input.launchId,
+    student_id: input.studentId,
+    student_name: input.studentName,
+    answer: input.answer ?? null,
+    score: input.score ?? null,
+    max_score: input.maxScore ?? null,
+    submitted_at: now,
+  };
+  update((state) => {
+    const existing = state.homeworkAttempts.find(
+      (a) => a.launch_id === input.launchId && a.student_id === input.studentId,
+    );
+    row = { ...row, center_id: state.center.id, id: existing?.id ?? row.id };
+    const next = existing
+      ? state.homeworkAttempts.map((a) => (a.id === existing.id ? row : a))
+      : [row, ...state.homeworkAttempts];
+    return { ...state, homeworkAttempts: next };
+  });
+  syncUpsert("homework_attempts", { ...row }, "launch_id,student_id");
+  return row;
+}
+
+export function scoreHomeworkAttempt(attemptId: string, score: number, maxScore: number): void {
+  update((state) => ({
+    ...state,
+    homeworkAttempts: state.homeworkAttempts.map((a) =>
+      a.id === attemptId ? { ...a, score, max_score: maxScore } : a,
+    ),
+  }));
+  syncUpdate("homework_attempts", attemptId, { score, max_score: maxScore });
+}
+
+export function getHomeworkAttemptsForLaunch(state: DataState, launchId: string): HomeworkAttempt[] {
+  return state.homeworkAttempts
+    .filter((a) => a.launch_id === launchId)
+    .sort((a, b) => (a.submitted_at < b.submitted_at ? 1 : -1));
+}
+
+export function getHomeworkAttemptsForStudent(state: DataState, studentId: string): HomeworkAttempt[] {
+  return state.homeworkAttempts
+    .filter((a) => a.student_id === studentId)
+    .sort((a, b) => (a.submitted_at < b.submitted_at ? 1 : -1));
+}
+
+/**
+ * Migration 0023 / خطة B (B1): "الحصة اللي فاتت" — محاولات الطلاب على الإطلاقات
+ * الإلكترونية لمدرس معيّن، اللي حصّتها انتهت قبل >24 ساعة وما اتصحّحتش بعد.
+ *
+ * النافذة: `launch.created_at < now - 24h` (proxy للحصة اللي فاتت — ما عندنا
+ * `session_id` على `teacher_launches` بَعْد).
+ * فلتر: `launch.teacher_id === teacherId` و `attempt.score === null`.
+ */
+export interface PendingCorrection {
+  attempt: HomeworkAttempt;
+  launch: TeacherLaunch;
+  student: Student | undefined;
+  /** هل تجاوزت الـ 24 ساعة (يفرض التصحيح). */
+  overdue: boolean;
+}
+
+export function getPendingCorrectionsForTeacher(
+  state: DataState,
+  teacherId: string,
+  now: number = Date.now(),
+): PendingCorrection[] {
+  const cutoff = now - 24 * 60 * 60 * 1000;
+  const teacherLaunches = state.teacherLaunches.filter(
+    (l) =>
+      l.teacher_id === teacherId &&
+      Date.parse(l.created_at) < cutoff &&
+      (l.launch_type === "online_homework" ||
+        l.launch_type === "online_quiz" ||
+        l.launch_type === "homework_with_correction"),
+  );
+  const out: PendingCorrection[] = [];
+  for (const launch of teacherLaunches) {
+    for (const attempt of state.homeworkAttempts) {
+      if (attempt.launch_id !== launch.id) continue;
+      if (attempt.score !== null) continue;
+      out.push({
+        attempt,
+        launch,
+        student: state.students.find((s) => s.id === attempt.student_id),
+        overdue: Date.parse(attempt.submitted_at) < cutoff,
+      });
+    }
+  }
+  out.sort((a, b) => (a.attempt.submitted_at < b.attempt.submitted_at ? 1 : -1));
+  return out;
+}
+
+/** عدد المحاولات المعلّقة لمدرس معيّن — يُستخدم في كروت المالك (B8). */
+export function getPendingCorrectionsCountForTeacher(
+  state: DataState,
+  teacherId: string,
+): number {
+  return getPendingCorrectionsForTeacher(state, teacherId).length;
+}
+
+/** متوسط درجة السلوك لكل طلاب مدرس معيّن (0..1) — يُستخدم في owner.compliance (B8). */
+export function getTeacherBehaviorAverage(
+  state: DataState,
+  teacherId: string,
+): number | null {
+  const students = getStudentsForTeacher(state, teacherId);
+  if (students.length === 0) return null;
+  let total = 0;
+  let count = 0;
+  for (const s of students) {
+    const scores = state.assessmentScores.filter(
+      (a) => a.student_id === s.id && a.category === "behavior",
+    );
+    for (const sc of scores) {
+      if (sc.max_value <= 0) continue;
+      total += sc.value / sc.max_value;
+      count += 1;
+    }
+  }
+  return count === 0 ? null : total / count;
+}
+
+/* ---------------- Migration 0023 / خطة C (C13): أحداث اليوم للمدرس ---------------- */
+
+export interface TeacherTodayEvent {
+  kind: "schedule" | "pending_correction" | "today_launch" | "today_assessment";
+  title: string;
+  detail: string | null;
+  at: string | null;
+  ref_id: string;
+  group_id: string | null;
+}
+
+/**
+ * أحداث "اليوم" الخاصة بمدرس معيّن:
+ * - مواعيده اليوم (من `scheduleSlots` يطابق weekday اليوم).
+ * - المحاولات المعلّقة (الحصة اللي فاتت >24س).
+ * - الإطلاقات اللي أنشأها اليوم.
+ * - تقييمات السلوك اللي سجّلها اليوم.
+ */
+export function getEventsForTeacherToday(
+  state: DataState,
+  teacherId: string,
+  now: Date = new Date(),
+): TeacherTodayEvent[] {
+  const events: TeacherTodayEvent[] = [];
+  const teacherGroups = state.groups.filter(
+    (g) => g.teacher_id === teacherId || g.teacher_user_id === teacherId,
+  );
+  const teacherGroupIds = new Set(teacherGroups.map((g) => g.id));
+  const todayWd = now.getDay();
+
+  for (const slot of state.scheduleSlots) {
+    if (slot.teacher_id !== teacherId) continue;
+    if (slot.weekday !== dayNumberToName(todayWd)) continue;
+    events.push({
+      kind: "schedule",
+      title: `${slot.subject} · ${slot.grade}`,
+      detail: `${slot.weekday} ${slot.time} · قاعة ${slot.room}`,
+      at: slot.time,
+      ref_id: slot.id,
+      group_id: slot.group_id ?? null,
+    });
+  }
+
+  const pending = getPendingCorrectionsForTeacher(state, teacherId, now.getTime());
+  for (const p of pending.slice(0, 10)) {
+    events.push({
+      kind: "pending_correction",
+      title: `تصحيح: ${p.launch.title}`,
+      detail: `${p.student?.full_name ?? p.attempt.student_name} · ${hoursAgo(p.attempt.submitted_at)}`,
+      at: p.attempt.submitted_at,
+      ref_id: p.attempt.id,
+      group_id: p.launch.group_id,
+    });
+  }
+
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  for (const l of state.teacherLaunches) {
+    if (l.teacher_id !== teacherId) continue;
+    const at = new Date(l.created_at);
+    if (at.getTime() < todayStart.getTime()) continue;
+    events.push({
+      kind: "today_launch",
+      title: l.title,
+      detail: TYPE_LABEL_AR[l.launch_type] ?? l.launch_type,
+      at: l.created_at,
+      ref_id: l.id,
+      group_id: l.group_id,
+    });
+  }
+
+  for (const s of state.assessmentScores) {
+    if (s.recorded_by_teacher_id !== teacherId) continue;
+    if (teacherGroupIds.size > 0) {
+      const student = state.students.find((st) => st.id === s.student_id);
+      if (student && !teacherGroupIds.has(student.group_id ?? "")) continue;
+    }
+    const at = new Date(s.recorded_at);
+    if (at.getTime() < todayStart.getTime()) continue;
+    events.push({
+      kind: "today_assessment",
+      title: `تقييم ${categoryLabelAr(s.category)}`,
+      detail: `${s.value}/${s.max_value}`,
+      at: s.recorded_at,
+      ref_id: s.id,
+      group_id: null,
+    });
+  }
+
+  events.sort((a, b) => {
+    if (!a.at) return 1;
+    if (!b.at) return -1;
+    return a.at < b.at ? 1 : -1;
+  });
+  return events;
+}
+
+const TYPE_LABEL_AR: Record<TeacherLaunch["launch_type"], string> = {
+  homework: "واجب بيتي",
+  homework_with_correction: "واجب مع تصحيح",
+  in_class_task: "مهمة صف",
+  interactive_activity: "نشاط تفاعلي",
+  online_homework: "واجب إلكتروني",
+  online_quiz: "اختبار إلكتروني",
+  reading_assignment: "مراجعة / قراءة",
+  oral_recitation: "تسميع",
+};
+
+function categoryLabelAr(c: AssessmentScore["category"]): string {
+  switch (c) {
+    case "homework": return "واجب";
+    case "activity": return "نشاط";
+    case "behavior": return "سلوك";
+    case "question": return "سؤال";
+    case "e_homework": return "واجب إلكتروني";
+    default: return c;
+  }
+}
+
+function dayNumberToName(n: number): string {
+  return ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][n] ?? "";
+}
+
+function hoursAgo(iso: string): string {
+  const ms = Date.now() - Date.parse(iso);
+  if (!Number.isFinite(ms)) return "—";
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  if (hours < 1) return "الآن";
+  if (hours < 24) return `منذ ${hours} ساعة`;
+  const days = Math.floor(hours / 24);
+  return `منذ ${days} يوم`;
+}
+
+
+
+/** متوسط درجة السلوك لكل طالب (يستخدمه owner.compliance). */
+export function getAverageBehaviorScore(state: DataState, studentId: string): number | null {
+  const scores = state.assessmentScores.filter(
+    (s) => s.student_id === studentId && s.category === "behavior",
+  );
+  if (scores.length === 0) return null;
+  const sum = scores.reduce(
+    (acc, s) => acc + (s.max_value > 0 ? s.value / s.max_value : 0),
+    0,
+  );
+  return sum / scores.length;
+}
+
+export function recordBehaviorScore(studentId: string, teacherId: string, value: number, maxValue = 10) {
+  recordAssessmentScore({
+    studentId,
+    teacherId,
+    category: "behavior",
+    source: "manual",
+    value,
+    maxValue,
+  });
+}
+
+
+export function deleteAllActivityLog(): void {
+  const ids = getData().activityLog.map((a) => a.id);
+  if (ids.length === 0) return;
+  update((state) => ({ ...state, activityLog: [] }));
+  syncDeleteIds("activity_log", ids);
+}
+
+export function deleteNotification(id: string): void {
+  update((state) => ({ ...state, notifications: state.notifications.filter((n) => n.id !== id) }));
+  syncDeleteIds("notifications", [id]);
+}
+
+export function deleteActivityEntry(id: string): void {
+  update((state) => ({ ...state, activityLog: state.activityLog.filter((a) => a.id !== id) }));
+  syncDeleteIds("activity_log", [id]);
+}
+
+/* ---------------- 0020: Real source for groups ---------------- */
+
+export interface CreateGroupInput {
+  name: string;
+  gradeId: string;
+  subjectId: string;
+  teacherId: string;
+  capacity: number;
+  studentIds: string[];
+  notes?: string | undefined;
+}
+
+/**
+ * الخطوة 1: ينشئ Group في `pending` (لم تُجدول بعد).
+ * يحدث state.students ليُسند group_id لكل طالب مُختار (و group_name من اسم المجموعة).
+ * عند انتهاء السعة: يرفض الإضافة مع رسالة واضحة.
+ */
+export function createGroup(input: CreateGroupInput): { group: Group; warnings: string[] } {
+  const state = getData();
+  const grade = state.grades.find((g) => g.id === input.gradeId);
+  const subject = state.subjects.find((s) => s.id === input.subjectId);
+  const teacher = state.teachers.find((t) => t.id === input.teacherId);
+  const warnings: string[] = [];
+
+  if (!grade) {
+    throw new Error("الصف غير موجود");
+  }
+  if (!subject) {
+    throw new Error("المادة غير موجودة");
+  }
+  if (!teacher) {
+    throw new Error("المدرس غير موجود");
+  }
+  if (input.capacity <= 0) {
+    throw new Error("السعة يجب أن تكون أكبر من صفر");
+  }
+  if (input.studentIds.length > input.capacity) {
+    throw new Error("عدد الطلاب المختارين يتجاوز السعة القصوى");
+  }
+
+  const now = new Date().toISOString();
+  const newId = `grp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const group: Group = {
+    id: newId,
+    center_id: state.center.id,
+    name: input.name.trim(),
+    subject: subject.name,
+    subject_id: subject.id,
+    teacher_name: teacher.full_name,
+    teacher_id: teacher.id,
+    teacher_user_id: teacher.user_id ?? null,
+    grade: grade.name,
+    grade_id: grade.id,
+    weekday: "",
+    time: "",
+    room: "",
+    enrolled: input.studentIds.length,
+    capacity: input.capacity,
+    scheduling_status: "pending",
+    created_at: now,
+    notes: input.notes ?? null,
+  };
+
+  const targetIds = new Set(input.studentIds);
+  const studentsAfter = state.students.map((s) => {
+    if (!targetIds.has(s.id)) return s;
+    if (s.group_id && s.group_id !== newId) {
+      warnings.push(`الطالب ${s.full_name} منقول من مجموعة سابقة`);
+    }
+    return { ...s, group_id: newId, group_name: group.name };
+  });
+
+  update((s) => ({
+    ...s,
+    groups: [...s.groups, group],
+    students: studentsAfter,
+  }));
+  syncInsert("groups", group as unknown as object);
+  for (const sid of input.studentIds) {
+    syncUpdate("students", sid, { group_id: newId, group_name: group.name });
+  }
+
+  return { group, warnings };
+}
+
+export function updateGroup(
+  groupId: string,
+  patch: { capacity?: number; notes?: string | null },
+): void {
+  update((state) => ({
+    ...state,
+    groups: state.groups.map((g) =>
+      g.id === groupId
+        ? {
+            ...g,
+            ...(patch.capacity !== undefined ? { capacity: patch.capacity } : {}),
+            ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+          }
+        : g,
+    ),
+  }));
+  const payload: Record<string, unknown> = {};
+  if (patch.capacity !== undefined) payload["capacity"] = patch.capacity;
+  if (patch.notes !== undefined) payload["notes"] = patch.notes;
+  syncUpdate("groups", groupId, payload);
+}
+
+export function deleteGroup(groupId: string): void {
+  const state = getData();
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+  const orphanIds: string[] = [];
+  const studentsAfter = state.students.map((s) => {
+    if (s.group_id === groupId) {
+      orphanIds.push(s.id);
+      return { ...s, group_id: null, group_name: "بدون مجموعة" };
+    }
+    return s;
+  });
+  const slotIds = state.scheduleSlots
+    .filter((sl) => sl.group_id === groupId)
+    .map((sl) => sl.id);
+
+  update((s) => ({
+    ...s,
+    groups: s.groups.filter((g) => g.id !== groupId),
+    students: studentsAfter,
+    scheduleSlots: s.scheduleSlots.filter((sl) => sl.group_id !== groupId),
+  }));
+  syncDeleteIds("groups", [groupId]);
+  for (const sid of orphanIds) {
+    syncUpdate("students", sid, { group_id: null, group_name: "بدون مجموعة" });
+  }
+  if (slotIds.length > 0) syncDeleteIds("schedule_slots", slotIds);
+}
+
+export function addStudentToGroup(
+  studentId: string,
+  groupId: string,
+): { ok: boolean; reason?: string } {
+  const state = getData();
+  const group = state.groups.find((g) => g.id === groupId);
+  const student = state.students.find((s) => s.id === studentId);
+  if (!group || !student) return { ok: false, reason: "بيانات غير مكتملة" };
+  if (student.grade !== group.grade) {
+    return { ok: false, reason: "الطالب في صف مختلف" };
+  }
+  if (!student.subject_ids.includes(group.subject_id)) {
+    return { ok: false, reason: "الطالب غير مسجَّل في هذه المادة" };
+  }
+  if (group.enrolled >= group.capacity) {
+    return { ok: false, reason: "السعة مكتملة" };
+  }
+  update((s) => ({
+    ...s,
+    groups: s.groups.map((g) =>
+      g.id === groupId ? { ...g, enrolled: g.enrolled + 1 } : g,
+    ),
+    students: s.students.map((st) =>
+      st.id === studentId ? { ...st, group_id: groupId, group_name: group.name } : st,
+    ),
+  }));
+  syncUpdate("students", studentId, { group_id: groupId, group_name: group.name });
+  syncUpdate("groups", groupId, { enrolled: group.enrolled + 1 });
+  return { ok: true };
+}
+
+export function removeStudentFromGroup(studentId: string): void {
+  const state = getData();
+  const student = state.students.find((s) => s.id === studentId);
+  if (!student || !student.group_id) return;
+  const groupId = student.group_id;
+  const group = state.groups.find((g) => g.id === groupId);
+  update((s) => ({
+    ...s,
+    groups: s.groups.map((g) =>
+      g.id === groupId ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
+    ),
+    students: s.students.map((st) =>
+      st.id === studentId
+        ? { ...st, group_id: null, group_name: "بدون مجموعة" }
+        : st,
+    ),
+  }));
+  syncUpdate("students", studentId, { group_id: null, group_name: "بدون مجموعة" });
+  if (group) {
+    syncUpdate("groups", groupId, { enrolled: Math.max(0, group.enrolled - 1) });
+  }
+}
+
+export function getGroupsForGrade(state: DataState, gradeId: string): Group[] {
+  return state.groups.filter((g) => g.grade_id === gradeId);
+}
+
+export function getEligibleStudentsForGroup(
+  state: DataState,
+  gradeId: string,
+  subjectId: string,
+  excludeGroupId?: string,
+): Student[] {
+  const grade = state.grades.find((g) => g.id === gradeId);
+  if (!grade) return [];
+  return state.students.filter((s) => {
+    if (s.grade !== grade.name) return false;
+    if (!s.subject_ids.includes(subjectId)) return false;
+    if (excludeGroupId && s.group_id === excludeGroupId) return false;
+    return true;
+  });
+}
+
+export function setGroupSchedulingStatus(
+  groupId: string,
+  status: "pending" | "scheduled",
+  schedulingFields?: { weekday: string; time: string; room: string },
+): void {
+  update((state) => ({
+    ...state,
+    groups: state.groups.map((g) =>
+      g.id === groupId
+        ? {
+            ...g,
+            scheduling_status: status,
+            weekday: schedulingFields?.weekday ?? g.weekday,
+            time: schedulingFields?.time ?? g.time,
+            room: schedulingFields?.room ?? g.room,
+          }
+        : g,
+    ),
+  }));
+  const patch: Record<string, unknown> = { scheduling_status: status };
+  if (schedulingFields) {
+    patch["weekday"] = schedulingFields.weekday;
+    patch["time"] = schedulingFields.time;
+    patch["room"] = schedulingFields.room;
+  }
+  syncUpdate("groups", groupId, patch);
+}
+
+export function getRealGroups(state: DataState): Group[] {
+  return state.groups;
 }

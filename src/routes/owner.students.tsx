@@ -1,19 +1,56 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertCircle, Search, Star, User, Users } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  Award,
+  Banknote,
+  BookOpen,
+  CalendarCheck,
+  GraduationCap,
+  Search,
+  Star,
+  Target,
+  Trash2,
+  User,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { classifyStudent, useDataStore } from "@/lib/data-store";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { GroupCreateModal } from "@/components/owner/GroupCreateModal";
+import {
+  addTeacherNote,
+  classifyStudent,
+  deleteGroup,
+  useDataStore,
+} from "@/lib/data-store";
+import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PaymentStatus, Student } from "@/types";
+import type { Student } from "@/types";
 
 /**
- * DESIGN_ATMOSPHERE_SPEC.md §5 — display-only ranking, not a data-store rule:
- * top 20% by points within the student's own group. Reuses `classifyStudent`
- * for the "needs attention" tier (no new classification logic there).
+ * §0.3 — صفحة الطلاب:
+ *  - 4 كروت حوكمة
+ *  - جدول مبسّط (اسم + كود + مجموعة فقط) + اختيار طالب
+ *  - لوحة تفاصيل الطالب عند الاختيار
+ *  - المجموعات الحقيقية تُنشأ هنا (الخطوة 1) وتُجدول من غرفة الجدولة (الخطوة 2)
  */
+
+export const Route = createFileRoute("/owner/students")({
+  head: () => ({
+    meta: [
+      { title: "الطلاب والمجموعات — لوحة المالك" },
+      {
+        name: "description",
+        content: "قاعدة بيانات الطلاب ومستوى كل طالب ومدفوعاته وحضوره.",
+      },
+    ],
+  }),
+  component: StudentsPage,
+});
+
 function isTopPerformerInGroup(student: Student, allStudents: Student[]): boolean {
   const groupmates = allStudents.filter((s) => s.group_id === student.group_id);
   if (groupmates.length === 0) return false;
@@ -35,30 +72,12 @@ const visualStatusMeta: Record<
   { icon: typeof Star; border: string; label: string }
 > = {
   top: { icon: Star, border: "border-r-primary", label: "متفوق" },
-  attention: { icon: AlertCircle, border: "border-r-muted-foreground", label: "يحتاج متابعة" },
+  attention: { icon: Award, border: "border-r-muted-foreground", label: "يحتاج متابعة" },
   normal: { icon: User, border: "border-r-border", label: "عادي" },
 };
 
-export const Route = createFileRoute("/owner/students")({
-  head: () => ({
-    meta: [
-      { title: "الطلاب والمجموعات — لوحة المالك" },
-      {
-        name: "description",
-        content: "قاعدة بيانات الطلاب وحالة السداد ونسب الحضور وتوزيع المجموعات.",
-      },
-      { property: "og:title", content: "الطلاب والمجموعات — لوحة المالك" },
-      {
-        property: "og:description",
-        content: "إدارة بيانات الطلاب وحالات السداد وتوزيع المجموعات داخل السنتر.",
-      },
-    ],
-  }),
-  component: StudentsPage,
-});
-
 const paymentLabel: Record<
-  PaymentStatus,
+  Student["payment_status"],
   { text: string; tone: "success" | "warning" | "destructive" }
 > = {
   paid: { text: "مسدد", tone: "success" },
@@ -67,9 +86,26 @@ const paymentLabel: Record<
 };
 
 function StudentsPage() {
-  const { students, groups } = useDataStore();
+  const state = useDataStore();
+  const navigate = useNavigate();
+  const {
+    students,
+    groups,
+    payments,
+    attendanceRecords,
+    homeworkTasks,
+    teacherNotes,
+    teachers,
+  } = state;
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | PaymentStatus>("all");
+  const [filter, setFilter] = useState<"all" | Student["payment_status"]>("all");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const primaryCount = groups.filter((g) => g.grade.includes("الابتدائي")).length;
+  const prepCount = groups.filter((g) => g.grade.includes("الإعدادي") || g.grade.includes("الاعدادي")).length;
+  const secondaryCount = groups.length - primaryCount - prepCount;
 
   const filtered = useMemo(
     () =>
@@ -81,75 +117,166 @@ function StudentsPage() {
     [students, query, filter],
   );
 
-  const due = students.reduce((sum, s) => sum + s.balance_due, 0);
-  const avgAttendance = Math.round(
-    students.reduce((sum, s) => sum + s.attendance_rate, 0) / Math.max(1, students.length),
-  );
+  const due = students.reduce((s, st) => s + st.balance_due, 0);
+  const avgAttendance =
+    students.length === 0
+      ? 0
+      : Math.round(students.reduce((s, st) => s + st.attendance_rate, 0) / students.length);
+  const avgScore =
+    students.length === 0 ? 0 : Math.round(students.reduce((s, st) => s + st.avg_score, 0) / students.length);
+
+  const selected = selectedId ? students.find((s) => s.id === selectedId) ?? null : null;
+  const studentPayments = selected
+    ? payments.filter((p) => p.student_code === selected.code)
+    : [];
+  const studentAttendance = selected
+    ? attendanceRecords.filter((a) => a.student_id === selected.id)
+    : [];
+  const studentHomework = selected
+    ? homeworkTasks.filter((h) => h.student_id === selected.id)
+    : [];
+  const studentNotes = selected
+    ? teacherNotes.filter((n) => n.student_id === selected.id)
+    : [];
 
   return (
     <AppShell
       role="owner"
       title="الطلاب والمجموعات"
-      description="قاعدة بيانات موحدة معزولة بمعرّف السنتر"
+      description="سجل الطلاب + نظرة تفصيلية عند اختيار أي طالب"
+      actions={
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-base font-black text-navy-foreground transition-opacity hover:opacity-90"
+        >
+          <UserPlus className="size-5" />
+          مجموعة جديدة
+        </button>
+      }
     >
+      <GroupCreateModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      {/* 4 كروت حوكمة */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="عدد الطلاب" value={formatNumber(students.length)} icon={Users} />
         <StatCard
-          label="مستحقات غير محصلة"
-          value={formatCurrency(due)}
+          label="إجمالي الطلاب"
+          value={formatNumber(students.length)}
           icon={Users}
-          tone="destructive"
-        />
-        <StatCard
-          label="عدد المجموعات"
-          value={formatNumber(groups.length)}
-          icon={Users}
-          tone="success"
+          trend={`${formatNumber(groups.length)} مجموعة`}
         />
         <StatCard
           label="متوسط الحضور"
           value={formatPercent(avgAttendance)}
-          icon={Users}
-          tone="success"
+          icon={User}
+          tone={avgAttendance >= 85 ? "success" : "warning"}
+        />
+        <StatCard
+          label="متوسط الدرجات"
+          value={formatNumber(avgScore)}
+          icon={Target}
+        />
+        <StatCard
+          label="إجمالي المستحقات"
+          value={formatCurrency(due)}
+          icon={Banknote}
+          tone={due > 0 ? "destructive" : "success"}
         />
       </div>
 
-      <Panel title="نظرة الطلاب البصرية" description="متفوق (أعلى 20% نقاطاً في مجموعته) · يحتاج متابعة · عادي">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {students.map((s) => {
-            const status = studentVisualStatus(s, students);
-            const meta = visualStatusMeta[status];
-            return (
-              <div
-                key={s.id}
-                className={cn("rounded-xl border-2 border-r-4 border-border p-4", meta.border)}
+      {/* كارت المجموعات الحقيقية (real source) */}
+      <Panel
+        title="المجموعات الحقيقية"
+        description={`${formatNumber(primaryCount)} ابتدائي · ${formatNumber(prepCount)} إعدادي · ${formatNumber(secondaryCount)} ثانوي`}
+      >
+        {groups.length === 0 ? (
+          <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+            لا توجد مجموعات بعد — أنشئ مجموعتك الأولى من زر "مجموعة جديدة" بالأعلى.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {groups.map((g) => (
+              <li
+                key={g.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-black text-foreground">{s.full_name}</p>
-                  <meta.icon
-                    className={cn(
-                      "size-4 shrink-0",
-                      status === "top"
-                        ? "fill-primary text-primary"
-                        : status === "attention"
-                          ? "text-muted-foreground"
-                          : "text-muted-foreground",
-                    )}
-                  />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-black text-foreground">{g.name}</p>
+                  <p className="mt-0.5 text-xs font-bold text-muted-foreground">
+                    {g.subject} · {g.grade} · مدرس: {g.teacher_name} · {g.enrolled}/{g.capacity}
+                  </p>
                 </div>
-                <p className="mt-1 text-xs font-bold text-muted-foreground">{s.group_name}</p>
-                <p className="mt-2 text-xs font-extrabold text-muted-foreground">
-                  {formatNumber(s.points)} نقطة · {formatPercent(s.attendance_rate)} حضور
-                </p>
-              </div>
-            );
-          })}
-        </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge
+                    tone={g.scheduling_status === "scheduled" ? "success" : "warning"}
+                  >
+                    {g.scheduling_status === "scheduled"
+                      ? `مُجدوَلة · ${g.weekday} ${g.time}`
+                      : "بانتظار الجدولة"}
+                  </StatusBadge>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `هل تريد حذف المجموعة "${g.name}"؟ سيُعاد الطلاب إلى "بدون مجموعة".`,
+                        )
+                      ) {
+                        deleteGroup(g.id);
+                        toast.success("تم حذف المجموعة");
+                      }
+                    }}
+                    className="rounded-lg border-2 border-border p-2 text-destructive hover:border-destructive"
+                    aria-label="حذف المجموعة"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </Panel>
 
+      {/* نظرة عامة مبسّطة — كبطاقات */}
+      <Panel title="نظرة الطلاب البصرية" description="متفوق / يحتاج متابعة / عادي">
+        {students.length === 0 ? (
+          <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+            لا يوجد طلاب بعد — أضف من /owner/access.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {students.map((s) => {
+              const status = studentVisualStatus(s, students);
+              const meta = visualStatusMeta[status];
+              return (
+                <button
+                  type="button"
+                  key={s.id}
+                  onClick={() => setSelectedId(s.id)}
+                  className={cn(
+                    "rounded-xl border-2 border-r-4 border-border p-4 text-right transition-colors hover:border-primary",
+                    meta.border,
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-black text-foreground">{s.full_name}</p>
+                    <meta.icon className="size-4 shrink-0 text-muted-foreground" />
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-muted-foreground">{s.group_name}</p>
+                  <p className="mt-2 text-xs font-extrabold text-muted-foreground">
+                    {formatNumber(s.points)} نقطة · {formatPercent(s.attendance_rate)} حضور
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+
+      {/* السجل + البحث + الفلتر + اختيار */}
       <Panel
         title="سجل الطلاب"
-        description="بحث بالاسم أو كود الطالب مع فلترة حالة السداد"
+        description="ابحث واختر أي طالب لعرض تفاصيله الكاملة"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
@@ -157,7 +284,7 @@ function StudentsPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="بحث عن طالب..."
+                placeholder="بحث بالاسم أو الكود..."
                 className="h-11 w-56 rounded-xl border-2 border-border bg-background pr-9 pl-3 text-sm font-bold outline-none focus:border-primary"
               />
             </div>
@@ -178,41 +305,54 @@ function StudentsPage() {
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-right text-sm">
+          <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b-2 border-border text-muted-foreground">
                 <th className="pb-3">الطالب</th>
                 <th className="pb-3">الكود</th>
                 <th className="pb-3">المجموعة</th>
-                <th className="pb-3">الحضور</th>
-                <th className="pb-3">المتوسط</th>
                 <th className="pb-3">السداد</th>
+                <th className="pb-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-border last:border-0">
+                <tr
+                  key={s.id}
+                  className={cn(
+                    "border-b border-border last:border-0 cursor-pointer transition-colors hover:bg-muted/40",
+                    selectedId === s.id && "bg-primary/5",
+                  )}
+                  onClick={() => setSelectedId(s.id)}
+                >
                   <td className="py-3">
                     <p className="font-black text-foreground">{s.full_name}</p>
-                    <p className="text-xs font-bold text-muted-foreground">
-                      ولي الأمر: {s.guardian_name} · {s.guardian_phone}
-                    </p>
+                    <p className="text-xs font-bold text-muted-foreground">{s.grade}</p>
                   </td>
                   <td className="py-3 font-mono font-extrabold">{s.code}</td>
                   <td className="py-3 font-bold text-muted-foreground">{s.group_name}</td>
-                  <td className="py-3 font-extrabold">{formatPercent(s.attendance_rate)}</td>
-                  <td className="py-3 font-black text-primary">{formatNumber(s.avg_score)}</td>
                   <td className="py-3">
                     <StatusBadge tone={paymentLabel[s.payment_status].tone}>
                       {paymentLabel[s.payment_status].text}
-                      {s.balance_due > 0 ? ` · ${formatCurrency(s.balance_due)}` : ""}
                     </StatusBadge>
+                  </td>
+                  <td className="py-3 text-left">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedId(s.id);
+                      }}
+                      className="text-sm font-black text-primary hover:underline"
+                    >
+                      تفاصيل ←
+                    </button>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center font-black text-muted-foreground">
+                  <td colSpan={5} className="py-8 text-center font-black text-muted-foreground">
                     لا توجد نتائج مطابقة
                   </td>
                 </tr>
@@ -222,36 +362,214 @@ function StudentsPage() {
         </div>
       </Panel>
 
-      <Panel title="جدول المجموعات" description="المواعيد والقاعات والمدرس المسؤول">
-        <div className="grid gap-4 md:grid-cols-2">
-          {groups.map((g) => {
-            const overCap = g.enrolled > g.capacity;
-            // منطق "المجموعات الإضافية" — لو عدد الطلاب تجاوز السعة، النظام يقترح إنشاء مجموعة ثانية بنفس المدرس/المادة
-            const extraGroups = g.capacity > 0 ? Math.floor((g.enrolled - 1) / g.capacity) : 0;
-            return (
-              <div key={g.id} className="rounded-xl border-2 border-border p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-black text-foreground">{g.name}</p>
-                  <StatusBadge tone={overCap ? "destructive" : "primary"}>
-                    {g.room} · {formatNumber(g.enrolled)}/{formatNumber(g.capacity)}
-                  </StatusBadge>
-                </div>
-                <p className="mt-1 text-xs font-bold text-muted-foreground">
-                  {g.teacher_name} · {g.grade} · {g.subject}
-                </p>
-                <p className="mt-2 text-sm font-extrabold">
-                  {g.weekday} — {g.time} · {formatNumber(g.enrolled)} طالب
-                </p>
-                {extraGroups > 0 ? (
-                  <p className="mt-2 rounded-lg bg-warning/10 px-3 py-1.5 text-xs font-black text-warning">
-                    ⚠️ المجموعة تجاوزت السعة — يمكن إنشاء {formatNumber(extraGroups)} مجموعة إضافية بنفس المدرس
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
+      {/* تفاصيل الطالب المختار */}
+      {selected ? (
+        <Panel
+          title={`تفاصيل: ${selected.full_name}`}
+          description={`الكود: ${selected.code} · ${selected.grade} · ${selected.group_name}`}
+          actions={
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="text-sm font-black text-muted-foreground hover:text-foreground"
+            >
+              إغلاق
+            </button>
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <DetailStat label="نقاط لوحة الشرف" value={formatNumber(selected.points)} />
+            <DetailStat label="نسبة الحضور" value={formatPercent(selected.attendance_rate)} />
+            <DetailStat label="متوسط الدرجات" value={formatNumber(selected.avg_score)} />
+            <DetailStat
+              label="المستحق"
+              value={formatCurrency(selected.balance_due)}
+              tone={selected.balance_due > 0 ? "warning" : "success"}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-6 lg:grid-cols-2">
+            <SubPanel title="المدفوعات" icon={Banknote}>
+              {studentPayments.length === 0 ? (
+                <p className="text-sm font-bold text-muted-foreground">لا توجد مدفوعات مسجّلة.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {studentPayments.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 text-sm font-bold text-foreground"
+                    >
+                      <span>{p.item}</span>
+                      <span className="text-success">{formatCurrency(p.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SubPanel>
+
+            <SubPanel title="سجل الحضور" icon={CalendarCheck}>
+              {studentAttendance.length === 0 ? (
+                <p className="text-sm font-bold text-muted-foreground">لا توجد سجلات حضور.</p>
+              ) : (
+                <ul className="max-h-48 space-y-1 overflow-y-auto pr-1">
+                  {studentAttendance.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex items-center justify-between gap-2 text-sm font-bold text-foreground"
+                    >
+                      <span>{a.checked_in_at}</span>
+                      <StatusBadge
+                        tone={
+                          a.status === "present"
+                            ? "success"
+                            : a.status === "late"
+                              ? "warning"
+                              : "destructive"
+                        }
+                      >
+                        {a.status === "present"
+                          ? "حاضر"
+                          : a.status === "late"
+                            ? "متأخر"
+                            : "غائب"}
+                      </StatusBadge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SubPanel>
+
+            <SubPanel title="الواجبات" icon={BookOpen}>
+              {studentHomework.length === 0 ? (
+                <p className="text-sm font-bold text-muted-foreground">لا توجد واجبات.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {studentHomework.map((h) => (
+                    <li
+                      key={h.id}
+                      className="flex items-center justify-between gap-2 text-sm font-bold text-foreground"
+                    >
+                      <span>{h.title}</span>
+                      <StatusBadge
+                        tone={
+                          h.status === "graded"
+                            ? "success"
+                            : h.status === "submitted"
+                              ? "primary"
+                              : h.status === "late"
+                                ? "destructive"
+                                : "warning"
+                        }
+                      >
+                        {h.status === "pending"
+                          ? "لم يُسلَّم"
+                          : h.status === "submitted"
+                            ? "تم التسليم"
+                            : h.status === "graded"
+                              ? `مُصحَّح (${h.grade ?? "—"})`
+                              : "متأخر"}
+                      </StatusBadge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SubPanel>
+
+            <SubPanel title="ملاحظات المدرسين" icon={GraduationCap}>
+              {studentNotes.length === 0 ? (
+                <p className="text-sm font-bold text-muted-foreground">لا توجد ملاحظات.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {studentNotes.map((n) => (
+                    <li key={n.id} className="rounded-lg border border-border p-2">
+                      <p className="text-sm font-black text-foreground">{n.note}</p>
+                      <p className="mt-0.5 text-xs font-bold text-muted-foreground">
+                        {n.teacher_name} · {n.subject} · {formatDateTime(n.date)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SubPanel>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-end gap-2">
+            <label className="block flex-1 min-w-64">
+              <span className="mb-1.5 block text-xs font-black text-muted-foreground">
+                إضافة ملاحظة للطالب
+              </span>
+              <input
+                type="text"
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="اكتب ملاحظة قصيرة (تظهر في سجل المدرّس)"
+                className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                if (!noteDraft.trim()) {
+                  toast.error("اكتب نص الملاحظة أولاً");
+                  return;
+                }
+                if (!selected) return;
+                addTeacherNote(selected.id, teachers[0]?.id ?? selected.id, noteDraft);
+                setNoteDraft("");
+                toast.success("تم حفظ الملاحظة");
+              }}
+              className="rounded-xl border-2 border-primary bg-primary/10 px-4 py-2 text-sm font-black text-primary"
+            >
+              حفظ الملاحظة
+            </button>
+          </div>
+        </Panel>
+      ) : null}
     </AppShell>
+  );
+}
+
+function DetailStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "warning" | "destructive";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border-2 p-3",
+        tone === "success" && "border-success/40 bg-success/5",
+        tone === "warning" && "border-warning/40 bg-warning/5",
+        tone === "destructive" && "border-destructive/40 bg-destructive/5",
+        !tone && "border-border",
+      )}
+    >
+      <p className="text-xs font-bold text-muted-foreground">{label}</p>
+      <p className="kpi-number text-xl">{value}</p>
+    </div>
+  );
+}
+
+function SubPanel({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof Banknote;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-border p-4">
+      <p className="mb-2 flex items-center gap-2 text-sm font-black text-foreground">
+        <Icon className="size-4 text-primary" />
+        {title}
+      </p>
+      {children}
+    </div>
   );
 }
