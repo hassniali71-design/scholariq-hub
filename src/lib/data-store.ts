@@ -593,9 +593,9 @@ export function findStudentById(state: DataState, id: string): Student | undefin
  * Parents authenticate with their child's student code, so the same
  * resolution works for both `student` and `parent` roles.
  */
-export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student {
+export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student | undefined {
   const match = identifier ? findStudentByCode(state, identifier) : undefined;
-  return match ?? state.students[0]!;
+  return match ?? state.students[0] ?? undefined;
 }
 
 /**
@@ -888,6 +888,58 @@ export function getNextPlannedLesson(
     if (next) return next;
   }
   return undefined;
+}
+
+export interface SubjectCurriculumProgress {
+  subject: Subject;
+  unitCount: number;
+  lessonCount: number;
+  doneCount: number;
+  inProgressCount: number;
+  nextLesson: CurriculumLesson | undefined;
+}
+
+export function getCurriculumProgress(
+  state: DataState,
+  subjectId: string,
+  gradeId: string,
+): SubjectCurriculumProgress {
+  const subject = state.subjects.find((s) => s.id === subjectId);
+  if (!subject) {
+    return {
+      subject: { id: subjectId, center_id: "", name: "مادة غير معروفة", theme_key: "" } as Subject,
+      unitCount: 0,
+      lessonCount: 0,
+      doneCount: 0,
+      inProgressCount: 0,
+      nextLesson: undefined,
+    };
+  }
+
+  const units = getCurriculumUnitsForSubjectGrade(state, subjectId, gradeId);
+  let unitCount = 0;
+  let lessonCount = 0;
+  let doneCount = 0;
+  let inProgressCount = 0;
+  let nextLesson: CurriculumLesson | undefined;
+
+  for (const unit of units) {
+    unitCount += 1;
+    const lessons = getCurriculumLessonsForUnit(state, unit.id);
+    for (const lesson of lessons) {
+      lessonCount += 1;
+      if (lesson.status === "done") {
+        doneCount += 1;
+      } else if (lesson.status === "in_progress") {
+        inProgressCount += 1;
+      }
+      if (!nextLesson && lesson.status !== "done") {
+        nextLesson = lesson;
+      }
+    }
+  }
+
+  return { subject, unitCount, lessonCount, doneCount, inProgressCount, nextLesson };
 }
 
 /** The current (general, not tied to one past session) score for a student in a category — §8. */
@@ -1278,6 +1330,51 @@ export function getAttendanceForSession(
   return state.attendanceRecords.find(
     (a) => a.student_id === studentId && a.session_id === sessionId,
   );
+}
+
+export interface StudentAttendanceSeries {
+  day: string;
+  present: number;
+  absent: number;
+}
+
+export function getStudentAttendanceSeries(
+  state: DataState,
+  studentId: string,
+): StudentAttendanceSeries[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const records = state.attendanceRecords.filter((r) => {
+    if (r.student_id !== studentId) return false;
+    if (!r.checked_in_at || r.checked_in_at === "—") return false;
+    const d = new Date(r.checked_in_at);
+    if (Number.isNaN(d.getTime())) return false;
+    return true;
+  });
+
+  const buckets: { present: number; absent: number }[] = Array.from({ length: 4 }, () => ({
+    present: 0,
+    absent: 0,
+  }));
+
+  for (const r of records) {
+    const d = new Date(r.checked_in_at);
+    const diffMs = today.getTime() - d.getTime();
+    const bucketIndex = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+    const bucket = buckets[bucketIndex];
+    if (!bucket) continue;
+    if (r.status === "present" || r.status === "late") {
+      bucket.present += 1;
+    } else if (r.status === "absent") {
+      bucket.absent += 1;
+    }
+  }
+
+  return [...buckets].reverse().map((b, i) => ({
+    day: `أسبوع ${i + 1}`,
+    present: b.present,
+    absent: b.absent,
+  }));
 }
 
 /**

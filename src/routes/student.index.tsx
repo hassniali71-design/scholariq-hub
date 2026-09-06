@@ -28,17 +28,20 @@ import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
   diagnoseWeakPoint,
   getAverageBehaviorScore,
+  getCurriculumProgress,
   getElectronicHomeworkForGroup,
   getElectronicHomeworkScore,
   getOverallStudentPerformance,
   getPerformanceLabel,
+  getStudentAttendanceSeries,
   getSubjectPerformanceSummary,
   getTeacherLaunchesForGroup,
+  getUpcomingGroupsForToday,
   recordAssessmentScore,
   useDataStore,
   type DataState,
 } from "@/lib/data-store";
-import { studentAttendanceSeries } from "@/lib/mock-data";
+import { getSubjectTheme } from "@/lib/subject-themes";
 import type { ElectronicHomework } from "@/types";
 
 const trendMeta = {
@@ -168,8 +171,10 @@ export const Route = createFileRoute("/student/")({
 
 function StudentPortal() {
   const state = useDataStore();
-  const { quizResults, homeworkTasks, leaderboard, subjects } = state;
+  const { quizResults, homeworkTasks, leaderboard, subjects, groups, grades } = state;
   const me = useCurrentStudent();
+  if (!me) return <AppShell role="student" title="جارٍ التحميل…" description="جارٍ تحميل بيانات الطالب"><div /></AppShell>;
+
   const myQuizzes = quizResults.filter((q) => q.student_id === me.id);
   const myHomework = homeworkTasks.filter((h) => h.student_id === me.id);
   const myRank = leaderboard.find((e) => e.student_id === me.id)?.rank;
@@ -177,11 +182,14 @@ function StudentPortal() {
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
 
-  /** CURRICULUM_ENGINE_SPEC.md §7: real multi-subject enrollment, replacing §5's interim single-group derivation. */
   const mySubjects = me.subject_ids
     .map((id) => subjects.find((s) => s.id === id))
     .filter((s): s is (typeof subjects)[number] => s !== undefined);
   const overallPerformance = getOverallStudentPerformance(state, me.id);
+
+  const gradeId = me.group_id
+    ? groups.find((g) => g.id === me.group_id)?.grade_id
+    : grades.find((g) => g.name === me.grade)?.id;
 
   return (
     <AppShell
@@ -221,6 +229,49 @@ function StudentPortal() {
         />
       </div>
 
+      {me.group_id ? (() => {
+        const upcoming = getUpcomingGroupsForToday(state).filter((u) => u.group.id === me.group_id);
+        const session = upcoming[0];
+        if (!session) {
+          return (
+            <Panel title="حصة اليوم" description={me.group_name}>
+              <p className="text-sm font-bold text-muted-foreground">لا توجد حصة مجدوولة لليوم</p>
+            </Panel>
+          );
+        }
+        const statusLabel = session.status === "now" ? "حالياً الآن" : "لاحقاً اليوم";
+        const statusTone = session.status === "now" ? "success" : "primary";
+        const groupStudents = state.students.filter((s) => s.group_id === session.group.id);
+        return (
+          <Panel title="حصة اليوم" description={session.group.name}>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone={statusTone}>{statusLabel}</StatusBadge>
+              <span className="text-sm font-bold text-muted-foreground">{session.group.time}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-bold text-muted-foreground">المدرس</p>
+                <p className="text-sm font-black text-foreground">{session.teacher?.full_name ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-muted-foreground">القاعة</p>
+                <p className="text-sm font-black text-foreground">{session.group.room}</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              <p className="text-xs font-bold text-muted-foreground">الحضور المسجَّل</p>
+              <p className="kpi-number text-xl">
+                {formatNumber(session.attendanceMarkedToday)} / {formatNumber(groupStudents.length)}
+              </p>
+            </div>
+          </Panel>
+        );
+      })() : (
+        <Panel title="حصة اليوم" description="لا توجد حصة مجدوولة">
+          <p className="text-sm font-bold text-muted-foreground">لا توجد حصة مجدوولة</p>
+        </Panel>
+      )}
+
       {mySubjects.length > 0 ? (
         <Panel title="مستواك العام" description="متوسط مُجمَّع عبر كل المواد المشترك فيها">
           <div className="flex flex-col items-center gap-1 py-4">
@@ -238,12 +289,6 @@ function StudentPortal() {
             {mySubjects.map((subject) => {
               const summary = getSubjectPerformanceSummary(state, me.id, subject.id);
               const meta = trendMeta[summary.trend];
-              /**
-               * CURRICULUM_ENGINE_SPEC.md §6-ج: combines the subject-scoped rollup
-               * (headline % + label) with the general cross-category diagnosis
-               * (weak point) into one descriptive sentence, matching the spec's
-               * own worked example.
-               */
               const label = getPerformanceLabel(summary.overallAvg);
               const diagnosis = diagnoseWeakPoint(state, me.id);
               return (
@@ -279,12 +324,63 @@ function StudentPortal() {
         </Panel>
       ) : null}
 
+      {gradeId && mySubjects.length > 0 ? (
+        <Panel title="موادي والمنهج" description="تقدمك في كل مادة">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {mySubjects.map((subject) => {
+              const progress = getCurriculumProgress(state, subject.id, gradeId);
+              const theme = getSubjectTheme(subject.theme_key);
+              const pct =
+                progress.lessonCount > 0
+                  ? Math.round((progress.doneCount / progress.lessonCount) * 100)
+                  : 0;
+              return (
+                <div key={subject.id} className="rounded-xl border-2 border-border p-4">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex size-8 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: theme.primary + "15", color: theme.primary }}
+                    >
+                      <theme.icon className="size-4" />
+                    </span>
+                    <p className="font-black text-foreground">{subject.name}</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="kpi-number text-lg">{formatNumber(progress.unitCount)}</p>
+                      <p className="text-xs font-bold text-muted-foreground">وحدات</p>
+                    </div>
+                    <div>
+                      <p className="kpi-number text-lg">{formatNumber(progress.lessonCount)}</p>
+                      <p className="text-xs font-bold text-muted-foreground">دروس</p>
+                    </div>
+                    <div>
+                      <p className="kpi-number text-lg">{formatNumber(progress.doneCount)}</p>
+                      <p className="text-xs font-bold text-muted-foreground">مكتمل</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: theme.primary }}
+                    />
+                  </div>
+                  {progress.nextLesson ? (
+                    <p className="mt-2 text-xs font-bold text-muted-foreground">
+                      الدرس القادم: {progress.nextLesson.title}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs font-bold text-success">أكملت كل الدروس!</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+      ) : null}
+
       <ElectronicHomeworkSection state={state} studentId={me.id} />
 
-      {/*
-        Migration 0023 / خطة C (C6): مهام المدرس الجديدة — واجبات + مراجعات
-        + أنشطة + قراءات أطلاقها مدرّس مجموعتك. آخر 10 بالأحدث.
-      */}
       {me.group_id ? (
         <TeacherLaunchesPanel state={state} groupId={me.group_id} />
       ) : null}
@@ -293,8 +389,8 @@ function StudentPortal() {
         <Panel title="منحنى نتائجي" description="نسبة الدرجات في آخر التقييمات">
           <ScoreTrendChart data={trend} />
         </Panel>
-        <Panel title="حضوري الشهري" description="عدد الحصص المحضورة أسبوعياً">
-          <AttendanceChart data={studentAttendanceSeries} />
+        <Panel title="حضوري الأسبوعي" description="عدد الحصص المحضورة أسبوعياً">
+          <AttendanceChart data={getStudentAttendanceSeries(state, me.id)} />
         </Panel>
       </div>
 

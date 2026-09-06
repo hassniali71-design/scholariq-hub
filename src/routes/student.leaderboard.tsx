@@ -35,6 +35,7 @@ const badges = [
 function LeaderboardPage() {
   const { leaderboard } = useDataStore();
   const student = useCurrentStudent();
+  if (!student) return <AppShell role="student" title="جارٍ التحميل…" description="جارٍ تحميل بيانات الطالب"><div /></AppShell>;
   const top = leaderboard[0]!;
   const me = leaderboard.find((e) => e.student_id === student.id) ?? {
     rank: leaderboard.length + 1,

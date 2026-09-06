@@ -605,6 +605,9 @@ export interface FinanceSettings {
   updated_at: string;
 }
 
+/** Alias matching the actual DB table name `center_finance_settings` (db/0009). */
+export type CenterFinanceSettings = FinanceSettings;
+
 /** سجل تسليم واستلام الخزنة: المدير استلم مبلغ من موظف معيّن بتاريخه. */
 export interface SafeHandover {
   id: UUID;

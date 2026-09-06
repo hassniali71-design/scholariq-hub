@@ -30,6 +30,7 @@ export const Route = createFileRoute("/parent/")({
 function ParentPortal() {
   const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores } = useDataStore();
   const child = useCurrentStudent();
+  if (!child) return <AppShell role="parent" title="جارٍ التحميل…" description="جارٍ تحميل بيانات الطالب"><div /></AppShell>;
   const childQuizzes = quizResults.filter((q) => q.student_id === child.id);
   const childHomework = homeworkTasks.filter((h) => h.student_id === child.id);
   const childNotes = teacherNotes.filter((n) => n.student_id === child.id);

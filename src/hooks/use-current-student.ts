@@ -36,7 +36,7 @@ export function useSession(): Session | null {
  * Students authenticate with their own code, parents with their child's code,
  * so the same lookup serves both portals.
  */
-export function useCurrentStudent(): Student {
+export function useCurrentStudent(): Student | undefined {
   const data = useDataStore();
   const session = useSession();
   return resolveCurrentStudent(data, session?.identifier);

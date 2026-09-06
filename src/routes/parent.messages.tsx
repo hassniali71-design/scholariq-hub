@@ -40,6 +40,7 @@ const templateLabel: Record<WhatsAppLog["template"], string> = {
 function MessagesPage() {
   const data = useDataStore();
   const child = useCurrentStudent();
+  if (!child) return <AppShell role="parent" title="جارٍ التحميل…" description="جارٍ تحميل بيانات الطالب"><div /></AppShell>;
   const whatsappLogs = data.whatsappLogs.filter((w) => w.student_id === child.id);
   const [filter, setFilter] = useState<"all" | WhatsAppLog["template"]>("all");
   const list = whatsappLogs.filter((w) => filter === "all" || w.template === filter);
