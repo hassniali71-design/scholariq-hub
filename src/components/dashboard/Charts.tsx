@@ -8,6 +8,9 @@ import {
   Legend,
   Line,
   LineChart,
+  PolarAngleAxis,
+  RadialBar,
+  RadialBarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -198,6 +201,42 @@ export function CenterDayChart({
         />
       </BarChart>
     </ResponsiveContainer>
+  );
+}
+
+/**
+ * Gauge دائري لمستوى الطالب في مادة واحدة — أول Gauge chart في المشروع
+ * (لا يوجد نمط سابق، بُني هنا خصيصاً لصفحة "لوحتي"/"المستويات").
+ * الألوان بنفس تدرّج الأربع طبقات (0-40 / 41-60 / 61-80 / 81-100).
+ */
+export function SubjectGauge({ label, value }: { label: string; value: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const color =
+    pct >= 81
+      ? "var(--color-chart-2)"
+      : pct >= 61
+        ? "var(--color-chart-1)"
+        : pct >= 41
+          ? "var(--color-chart-3)"
+          : "var(--color-chart-5)";
+  const data = [{ value: pct, fill: color }];
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: 108, height: 108 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RadialBarChart innerRadius="72%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
+            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+            <RadialBar background dataKey="value" cornerRadius={20} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xl font-black" style={{ color }}>
+            {pct}%
+          </span>
+        </div>
+      </div>
+      <p className="text-center text-xs font-black text-foreground">{label}</p>
+    </div>
   );
 }
 

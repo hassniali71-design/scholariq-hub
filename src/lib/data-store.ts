@@ -941,6 +941,27 @@ export function getPerformanceLabel(avgPercent: number): string {
   return "خطر — يحتاج تدخل فوري";
 }
 
+/**
+ * نظام التفسير الرباعي المطلوب صراحة لصفحة "المستويات" (ولوحتي): كل رقم/مؤشر
+ * معاه نص تفسيري حسب فئته الأربع، مش رقم مجرد بلا معنى.
+ */
+export function getFourTierLabel(pct: number): {
+  tier: 1 | 2 | 3 | 4;
+  text: string;
+  tone: "destructive" | "warning" | "primary" | "success";
+} {
+  if (pct <= 40) {
+    return { tier: 1, text: "يحتاج انتباه فوري — راجع واجباتك ومهامك في هذه المادة", tone: "destructive" };
+  }
+  if (pct <= 60) {
+    return { tier: 2, text: "مستوى متوسط — حاول تخصص وقت مذاكرة إضافي", tone: "warning" };
+  }
+  if (pct <= 80) {
+    return { tier: 3, text: "مستوى جيد — استمر بنفس الجهد", tone: "primary" };
+  }
+  return { tier: 4, text: "مستوى ممتاز — افتخر بنفسك وحافظ عليه", tone: "success" };
+}
+
 export interface WeakPointDiagnosis {
   hasWeakPoint: boolean;
   text: string;
@@ -1056,6 +1077,35 @@ export function getSubjectPerformanceSummary(
         : "same",
     lessonsRecordedCount: lessonIds.length,
   };
+}
+
+export interface PerformanceLayer {
+  key: "homework" | "tasks" | "activity" | "behavior";
+  label: string;
+  pct: number;
+  hasData: boolean;
+}
+
+/**
+ * 4 طبقات أداء منفصلة (المطلوبة صراحة لصفحة "المستويات"): الواجبات (homework +
+ * e_homework)، المهام (أسئلة الحصة الحية)، الأنشطة، والسلوك — كل طبقة بمتوسطها
+ * الحقيقي من assessment_scores، مش رقم واحد مجمَّع.
+ */
+export function getPerformanceLayers(state: DataState, studentId: string): PerformanceLayer[] {
+  const pctFor = (categories: AssessmentScore["category"][]) => {
+    const scores = state.assessmentScores.filter(
+      (s) => s.student_id === studentId && categories.includes(s.category),
+    );
+    if (scores.length === 0) return { pct: 0, hasData: false };
+    const pct = averagePercent(scores);
+    return { pct, hasData: true };
+  };
+  return [
+    { key: "homework", label: "الواجبات", ...pctFor(["homework", "e_homework"]) },
+    { key: "tasks", label: "المهام (أسئلة الحصة)", ...pctFor(["question"]) },
+    { key: "activity", label: "الأنشطة", ...pctFor(["activity"]) },
+    { key: "behavior", label: "السلوك", ...pctFor(["behavior"]) },
+  ];
 }
 
 export interface OverallStudentPerformance {
@@ -3901,6 +3951,77 @@ function hoursAgo(iso: string): string {
 
 
 /** متوسط درجة السلوك لكل طالب (يستخدمه owner.compliance). */
+export interface EarnedBadge {
+  key: "question_streak" | "full_attendance" | "no_late_homework" | "improving";
+  title: string;
+  text: string;
+}
+
+/**
+ * شارات حقيقية مشتقة من بيانات فعلية — مش نص تزييني ثابت. تُحسب من نفس
+ * الجداول اللي بتتغذى من "وضع الحصة" فعلياً (assessmentScores/attendanceRecords/
+ * homeworkTasks/quizResults)، وما تظهرش أي شارة إلا لو الطالب استحقّها فعلاً.
+ */
+export function getEarnedBadges(state: DataState, studentId: string): EarnedBadge[] {
+  const badges: EarnedBadge[] = [];
+
+  const correctQuestions = state.assessmentScores.filter(
+    (s) => s.student_id === studentId && s.category === "question" && s.value >= s.max_value,
+  ).length;
+  if (correctQuestions >= 5) {
+    badges.push({
+      key: "question_streak",
+      title: "بطل الأسئلة",
+      text: `${correctQuestions} إجابة صحيحة على أسئلة الحصة حتى الآن`,
+    });
+  }
+
+  const myAttendance = state.attendanceRecords.filter((a) => a.student_id === studentId);
+  if (myAttendance.length >= 5) {
+    const presentOrLate = myAttendance.filter((a) => a.status !== "absent").length;
+    const rate = Math.round((presentOrLate / myAttendance.length) * 100);
+    if (rate >= 95) {
+      badges.push({
+        key: "full_attendance",
+        title: "الالتزام الكامل",
+        text: `معدل حضور ${rate}% عبر ${myAttendance.length} حصة`,
+      });
+    }
+  }
+
+  const myHomework = state.homeworkTasks.filter(
+    (h) => h.student_id === studentId && h.status !== "pending",
+  );
+  const lateHomework = myHomework.filter((h) => h.status === "late").length;
+  if (myHomework.length >= 5 && lateHomework === 0) {
+    badges.push({
+      key: "no_late_homework",
+      title: "واجب بلا تأخير",
+      text: `${myHomework.length} واجب تم تسليمهم في الموعد بلا أي تأخير`,
+    });
+  }
+
+  const myQuizzes = [...state.quizResults]
+    .filter((q) => q.student_id === studentId)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((q) => (q.max_score > 0 ? (q.score / q.max_score) * 100 : 0));
+  if (myQuizzes.length >= 6) {
+    const older = myQuizzes.slice(0, myQuizzes.length - 3);
+    const recent = myQuizzes.slice(-3);
+    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const improvement = Math.round(avg(recent) - avg(older));
+    if (improvement >= 10) {
+      badges.push({
+        key: "improving",
+        title: "الأعلى تقدماً",
+        text: `تحسّن ${improvement}٪ في متوسط آخر تقييماتك`,
+      });
+    }
+  }
+
+  return badges;
+}
+
 export function getAverageBehaviorScore(state: DataState, studentId: string): number | null {
   const scores = state.assessmentScores.filter(
     (s) => s.student_id === studentId && s.category === "behavior",

@@ -164,6 +164,27 @@ export function buildWeeklyAttendance(state: DataState): WeeklyAttendancePoint[]
   });
 }
 
+/**
+ * حضور طالب واحد موزَّع على أيام الأسبوع (بالأيام مقابل بعضها، مش أسابيع مقابل
+ * بعضها) — عبر كل مجموعاته (الأساسية + الإضافية، Migration 0027)، بحسب اليوم
+ * اللي كل مجموعة بتنعقد فيه.
+ */
+export function buildStudentAttendanceByWeekday(
+  state: DataState,
+  studentId: string,
+): WeeklyAttendancePoint[] {
+  const myRecords = state.attendanceRecords.filter((a) => a.student_id === studentId);
+  const weekdayByGroupName = new Map(state.groups.map((g) => [g.name, g.weekday]));
+  return WEEKDAYS.map((day) => {
+    const rows = myRecords.filter((a) => weekdayByGroupName.get(a.group_name) === day);
+    return {
+      day,
+      present: rows.filter((r) => r.status !== "absent").length,
+      absent: rows.filter((r) => r.status === "absent").length,
+    };
+  });
+}
+
 /* ---------------- المجموعات النشطة الآن + حوكمة الحصص ---------------- */
 
 export interface ActiveGroupRow {
