@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   Award,
   BookOpenCheck,
@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import {
   McqAnswerBody,
@@ -170,6 +171,10 @@ function StudentPortal() {
   const state = useDataStore();
   const { quizResults, homeworkTasks, leaderboard, subjects } = state;
   const me = useCurrentStudent();
+  useEffect(() => {
+    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me]);
+  if (!me) return <Navigate to="/login" />;
   const myQuizzes = quizResults.filter((q) => q.student_id === me.id);
   const myHomework = homeworkTasks.filter((h) => h.student_id === me.id);
   const myRank = leaderboard.find((e) => e.student_id === me.id)?.rank;

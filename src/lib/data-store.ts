@@ -589,13 +589,24 @@ export function findStudentById(state: DataState, id: string): Student | undefin
 }
 
 /**
- * Resolves the student the current session is about.
- * Parents authenticate with their child's student code, so the same
- * resolution works for both `student` and `parent` roles.
+ * Resolves the student the current session is about, or `null` if no
+ * student matches the session's identifier (invalid/stale session, or no
+ * session at all). Parents authenticate with their child's student code,
+ * so the same resolution works for both `student` and `parent` roles.
+ *
+ * Real fix for the same bug class `resolveCurrentTeacher` already fixed
+ * (see its comment): this used to fall back to `state.students[0]!`, which
+ * meant an invalid/stale student or parent session silently showed a
+ * DIFFERENT family's grades, balance, and WhatsApp log instead of being
+ * rejected — a real cross-family data leak, not just a display glitch.
+ *
+ * Breaking change vs the previous `Student` return: consumers MUST check
+ * for `null` and redirect to `/login` (same pattern as `useCurrentTeacher`
+ * callers).
  */
-export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student {
-  const match = identifier ? findStudentByCode(state, identifier) : undefined;
-  return match ?? state.students[0]!;
+export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student | null {
+  if (!identifier) return null;
+  return findStudentByCode(state, identifier) ?? null;
 }
 
 /**

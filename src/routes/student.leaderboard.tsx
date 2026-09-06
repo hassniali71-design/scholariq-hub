@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Crown, Medal, Sparkles, Trophy } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 import { Panel, StatCard } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -35,7 +37,11 @@ const badges = [
 function LeaderboardPage() {
   const { leaderboard } = useDataStore();
   const student = useCurrentStudent();
-  const top = leaderboard[0]!;
+  useEffect(() => {
+    if (!student) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [student]);
+  if (!student) return <Navigate to="/login" />;
+  const top = leaderboard[0] ?? null;
   const me = leaderboard.find((e) => e.student_id === student.id) ?? {
     rank: leaderboard.length + 1,
     student_id: student.id,
@@ -50,7 +56,7 @@ function LeaderboardPage() {
         <StatCard label="ترتيبي" value={formatNumber(me.rank)} icon={Trophy} />
         <StatCard
           label="الفارق عن المركز الأول"
-          value={formatNumber(top.points - me.points)}
+          value={formatNumber(top ? top.points - me.points : 0)}
           icon={Crown}
           tone="destructive"
           trendDirection="down"

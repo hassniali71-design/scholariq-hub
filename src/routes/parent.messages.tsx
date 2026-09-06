@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { CheckCheck, MessageSquareText, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -40,8 +41,12 @@ const templateLabel: Record<WhatsAppLog["template"], string> = {
 function MessagesPage() {
   const data = useDataStore();
   const child = useCurrentStudent();
-  const whatsappLogs = data.whatsappLogs.filter((w) => w.student_id === child.id);
   const [filter, setFilter] = useState<"all" | WhatsAppLog["template"]>("all");
+  useEffect(() => {
+    if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [child]);
+  if (!child) return <Navigate to="/login" />;
+  const whatsappLogs = data.whatsappLogs.filter((w) => w.student_id === child.id);
   const list = whatsappLogs.filter((w) => filter === "all" || w.template === filter);
   const delivered = whatsappLogs.filter((w) => w.delivered).length;
 
