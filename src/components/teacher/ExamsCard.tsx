@@ -1,5 +1,5 @@
 import { FileText, Play, Timer, Trash2, Upload } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
@@ -65,9 +65,11 @@ export function ExamsCard({
   );
 
   // عدّاد التشغيل — يعمل فقط أثناء امتحان جارٍ.
-  if (running && typeof window !== "undefined") {
-    setTimeout(() => setNow(Date.now()), 1000);
-  }
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
   const remaining = running ? Math.max(0, Math.round((running.endsAt - now) / 1000)) : 0;
 
   const upload = async (file: File) => {
