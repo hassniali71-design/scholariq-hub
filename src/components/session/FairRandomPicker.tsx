@@ -21,9 +21,13 @@ export function pickFairly(
   const alreadyPickedThisSession = new Set(
     log.filter((l) => l.session_id === sessionId).map((l) => l.student_id),
   );
-  const eligible = students.filter(
-    (s) => attendedStudentIds.has(s.id) && !alreadyPickedThisSession.has(s.id),
-  );
+  const attended = students.filter((s) => attendedStudentIds.has(s.id));
+  /**
+   * البند 6: أُلغي قيد "تم اختيار جميع الطلاب" — لو خلصت الدورة،
+   * تبدأ دورة جديدة من الحاضرين بدل ما يتوقف السحب.
+   */
+  const notYetPicked = attended.filter((s) => !alreadyPickedThisSession.has(s.id));
+  const eligible = notYetPicked.length > 0 ? notYetPicked : attended;
   if (eligible.length === 0) return null;
 
   const weighted = eligible.map((student) => {
