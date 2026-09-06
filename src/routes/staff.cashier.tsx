@@ -78,7 +78,10 @@ function CashierPage() {
   const [item, setItem] = useState("");
   const [amount, setAmount] = useState(0);
   const [method, setMethod] = useState<PaymentMethod>("cash");
-  const [reference, setReference] = useState("");
+  // كانا متغير واحد قديماً (reference) بيتشارك بين "قناة المحفظة" و"الرقم المرجعي"،
+  // فاختيار قناة كان بيمسح الرقم المكتوب والعكس. دلوقتي منفصلين ويتجمعوا وقت الحفظ.
+  const [walletRail, setWalletRail] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -151,15 +154,18 @@ function CashierPage() {
       toast.error("أدخل مبلغاً صحيحاً");
       return;
     }
-    if (method !== "cash" && !reference.trim()) {
-      toast.error("الرقم المرجعي مطلوب لوسيلة الدفع هذه");
+    if (method !== "cash" && (!walletRail || !referenceNumber.trim())) {
+      toast.error("اختر قناة المحفظة واكتب الرقم المرجعي");
       return;
     }
-    recordPayment(student.code, amount, method, item.trim(), reference.trim() || null);
+    const reference =
+      method === "cash" ? null : `${walletRail} - ${referenceNumber.trim()}`;
+    recordPayment(student.code, amount, method, item.trim(), reference);
     toast.success("تم التحصيل وطباعة الإيصال", {
       description: `${student.full_name} · ${formatCurrency(amount)}`,
     });
-    setReference("");
+    setWalletRail("");
+    setReferenceNumber("");
   };
 
   const exportCsv = () => {
@@ -392,10 +398,10 @@ function CashierPage() {
                     <button
                       key={r.key}
                       type="button"
-                      onClick={() => setReference(r.key)}
+                      onClick={() => setWalletRail(r.key)}
                       className={cn(
                         "rounded-xl border-2 px-3 py-2 text-xs font-black",
-                        reference === r.key
+                        walletRail === r.key
                           ? "border-navy bg-navy text-navy-foreground"
                           : "border-border hover:border-primary",
                       )}
@@ -410,8 +416,8 @@ function CashierPage() {
             {method === "wallet" ? (
               <Field label="الرقم المرجعي (مطلوب)">
                 <input
-                  value={reference.startsWith("تحويل") || reference.startsWith("إنستا") || reference.startsWith("فودافون") ? "" : reference}
-                  onChange={(e) => setReference(e.target.value)}
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="رقم العملية / المعرف"
                   className="h-12 w-full rounded-xl border-2 border-border bg-background px-4 text-sm font-black outline-none focus:border-primary"
                 />

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Banknote, CheckCircle2, ClipboardCheck, LockKeyhole, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,8 +26,19 @@ function ShiftPage() {
   const { payments, attendanceRecords, shiftClosures } = useDataStore();
   const expected = payments.reduce((s, p) => s + p.amount, 0);
   const [counted, setCounted] = useState(expected);
+  // لو الموظف لسه ما لمسش الحقل، نفضل نحدّث القيمة الافتراضية مع أي تحصيل جديد
+  // يدخل أثناء فتح الشاشة — بدل ما تفضل مجمّدة على أول رقم ظهر عند التحميل.
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (!touched) setCounted(expected);
+  }, [expected, touched]);
   const [closed, setClosed] = useState(false);
-  const diff = counted - expected;
+  // بعد التقفيل، الفرق المعروض هو نفسه اللي اتسجّل فعلياً وقت الضغط على الزرار
+  // (راجع من closeShift)، مش قيمة بتتحسب تاني من بيانات ممكن تكون اتغيّرت بعد كده.
+  const [closedResult, setClosedResult] = useState<{ expected: number; diff: number } | null>(
+    null,
+  );
+  const diff = closedResult ? closedResult.diff : counted - expected;
 
   const last5 = useMemo(() => shiftClosures.slice(0, 5), [shiftClosures]);
   const avgCounted = last5.length
@@ -92,7 +103,10 @@ function ShiftPage() {
               <input
                 type="number"
                 value={counted}
-                onChange={(e) => setCounted(Number(e.target.value))}
+                onChange={(e) => {
+                  setTouched(true);
+                  setCounted(Number(e.target.value));
+                }}
                 disabled={closed}
                 className="h-16 w-full rounded-2xl border-2 border-border bg-background px-4 text-3xl font-black outline-none focus:border-primary disabled:opacity-60"
               />
@@ -103,7 +117,8 @@ function ShiftPage() {
 
             <button
               onClick={() => {
-                closeShift(counted);
+                if (!window.confirm("متأكد إنك عايز تقفل الوردية بالمبلغ ده؟ العملية دي نهائية.")) return;
+                setClosedResult(closeShift(counted));
                 setClosed(true);
                 toast.success("تم تقفيل الوردية وإرسال التقرير للمالك");
               }}
