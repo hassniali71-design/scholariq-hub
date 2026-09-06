@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
+import { FilePreviewModal } from "@/components/teacher/FilePreviewModal";
 import {
   addTeacherLaunch,
   deleteTeacherLaunch,
@@ -61,6 +62,13 @@ export function ReviewUploadPanel({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
+  /** البند 5: الملف يفتح في نافذة معاينة بدل التحميل المباشر. */
+  const [preview, setPreview] = useState<{
+    title: string;
+    url: string;
+    fileName: string | null;
+    mime: string | null;
+  } | null>(null);
 
   const reviews = useMemo(
     () =>
@@ -176,17 +184,22 @@ export function ReviewUploadPanel({
                     </div>
                     <div className="flex items-center gap-1.5">
                       {url ? (
-                        <a
-                          href={url}
-                          download={r.file_name ?? r.title}
-                          target="_blank"
-                          rel="noreferrer noopener"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreview({
+                              title: r.title,
+                              url,
+                              fileName: r.file_name,
+                              mime: r.file_mime,
+                            })
+                          }
                           className={cn(
                             "rounded-lg border-2 border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-black text-primary hover:bg-primary/20",
                           )}
                         >
-                          {isImage ? "معاينة" : "تحميل"}
-                        </a>
+                          {isImage ? "معاينة الصورة" : "فتح ومعاينة"}
+                        </button>
                       ) : null}
                       <button
                         type="button"
@@ -209,6 +222,16 @@ export function ReviewUploadPanel({
           )}
         </div>
       </div>
+
+      {preview ? (
+        <FilePreviewModal
+          title={preview.title}
+          url={preview.url}
+          fileName={preview.fileName}
+          mime={preview.mime}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
     </Panel>
   );
 }

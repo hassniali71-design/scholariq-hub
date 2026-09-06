@@ -1138,6 +1138,8 @@ export function recordAttendance(
   status: AttendanceStatus,
   method: AttendanceRecord["method"],
   sessionId?: string,
+  /** دقائق التأخير — تُستخدم مع الحالة "متأخر" (يدوي أو تعديل رجعي). */
+  lateMinutes?: number,
 ) {
   let record: AttendanceRecord | null = null;
   let log: WhatsAppLog | null = null;
@@ -1155,6 +1157,7 @@ export function recordAttendance(
       checked_in_at: status === "absent" ? "—" : nowTime(),
       method,
       session_id: sessionId ?? null,
+      late_minutes: status === "late" ? Math.max(0, Math.round(lateMinutes ?? 0)) : 0,
     };
     log = {
       id: `wa-${Date.now()}`,

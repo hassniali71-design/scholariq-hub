@@ -38,7 +38,7 @@ export function ActivityRunner({
   teacherId,
   sessionId,
   questions,
-  defaultSecondsPerQuestion = 15,
+  defaultSecondsPerQuestion = 20,
   onExit,
 }: ActivityRunnerProps) {
   const state = useDataStore();
@@ -55,7 +55,13 @@ export function ActivityRunner({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const students = useMemo(() => getStudentsForGroup(state, group.id), [state.students, group.id]);
-  const attendedIds = useMemo(() => new Set(students.map((s) => s.id)), [students]);
+  /** البند 6: السحب لا يختار طالباً مسجَّلاً غائباً. */
+  const attendedIds = useMemo(() => {
+    const absent = new Set(
+      state.attendanceRecords.filter((a) => a.status === "absent").map((a) => a.student_id),
+    );
+    return new Set(students.filter((s) => !absent.has(s.id)).map((s) => s.id));
+  }, [students, state.attendanceRecords]);
   const currentQuestion = questions[questionIndex % questions.length] ?? null;
 
   const stopTimer = useCallback(() => {
@@ -90,7 +96,7 @@ export function ActivityRunner({
     }
     const next = pickFairly(students, state.randomPickLogs, sessionId, attendedIds);
     if (!next) {
-      toast.warning("كل الطلاب تم اختيارهم مسبقاً في هذه الحصة");
+      toast.warning("لا يوجد طلاب حاضرون لسحبهم");
       return;
     }
     recordRandomPick(group.id, next.id, sessionId);

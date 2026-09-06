@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import { startGroupSession, useDataStore } from "@/lib/data-store";
+import { pushNotification, startGroupSession, useDataStore } from "@/lib/data-store";
 import { formatNumber } from "@/lib/format";
 import type { Group } from "@/types";
 
@@ -104,7 +104,12 @@ function formatLiveClock(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function LiveActiveGroupsCard() {
+export function LiveActiveGroupsCard({
+  /** البند 1: الموظف فقط يبدأ الحصة أو يسجّل تأخيراً — المالك عرض فقط. */
+  canControl = false,
+}: {
+  canControl?: boolean;
+} = {}) {
   const state = useDataStore();
   const [now, setNow] = useState<Date>(() => new Date());
   useEffect(() => {
@@ -142,14 +147,14 @@ export function LiveActiveGroupsCard() {
       </p>
       <div className="mt-4 space-y-3">
         {live.map((row) => (
-          <LiveRow key={row.group.id} row={row} />
+          <LiveRow key={row.group.id} row={row} canControl={canControl} />
         ))}
       </div>
     </div>
   );
 }
 
-function LiveRow({ row }: { row: LiveGroup }) {
+function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
   const { group, started, activated, scheduledMs, firstActionMs, nowMs } = row;
   const lateMs = !activated && started ? nowMs - scheduledMs : 0;
   let display: string;
@@ -199,7 +204,10 @@ function LiveRow({ row }: { row: LiveGroup }) {
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {started && !activated ? (
+        {started && !activated && canControl ? (
+          <DelayButton groupName={group.name} />
+        ) : null}
+        {started && !activated && canControl ? (
           <button
             type="button"
             onClick={() => {
@@ -226,5 +234,50 @@ function LiveRow({ row }: { row: LiveGroup }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** البند 1: زر "تأخير" بدقائق يدوية — يُنشئ تنبيهاً للمالك والمدرس. */
+function DelayButton({ groupName }: { groupName: string }) {
+  const [open, setOpen] = useState(false);
+  const [minutes, setMinutes] = useState(10);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-xl border-2 border-warning/50 px-3 py-1.5 text-xs font-black text-warning hover:bg-warning/10"
+      >
+        تسجيل تأخير
+      </button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        type="number"
+        min={1}
+        max={120}
+        value={minutes}
+        onChange={(e) => setMinutes(Math.max(1, Number(e.target.value) || 1))}
+        className="w-16 rounded-lg border-2 border-warning/50 bg-background px-2 py-1 text-xs font-black outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => {
+          pushNotification(
+            "session_delay",
+            "warning",
+            `تأخير حصة ${groupName}`,
+            `سجّل الموظف تأخيراً قدره ${minutes} دقيقة لبدء حصة ${groupName}.`,
+          );
+          setOpen(false);
+          toast.warning(`تم تسجيل تأخير ${minutes} دقيقة وإبلاغ المالك والمدرس`);
+        }}
+        className="rounded-lg bg-warning px-2 py-1 text-xs font-black text-white"
+      >
+        تأكيد
+      </button>
+    </span>
   );
 }
