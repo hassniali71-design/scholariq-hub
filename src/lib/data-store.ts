@@ -49,6 +49,7 @@ import type {
   Grade,
   GradeSubject,
   Group,
+  GroupActivation,
   GroupResource,
   HomeworkAttempt,
   HomeworkTask,
@@ -314,6 +315,8 @@ export interface DataState {
   teacherLaunches: TeacherLaunch[];
   /** Migration 0023 (المرحلة A): محاولات الطلاب على الواجبات الإلكترونية. */
   homeworkAttempts: HomeworkAttempt[];
+  /** Migration 0026: إشارة "نشطة الآن" مستقلة — فعل الموظف فقط، انظر تعليق GroupActivation. */
+  groupActivations: GroupActivation[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -423,6 +426,7 @@ function seedState(): DataState {
     groupResources: [],
     teacherLaunches: [],
     homeworkAttempts: [],
+    groupActivations: [],
   };
 }
 
@@ -1211,6 +1215,34 @@ export function recordAttendance(
 }
 
 /**
+ * Migration 0026 — يسجّل المجموعة كـ"نشطة الآن" لعرض "المجموعات النشطة" عند المالك.
+ * يُستدعى فقط من داخل `startGroupSession` و`markAttendanceForGroup` (فعل الموظف)،
+ * أبداً من أي مسار يخص وضع الحصة عند المدرس — هذا هو الفصل المطلوب بالضبط.
+ * تحقّق سريع من عدم تكرار تسجيل نفس المجموعة أكثر من مرة في نفس اليوم.
+ */
+function activateGroupNow(groupId: string) {
+  const state = readState();
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+  const now = new Date();
+  const alreadyToday = state.groupActivations.some(
+    (a) => a.group_id === groupId && sameDay(a.activated_at, now),
+  );
+  if (alreadyToday) return;
+  let activation: GroupActivation | null = null;
+  update((s) => {
+    activation = {
+      id: `gact-${Date.now()}`,
+      center_id: group.center_id,
+      group_id: groupId,
+      activated_at: now.toISOString(),
+    };
+    return { ...s, groupActivations: [activation, ...s.groupActivations] };
+  });
+  if (activation) syncInsert("group_activations", activation);
+}
+
+/**
  * Migration 0023 / خطة C (C14): "بدأت الحصة" — الموظف يفتح الحصة ويُسجّل
  * كل طلاب المجموعة كـ "حاضر" في انتظار تأكيد المدرس. لا يمسح الحالات
  * اليدوية الموجودة (المتأخر/الغائب) — فقط الطلاب بلا سجل لليوم.
@@ -1222,6 +1254,7 @@ export function startGroupSession(groupId: string): { sessionId: string; marked:
   const sessionId = `sess-${Date.now()}`;
   const state = readState();
   const students = getStudentsForGroup(state, groupId);
+  activateGroupNow(groupId);
   let marked = 0;
   for (const s of students) {
     // تخطّي الطلاب اللي عندهم سجل حضور/تأخر لليوم
@@ -1595,6 +1628,7 @@ export function markAttendanceForGroup(
   });
   if (record) syncUpsert("attendance_records", record);
   if (log) syncInsert("whatsapp_logs", log);
+  if (record) activateGroupNow(groupId);
   return result;
 }
 

@@ -185,32 +185,38 @@ function parseSlotMinutes(time: string): number | null {
 }
 
 /**
- * الحصة تُحتسب نشطة فقط بشرطين معاً: مرور وقت بدايتها فعلياً (NOW)، وقيام المدرس
- * بتفعيلها من صفحته (رفع واجب / تسجيل حضور / بدء جلسة). الشرط الثاني ناقص = تأخير.
+ * الحصة تُحتسب نشطة فقط بشرطين معاً: مرور وقت بدايتها فعلياً (NOW)، وقيام
+ * **الموظف تحديداً** بتفعيلها (بوابة الحضور أو زر بدء الحصة من صفحته هو).
+ * الشرط الثاني ناقص = تأخير.
+ *
+ * فصل متعمّد عن وضع الحصة عند المدرس: أي حركة يعملها المدرس (تسجيل حضور من
+ * الروستر، إنهاء الحصة) لا تُحسب هنا إطلاقاً — `activated` معتمد فقط على
+ * `groupActivations` (Migration 0026)، اللي بيتكتب حصراً من `startGroupSession`
+ * و`markAttendanceForGroup` (مسارات الموظف فقط). بيانات الحضور/الحصص الحقيقية
+ * تفضل تتسجّل زي ما هي لالتزام المدرسين والتقارير — بس مالهاش تأثير على "نشطة الآن".
  */
 export function buildActiveGroupsNow(state: DataState, now = new Date()): ActiveGroupRow[] {
   const today = WEEKDAYS[now.getDay()]!;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const isToday = (iso: string) => {
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return false;
+    const d = new Date(t);
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
 
   return state.groups
     .filter((g) => g.weekday === today)
     .map((g) => {
       const start = parseSlotMinutes(g.time);
       const started = start !== null && nowMinutes >= start;
-      /**
-       * Section 0 fix: the previous code matched `attendanceRecords` by
-       * `group_name` and `homeworkTasks` by `subject` — both string fields
-       * that silently cross-attributed activity when two groups shared a
-       * name/subject. Now strictly by `group_id` (the immutable join key)
-       * via `sessionRecords` and any attendance linked to a student in
-       * this group.
-       */
-      const studentsInGroup = new Set(
-        state.students.filter((s) => s.group_id === g.id).map((s) => s.id),
+      const activated = state.groupActivations.some(
+        (a) => a.group_id === g.id && isToday(a.activated_at),
       );
-      const activated =
-        state.sessionRecords.some((s) => s.group_id === g.id) ||
-        state.attendanceRecords.some((a) => studentsInGroup.has(a.student_id));
       const lateMinutes = started && !activated && start !== null ? nowMinutes - start : 0;
       return { group: g, started, activated, lateMinutes };
     })

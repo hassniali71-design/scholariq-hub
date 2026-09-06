@@ -404,6 +404,21 @@ export interface CurriculumLesson {
   linked_lesson_id: UUID | null;
 }
 
+/**
+ * Migration 0026 — إشارة "المجموعة نشطة الآن" مستقلة تماماً عن sessionRecords/
+ * attendanceRecords. تُكتب فقط من إجراء الموظف (بوابة الحضور markAttendanceForGroup،
+ * أو زر بدء الحصة startGroupSession) — أي حركة يعملها المدرس في "وضع الحصة" (تسجيل
+ * حضور من الروستر، إنهاء الحصة) لا تكتب هنا إطلاقاً، فمينفعش تُظهر المجموعة كـ"نشطة"
+ * عند المالك. الغرض الوحيد لهذا الجدول هو "المجموعات النشطة الآن" — بيانات الحضور/
+ * الحصص الحقيقية (لالتزام المدرسين والتقارير) تفضل في جداولها الأصلية بلا تغيير.
+ */
+export interface GroupActivation {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  activated_at: string;
+}
+
 export interface SessionRecord {
   id: UUID;
   center_id: UUID;
