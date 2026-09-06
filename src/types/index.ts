@@ -447,7 +447,7 @@ export interface AssessmentScore {
   student_id: UUID;
   session_id: UUID | null;
   lesson_id: UUID | null;
-  category: "homework" | "activity" | "behavior" | "question" | "e_homework";
+  category: "homework" | "activity" | "behavior" | "question" | "e_homework" | "other";
   source: "auto" | "manual";
   value: number;
   max_value: number;
