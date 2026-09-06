@@ -3,13 +3,13 @@ import { CalendarCheck, MessageSquareText, ShieldCheck, Target, Wallet } from "l
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
+import { WeeklyAttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import { useDataStore } from "@/lib/data-store";
-import { studentAttendanceSeries } from "@/lib/mock-data";
+import { buildStudentAttendanceByWeekday } from "@/lib/owner-metrics";
 
 export const Route = createFileRoute("/parent/")({
   head: () => ({
@@ -30,8 +30,9 @@ export const Route = createFileRoute("/parent/")({
 });
 
 function ParentPortal() {
+  const state = useDataStore();
   const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores, attendanceRecords, students } =
-    useDataStore();
+    state;
   const child = useCurrentStudent();
   useEffect(() => {
     if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
@@ -163,8 +164,8 @@ function ParentPortal() {
         <Panel title="منحنى النتائج" description="نسبة الدرجات في آخر التقييمات">
           <ScoreTrendChart data={trend} />
         </Panel>
-        <Panel title="سجل الحضور" description="عدد الحصص المحضورة أسبوعياً">
-          <AttendanceChart data={studentAttendanceSeries} />
+        <Panel title="سجل الحضور" description="حضور الابن حقيقي بالأيام هذا الأسبوع">
+          <WeeklyAttendanceChart data={buildStudentAttendanceByWeekday(state, child.id)} />
         </Panel>
       </div>
 
