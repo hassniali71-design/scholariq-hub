@@ -609,6 +609,17 @@ export function resolveCurrentStudent(state: DataState, identifier?: string | nu
   return findStudentByCode(state, identifier) ?? null;
 }
 
+/** صورة بروفايل الطالب (base64) — Migration 0025، نفس نمط تخزين ملفات teacher_launches. */
+export function setStudentAvatar(studentId: string, dataUrl: string, mime: string): void {
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) =>
+      s.id === studentId ? { ...s, avatar_data: dataUrl, avatar_mime: mime } : s,
+    ),
+  }));
+  syncUpdate("students", studentId, { avatar_data: dataUrl, avatar_mime: mime });
+}
+
 /**
  * Resolves the teacher the current session belongs to, by login identifier
  * (`Teacher.user_id`, same join-key mechanism as `Student.code` above —

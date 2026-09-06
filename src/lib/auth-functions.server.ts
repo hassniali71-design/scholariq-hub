@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { buildNameCode, generateSimplePassword, ROLE_PREFIX } from "@/lib/identifier-gen";
 import {
   gradeSubjects as seedGradeSubjects,
   grades as seedGrades,
@@ -40,14 +41,16 @@ function randAlpha(len: number) {
   for (let i = 0; i < len; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
-function generatePassword() {
-  return `${randAlpha(4)}${rand(4)}`;
-}
-
-async function uniqueIdentifier(prefix: string, digits: number) {
+/**
+ * كود دخول مبني على الاسم (PREFIX-XXXX) بدل أرقام عشوائية بحتة — طلب صريح
+ * لمرحلة التجربة الحالية (انظر تعليق الأمان في identifier-gen.ts). التحقق
+ * من التكرار حقيقي ضد Supabase (identifier فريد عالمياً عبر كل المراكز).
+ */
+async function uniqueFriendlyIdentifier(prefix: string, fullName: string): Promise<string> {
   const supabase = getSupabaseAdmin();
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const candidate = `${prefix}-${rand(digits)}`;
+  const base = buildNameCode(fullName);
+  for (let attempt = 1; attempt < 50; attempt += 1) {
+    const candidate = attempt === 1 ? `${prefix}-${base}` : `${prefix}-${base}${attempt}`;
     const { data } = await supabase
       .from("accounts")
       .select("id")
@@ -90,7 +93,9 @@ export const signIn = createServerFn({ method: "POST" })
     const identifier = data.identifier.trim();
     if (!identifier) return { ok: false as const, error: "من فضلك أدخل بيانات الدخول" };
 
-    const needsPassword = data.role === "owner" || data.role === "teacher" || data.role === "staff";
+    // مرحلة التجربة الحالية: كل الأدوار بقت محتاجة كلمة سر (حتى الطالب/ولي الأمر)
+    // — طلب صريح من صاحب المشروع مع كود الدخول الجديد المبني على الاسم.
+    const needsPassword = data.role !== "visitor";
     if (needsPassword && !data.password?.trim()) {
       return { ok: false as const, error: "كلمة السر مطلوبة" };
     }
@@ -98,11 +103,14 @@ export const signIn = createServerFn({ method: "POST" })
     // Parent authenticates with the student ID of their child — same lookup as auth.ts.
     const lookupRole: UserRole = data.role === "parent" ? "student" : data.role;
     const supabase = getSupabaseAdmin();
+    // §0 fix — .ilike بدون تهريب كان بيسمح بمطابقة أنماط (%, _) بدل تطابق دقيق.
+    // نهرّب علامات الـ wildcard الخاصة بـ ILIKE مع الحفاظ على عدم حساسية حالة الأحرف.
+    const escapedIdentifier = identifier.replace(/[\\%_]/g, (ch) => `\\${ch}`);
     const { data: account } = await supabase
       .from("accounts")
       .select("*")
       .eq("role", lookupRole)
-      .ilike("identifier", identifier)
+      .ilike("identifier", escapedIdentifier)
       .maybeSingle<AccountRow>();
 
     if (!account) return { ok: false as const, error: "الكود أو البريد غير صحيح" };
@@ -172,15 +180,16 @@ export const createAccount = createServerFn({ method: "POST" })
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
 
-    const prefixByRole = { student: "STD", teacher: "TCH", staff: "STF", visitor: "VIS" } as const;
-    const digitsByRole = { student: 5, teacher: 4, staff: 4, visitor: 0 } as const;
-    const needsPassword = data.role === "teacher" || data.role === "staff";
+    // مرحلة التجربة الحالية: كود دخول مبني على الاسم (PREFIX-XXXX) بدل أرقام عشوائية
+    // بحتة، وكلمة سر 4 أرقام لكل الأدوار (حتى الطالب) — طلب صريح من صاحب المشروع،
+    // انظر تعليق الأمان في identifier-gen.ts. الزائر (invite بلا كلمة سر) مستثنى.
+    const needsPassword = data.role !== "visitor";
 
     const newIdentifier =
       data.role === "visitor"
         ? `VIS-${randAlpha(6)}`
-        : await uniqueIdentifier(prefixByRole[data.role], digitsByRole[data.role]);
-    const password = needsPassword ? generatePassword() : undefined;
+        : await uniqueFriendlyIdentifier(ROLE_PREFIX[data.role], data.full_name);
+    const password = needsPassword ? generateSimplePassword() : undefined;
 
     const row: AccountRow = {
       id: `acc-${Date.now()}`,
@@ -280,11 +289,10 @@ export const createCenter = createServerFn({ method: "POST" })
     });
     if (centerError) throw new Error(centerError.message);
 
-    // §8-2: username = first.second_name + random digits (e.g. "ahmed.mahmoud47568").
-    const nameParts = data.centerName.trim().split(/\s+/).filter(Boolean);
-    const adminSlug = (nameParts[0] ?? "admin").toLowerCase().replace(/[^a-z؀-ۿ]/g, "");
-    const identifier = `${adminSlug}.admin${rand(5)}`;
-    const password = `${randAlpha(5)}${rand(3)}`;
+    // مرحلة التجربة الحالية: نفس شكل كود الدخول المستخدم لبقية الأدوار (OWN-XXXX)،
+    // مبني من اسم السنتر نفسه (لا يوجد حقل "اسم المالك" منفصل في هذه الشاشة بعد).
+    const identifier = await uniqueFriendlyIdentifier(ROLE_PREFIX.owner, data.centerName);
+    const password = generateSimplePassword();
 
     const { error: accountError } = await supabase.from("accounts").insert({
       id: `acc-${Date.now()}`,

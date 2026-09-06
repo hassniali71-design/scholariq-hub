@@ -360,7 +360,8 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
   const id = identifier.trim();
   if (!id) return { ok: false, error: "من فضلك أدخل بيانات الدخول" };
 
-  const needsPassword = role === "owner" || role === "teacher" || role === "staff";
+  // مرحلة التجربة الحالية: كل الأدوار محتاجة كلمة سر حتى الطالب/ولي الأمر.
+  const needsPassword = role !== "visitor";
   if (needsPassword && !password?.trim()) {
     return { ok: false, error: "كلمة السر مطلوبة" };
   }

@@ -65,6 +65,9 @@ export interface Student {
    * the group's scheduled weekday).
    */
   due_day_of_month?: number | null;
+  /** صورة بروفايل الطالب (base64) — Migration 0025، بنفس نمط TeacherLaunch.file_data. */
+  avatar_data?: string | null;
+  avatar_mime?: string | null;
 }
 
 /** نوع دورة الراتب — مشترك بين الراتب المتوقع (المتفق عليه) والراتب المدفوع فعلياً. */
