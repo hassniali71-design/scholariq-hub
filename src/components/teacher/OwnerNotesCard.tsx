@@ -136,7 +136,7 @@ export function OwnerNotesCard({
                       markNotificationRead(n.id);
                       pushNotification(
                         `${OWNER_NOTE_KIND}_read`,
-                        "success",
+                        "info",
                         "تمت قراءة ملاحظتك",
                         n.body ?? n.title,
                       );
