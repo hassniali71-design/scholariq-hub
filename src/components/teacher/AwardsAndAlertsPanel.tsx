@@ -179,17 +179,14 @@ function MessageModal({
   onClose: () => void;
   onSend: (body: string, kind: "award" | "alert") => void;
 }) {
-  const [optionIdx, setOptionIdx] = useState(0);
-  const [body, setBody] = useState("");
   const options = isExcellent ? AWARDS : ALERTS;
   const kind: "award" | "alert" = isExcellent ? "award" : "alert";
-
-  // حدّث النص عند تغيير الـ option
-  const currentOption = options[optionIdx] ?? options[0];
-  if (currentOption && !body) {
-    // initialize once
-    setBody(currentOption.defaultText(student.full_name));
-  }
+  const [optionIdx, setOptionIdx] = useState(0);
+  // تهيئة لمرة واحدة عند فتح المودال فقط — تغيير الاختيار بعد كده بيحدّث body صراحةً
+  // من onClick تحت. لو حطناها كشرط "لو body فاضي" داخل الـ render، أي مسح كامل يدوي
+  // للنص من المدرس كان بيترجع النص الافتراضي تلقائياً فوراً، فمستحيل يبعت رسالة فاضية
+  // أو معدَّلة بالكامل.
+  const [body, setBody] = useState(() => options[0]?.defaultText(student.full_name) ?? "");
 
   return (
     <div

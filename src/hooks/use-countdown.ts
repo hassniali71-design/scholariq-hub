@@ -18,18 +18,20 @@ export function useCountdown(initialSeconds: number, onComplete?: () => void) {
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(id);
-          setRunning(false);
-          completeRef.current?.();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setRemaining((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(id);
   }, [running]);
+
+  // استدعاء onComplete هنا في useEffect منفصل، مش جوه دالة تحديث setRemaining نفسها —
+  // React بيفترض إن دوال تحديث الحالة نقية (pure) بدون آثار جانبية، واستدعاء دالة
+  // خارجية من جواها ممكن يتنفذ مرتين تحت React Strict Mode (وضع التطوير).
+  useEffect(() => {
+    if (running && remaining === 0) {
+      setRunning(false);
+      completeRef.current?.();
+    }
+  }, [running, remaining]);
 
   const start = useCallback(() => setRunning(true), []);
   const pause = useCallback(() => setRunning(false), []);
