@@ -1,8 +1,9 @@
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
-import { getStudentsForGroup, useDataStore } from "@/lib/data-store";
+import { getStudentsForGroup, recordAttendance, useDataStore } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus } from "@/types";
 
@@ -11,7 +12,16 @@ import type { AttendanceStatus } from "@/types";
  * الموظف هو الذي يسجّل (`recordAttendance`)، المدرس فقط يطّلع.
  * يُعرض لكل طلاب المجموعة: حاضر / متأخر (مع دقائق التأخير) / غائب / لم يُسجَّل.
  */
-export function AttendanceRosterBox({ groupId }: { groupId: string }) {
+export function AttendanceRosterBox({
+  groupId,
+  /** البند 1: المدرس/الموظف يقدر يسجّل ويعدّل رجعياً. المالك عرض فقط. */
+  editable = false,
+  sessionId,
+}: {
+  groupId: string;
+  editable?: boolean;
+  sessionId?: string;
+}) {
   const state = useDataStore();
   const students = useMemo(
     () => getStudentsForGroup(state, groupId),
@@ -48,7 +58,11 @@ export function AttendanceRosterBox({ groupId }: { groupId: string }) {
   return (
     <Panel
       title="سجل الحضور والغياب"
-      description="الموظف يسجّل — المدرس يطّلع (قراءة فقط). يحدّث تلقائياً كل تسجيل جديد."
+      description={
+        editable
+          ? "حاضر / متأخر (بالدقائق) / غائب — والتعديل الرجعي متاح لأي حالة."
+          : "الموظف يسجّل — المالك يطّلع (قراءة فقط). يحدّث تلقائياً كل تسجيل جديد."
+      }
     >
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <SummaryChip label="حاضر" value={counts.present} tone="success" Icon={CheckCircle2} />
@@ -83,13 +97,102 @@ export function AttendanceRosterBox({ groupId }: { groupId: string }) {
                 <p className="min-w-0 flex-1 truncate text-sm font-black text-foreground">
                   {s.full_name}
                 </p>
-                <StatusChip status={status} lateMinutes={rec?.late_minutes ?? 0} />
+                <div className="flex items-center gap-1.5">
+                  {editable ? (
+                    <MarkButtons
+                      current={status}
+                      onMark={(next, minutes) => {
+                        recordAttendance(s.id, next, "manual", sessionId, minutes);
+                        toast.success(
+                          next === "late"
+                            ? `${s.full_name}: متأخر ${minutes} دقيقة`
+                            : `${s.full_name}: ${next === "present" ? "حاضر" : "غائب"}`,
+                        );
+                      }}
+                    />
+                  ) : null}
+                  <StatusChip status={status} lateMinutes={rec?.late_minutes ?? 0} />
+                </div>
               </div>
             );
           })
         )}
       </div>
     </Panel>
+  );
+}
+
+function MarkButtons({
+  current,
+  onMark,
+}: {
+  current: AttendanceStatus | null;
+  onMark: (status: AttendanceStatus, lateMinutes: number) => void;
+}) {
+  const [askLate, setAskLate] = useState(false);
+  const [minutes, setMinutes] = useState(5);
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onMark("present", 0)}
+        className={cn(
+          "rounded-lg border-2 px-2 py-0.5 text-[11px] font-black",
+          current === "present"
+            ? "border-success bg-success/15 text-success"
+            : "border-border text-muted-foreground hover:border-success",
+        )}
+      >
+        حاضر
+      </button>
+      {askLate ? (
+        <span className="flex items-center gap-1">
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={minutes}
+            onChange={(e) => setMinutes(Math.max(1, Number(e.target.value) || 1))}
+            className="w-14 rounded-lg border-2 border-warning/50 bg-background px-1 py-0.5 text-[11px] font-black outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onMark("late", minutes);
+              setAskLate(false);
+            }}
+            className="rounded-lg bg-warning px-2 py-0.5 text-[11px] font-black text-white"
+          >
+            تأكيد
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAskLate(true)}
+          className={cn(
+            "rounded-lg border-2 px-2 py-0.5 text-[11px] font-black",
+            current === "late"
+              ? "border-warning bg-warning/15 text-warning"
+              : "border-border text-muted-foreground hover:border-warning",
+          )}
+        >
+          متأخر
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onMark("absent", 0)}
+        className={cn(
+          "rounded-lg border-2 px-2 py-0.5 text-[11px] font-black",
+          current === "absent"
+            ? "border-destructive bg-destructive/15 text-destructive"
+            : "border-border text-muted-foreground hover:border-destructive",
+        )}
+      >
+        غائب
+      </button>
+    </div>
   );
 }
 
