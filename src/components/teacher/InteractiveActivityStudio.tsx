@@ -1,9 +1,10 @@
-import { FileSpreadsheet, Play, Upload } from "lucide-react";
+import { FileSpreadsheet, Play, Send, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
 import { parseQuestionsFromXlsx, type ParsedQuestion, toQuizQuestion } from "@/lib/excel-parser";
+import { addTeacherLaunch } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { QuizQuestion } from "@/types";
 
@@ -18,6 +19,35 @@ import type { Group } from "@/types";
  * SheetJS (~717KB) يُستورَد ديناميكياً داخل `parseQuestionsFromXlsx`
  * فقط — لا يُحمَّل في الـ bundle الأساسي ولا في وضع التشغيل.
  */
+type ActivityMode =
+  | "interactive"
+  | "website_homework"
+  | "group_challenge"
+  | "individual_challenge";
+
+const ACTIVITY_MODES: { key: ActivityMode; label: string; hint: string }[] = [
+  {
+    key: "interactive",
+    label: "نشاط تفاعلي",
+    hint: "سحب طالب عشوائي + تايمر 20 ثانية لكل سؤال، مع تقليب صريح للسؤال التالي.",
+  },
+  {
+    key: "website_homework",
+    label: "واجب ويب سايت",
+    hint: "نسخة لكل طالب · بدون تايمر · محاولة واحدة لا تتكرر · الدرجة X من Y · ينتهي بعد 24 ساعة.",
+  },
+  {
+    key: "group_challenge",
+    label: "تحدي مجموعات",
+    hint: "نفس الأسئلة كتحدٍ بين مجموعات داخل الفصل — النقاط تُرصد للطالب المجيب.",
+  },
+  {
+    key: "individual_challenge",
+    label: "تحدي فردي",
+    hint: "كل طالب يواجه أسئلته بنفسه بالترتيب — بدون سحب عشوائي.",
+  },
+];
+
 export function InteractiveActivityStudio({
   group,
   teacherId,
@@ -32,6 +62,8 @@ export function InteractiveActivityStudio({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [parsing, setParsing] = useState(false);
   const [running, setRunning] = useState(false);
+  /** البند 6: نفس ملف الأسئلة يُستخدم في أربعة أوضاع مختلفة. */
+  const [mode, setMode] = useState<ActivityMode>("interactive");
 
   const handleFile = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
@@ -62,6 +94,22 @@ export function InteractiveActivityStudio({
     } finally {
       setParsing(false);
     }
+  };
+
+  const launchWebsiteHomework = () => {
+    const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    addTeacherLaunch({
+      groupId: group.id,
+      teacherId,
+      launchType: "online_homework",
+      title: `واجب ويب سايت — ${group.name}`,
+      body: JSON.stringify(questions),
+      notes: `نسخة لكل طالب · بدون تايمر · محاولة واحدة فقط · الدرجة من ${questions.length}`,
+      dueAt,
+    });
+    toast.success(
+      `تم إطلاق واجب الويب سايت — ${questions.length} سؤال، محاولة واحدة، ينتهي بعد 24 ساعة`,
+    );
   };
 
   if (running && questions.length > 0) {
@@ -95,7 +143,28 @@ export function InteractiveActivityStudio({
       title="النشاط التفاعلي (Kahoot-like)"
       description="ارفع شيت Excel فيه سؤال + اختيارات + رقم الإجابة الصحيحة — أو صح/غلط"
     >
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-2xl bg-gradient-to-bl from-warning/15 via-primary/10 to-success/15 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-black text-muted-foreground">وضع التشغيل:</span>
+          {ACTIVITY_MODES.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              onClick={() => setMode(m.key)}
+              className={cn(
+                "rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors",
+                mode === m.key
+                  ? "border-navy bg-navy text-navy-foreground"
+                  : "border-border bg-background hover:border-primary",
+              )}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] font-bold text-muted-foreground">
+          {ACTIVITY_MODES.find((m) => m.key === mode)!.hint}
+        </p>
         <input
           ref={fileInputRef}
           type="file"
@@ -145,7 +214,16 @@ export function InteractiveActivityStudio({
               <Upload className="size-4" />
               {questions.length > 0 ? "رفع شيت آخر" : "اختر ملف"}
             </button>
-            {questions.length > 0 ? (
+            {questions.length > 0 && mode === "website_homework" ? (
+              <button
+                type="button"
+                onClick={launchWebsiteHomework}
+                className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2 text-xs font-black text-navy-foreground hover:opacity-90"
+              >
+                <Send className="size-4" /> إطلاق واجب الويب سايت
+              </button>
+            ) : null}
+            {questions.length > 0 && mode !== "website_homework" ? (
               <button
                 type="button"
                 onClick={() => setRunning(true)}
