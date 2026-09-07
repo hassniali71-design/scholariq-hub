@@ -210,7 +210,16 @@ export function CenterDayChart({
  * (لا يوجد نمط سابق، بُني هنا خصيصاً لصفحة "لوحتي"/"المستويات").
  * الألوان بنفس تدرّج الأربع طبقات (0-40 / 41-60 / 61-80 / 81-100).
  */
-export function SubjectGauge({ label, value }: { label: string; value: number }) {
+export function SubjectGauge({
+  label,
+  value,
+  size = 108,
+}: {
+  label: string;
+  value: number;
+  /** قطر الدائرة بالبكسل — أكبر قيمة (زي 160) لصفحات فيها عدد مواد قليل (٥ مثلاً) تحتاج وضوح أكبر. */
+  size?: number;
+}) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   const color =
     pct >= 81
@@ -222,8 +231,8 @@ export function SubjectGauge({ label, value }: { label: string; value: number })
           : "var(--color-chart-5)";
   const data = [{ value: pct, fill: color }];
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: 108, height: 108 }}>
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart innerRadius="72%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
             <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
@@ -231,12 +240,17 @@ export function SubjectGauge({ label, value }: { label: string; value: number })
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-black" style={{ color }}>
+          <span className="font-black" style={{ color, fontSize: Math.round(size / 5.4) }}>
             {pct}%
           </span>
         </div>
       </div>
-      <p className="text-center text-xs font-black text-foreground">{label}</p>
+      <p
+        className="text-center font-black text-foreground"
+        style={{ fontSize: Math.max(12, Math.round(size / 9)) }}
+      >
+        {label}
+      </p>
     </div>
   );
 }
@@ -271,7 +285,11 @@ export function WeeklyAttendanceChart({ data }: { data: AttendancePoint[] }) {
  * مقارنة حضور/غياب أسبوعية بتواريخ تقويمية حقيقية (بدل "أسبوع ١"/"أسبوع ٢") —
  * عمودان جنب بعض لكل أسبوع: أخضر لنسبة الحضور، أحمر لنسبة الغياب.
  */
-export function StudentCalendarWeekAttendanceChart({ data }: { data: StudentWeekAttendancePoint[] }) {
+export function StudentCalendarWeekAttendanceChart({
+  data,
+}: {
+  data: StudentWeekAttendancePoint[];
+}) {
   return (
     <ResponsiveContainer width="100%" height={340}>
       <BarChart data={data} margin={{ top: 12, right: 12, left: 12, bottom: 4 }} barGap={8}>

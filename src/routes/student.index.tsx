@@ -298,9 +298,14 @@ function StudentPortal() {
           </p>
         </div>
         {overallPerformance.bySubject.length > 0 ? (
-          <div className="grid grid-cols-2 gap-6 border-t-2 border-border pt-4 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-8 border-t-2 border-border pt-6 sm:grid-cols-3 lg:grid-cols-5">
             {overallPerformance.bySubject.map(({ subject, summary }) => (
-              <SubjectGauge key={subject.id} label={subject.name} value={summary.overallAvg} />
+              <SubjectGauge
+                key={subject.id}
+                label={subject.name}
+                value={summary.overallAvg}
+                size={140}
+              />
             ))}
           </div>
         ) : null}
