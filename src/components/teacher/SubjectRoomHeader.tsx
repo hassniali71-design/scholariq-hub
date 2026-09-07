@@ -7,7 +7,7 @@ import type { SubjectTheme } from "@/lib/subject-themes";
 import type { Teacher } from "@/types";
 
 interface SubjectRoomHeaderProps {
-  teacher: Pick<Teacher, "honorific" | "full_name" | "cover_image_key">;
+  teacher: Pick<Teacher, "honorific" | "full_name" | "cover_image_key" | "avatar_data">;
   subjectName: string;
   themeKey: string | undefined;
   theme: SubjectTheme;
@@ -78,15 +78,25 @@ export function SubjectRoomHeader({
 
         {/* اسم المدرس + المادة + الأرقام — تحت الصورة */}
         <div className="relative flex flex-wrap items-center gap-4 p-6 md:p-8">
-          <span
-            className="flex size-14 shrink-0 items-center justify-center rounded-2xl"
-            style={{
-              backgroundColor: `color-mix(in srgb, ${theme.primary} 18%, white)`,
-              color: theme.primary,
-            }}
-          >
-            <Icon className="size-7" />
-          </span>
+          {teacher.avatar_data ? (
+            <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/60">
+              <img
+                src={teacher.avatar_data}
+                alt={teacherDisplayName(teacher)}
+                className="size-full object-cover"
+              />
+            </span>
+          ) : (
+            <span
+              className="flex size-14 shrink-0 items-center justify-center rounded-2xl"
+              style={{
+                backgroundColor: `color-mix(in srgb, ${theme.primary} 18%, white)`,
+                color: theme.primary,
+              }}
+            >
+              <Icon className="size-7" />
+            </span>
+          )}
           <div className="min-w-0">
             <h2 className="truncate text-2xl font-black text-foreground md:text-3xl">
               {teacherDisplayName(teacher)}

@@ -121,6 +121,9 @@ export interface Teacher {
    * فوق اسم المدرس. لو `null` أو الملف غير موجود، يعرض placeholder ملوّن.
    */
   cover_image_key?: string | null;
+  /** صورة بروفايل المدرس (base64) — Migration 0032، نفس نمط Student.avatar_data. */
+  avatar_data?: string | null;
+  avatar_mime?: string | null;
 }
 
 /** خطط الدروس التي يضيفها المدرس بنفسه — منفصلة تماماً عن `tasks` و `lessons`. */

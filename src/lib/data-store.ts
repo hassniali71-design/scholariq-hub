@@ -628,6 +628,17 @@ export function setStudentAvatar(studentId: string, dataUrl: string, mime: strin
   syncUpdate("students", studentId, { avatar_data: dataUrl, avatar_mime: mime });
 }
 
+/** صورة بروفايل المدرس (base64) — Migration 0032، نفس نمط setStudentAvatar. */
+export function setTeacherAvatar(teacherId: string, dataUrl: string, mime: string): void {
+  update((state) => ({
+    ...state,
+    teachers: state.teachers.map((t) =>
+      t.id === teacherId ? { ...t, avatar_data: dataUrl, avatar_mime: mime } : t,
+    ),
+  }));
+  syncUpdate("teachers", teacherId, { avatar_data: dataUrl, avatar_mime: mime });
+}
+
 /**
  * Resolves the teacher the current session belongs to, by login identifier
  * (`Teacher.user_id`, same join-key mechanism as `Student.code` above —

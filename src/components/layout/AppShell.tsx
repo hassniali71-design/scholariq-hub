@@ -5,8 +5,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { TopBar } from "@/components/layout/TopBar";
+import { AvatarCircle } from "@/components/shared/AvatarUpload";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
+import { useCurrentStudent } from "@/hooks/use-current-student";
 import { useDataStore } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,7 @@ interface AppShellProps {
 export function AppShell({ role, title, description, actions, children }: AppShellProps) {
   const config = ROLES[role];
   const { center } = useDataStore();
+  const currentStudent = useCurrentStudent();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
@@ -104,6 +107,21 @@ export function AppShell({ role, title, description, actions, children }: AppShe
           </div>
         </div>
 
+        {role === "student" && currentStudent ? (
+          <div className="flex flex-col items-center gap-3 border-b border-white/15 px-6 py-6 text-center">
+            <AvatarCircle
+              src={currentStudent.avatar_data}
+              alt={currentStudent.full_name}
+              sizeClass="size-20"
+              fallback={<span className="text-4xl">👤</span>}
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white/70">أهلاً يا بطلنا الصغير 🌟</p>
+              <p className="truncate text-lg font-black text-white">{currentStudent.full_name}</p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="px-6 pt-6 pb-3">
           <p className="text-xs font-black tracking-wide text-white/60">لوحة {config.title}</p>
         </div>
@@ -131,7 +149,9 @@ export function AppShell({ role, title, description, actions, children }: AppShe
 
         <div className="border-t border-white/15 p-4">
           <div className="mb-2 px-1">
-            <p className="truncate text-sm font-black text-white">{session.full_name}</p>
+            {role !== "student" ? (
+              <p className="truncate text-sm font-black text-white">{session.full_name}</p>
+            ) : null}
             <p className="truncate text-xs font-bold text-white/70">
               {ROLE_LABELS[role] ?? config.title}
             </p>

@@ -1,13 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
-  Award,
-  Camera,
-  CalendarCheck,
-  CalendarDays,
-  Heart,
-  Target,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Award, CalendarCheck, CalendarDays, Heart, Target } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -16,9 +9,14 @@ import {
   OrderingAnswerBody,
   QUESTION_KIND_LABELS,
 } from "@/components/session/SessionSteps";
-import { ScoreTrendChart, SubjectGauge, WeeklyAttendanceChart } from "@/components/dashboard/Charts";
+import {
+  ScoreTrendChart,
+  SubjectGauge,
+  WeeklyAttendanceChart,
+} from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { AvatarUpload } from "@/components/shared/AvatarUpload";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
@@ -34,8 +32,6 @@ import {
 } from "@/lib/data-store";
 import { buildStudentAttendanceByWeekday, WEEKDAYS } from "@/lib/owner-metrics";
 import type { ElectronicHomework } from "@/types";
-
-const MAX_AVATAR_BYTES = 1_500_000;
 
 /**
  * CURRICULUM_ENGINE_SPEC.md §8 — "واجب الويب سايت": same question bank and
@@ -156,59 +152,6 @@ export const Route = createFileRoute("/student/")({
   component: StudentPortal,
 });
 
-function AvatarUpload({ studentId, avatarData }: { studentId: string; avatarData?: string | null | undefined }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      toast.error("اختر ملف صورة فقط");
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      toast.error("حجم الصورة كبير — اختر صورة أصغر من 1.5 ميجا");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? "");
-      setStudentAvatar(studentId, dataUrl, file.type);
-      toast.success("تم تحديث صورة البروفايل");
-    };
-    reader.readAsDataURL(file);
-  }
-
-  return (
-    <div className="relative shrink-0">
-      <div className="flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-muted">
-        {avatarData ? (
-          <img src={avatarData} alt="صورة البروفايل" className="size-full object-cover" />
-        ) : (
-          <span className="text-2xl font-black text-muted-foreground">👤</span>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="absolute -bottom-1.5 -left-1.5 flex size-6 items-center justify-center rounded-full border-2 border-background bg-navy text-navy-foreground"
-        aria-label="تغيير صورة البروفايل"
-      >
-        <Camera className="size-3.5" />
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-          e.target.value = "";
-        }}
-      />
-    </div>
-  );
-}
-
 function StudentPortal() {
   const state = useDataStore();
   const me = useCurrentStudent();
@@ -260,7 +203,11 @@ function StudentPortal() {
       description={`${me.grade} · ${me.group_name} · كود ${me.code}`}
     >
       <div className="flex items-center gap-3">
-        <AvatarUpload studentId={me.id} avatarData={me.avatar_data} />
+        <AvatarUpload
+          imageData={me.avatar_data}
+          alt="صورة البروفايل"
+          onUpload={(dataUrl, mime) => setStudentAvatar(me.id, dataUrl, mime)}
+        />
         <p className="text-sm font-bold text-muted-foreground">
           اضغط على أيقونة الكاميرا لتحديث صورة البروفايل.
         </p>

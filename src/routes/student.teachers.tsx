@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { AvatarCircle } from "@/components/shared/AvatarUpload";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
   getCurriculumProgress,
@@ -61,6 +62,7 @@ function TeachersPage() {
         </Panel>
       ) : (
         myGroups.map((g) => {
+          const teacher = state.teachers.find((t) => t.id === g.teacher_id);
           const resources = getGroupResourcesForGroup(state, g.id);
           const progress = getCurriculumProgress(state, g.subject_id, g.grade_id);
           const pct =
@@ -74,9 +76,16 @@ function TeachersPage() {
               description={`${g.teacher_name} · ${g.weekday} ${g.time} · قاعة ${g.room}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border bg-muted/40 p-3">
-                <div>
-                  <p className="text-sm font-black text-foreground">{g.teacher_name}</p>
-                  <p className="text-xs font-bold text-muted-foreground">مدرّس {g.subject}</p>
+                <div className="flex items-center gap-3">
+                  <AvatarCircle
+                    src={teacher?.avatar_data}
+                    alt={g.teacher_name}
+                    sizeClass="size-11"
+                  />
+                  <div>
+                    <p className="text-sm font-black text-foreground">{g.teacher_name}</p>
+                    <p className="text-xs font-bold text-muted-foreground">مدرّس {g.subject}</p>
+                  </div>
                 </div>
                 <button
                   type="button"
