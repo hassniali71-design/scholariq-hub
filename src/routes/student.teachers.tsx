@@ -6,8 +6,13 @@ import { toast } from "sonner";
 import { Panel } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { getGroupResourcesForGroup, getGroupsForStudent, useDataStore } from "@/lib/data-store";
-import { formatDateTime } from "@/lib/format";
+import {
+  getCurriculumProgress,
+  getGroupResourcesForGroup,
+  getGroupsForStudent,
+  useDataStore,
+} from "@/lib/data-store";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Group } from "@/types";
 
 export const Route = createFileRoute("/student/teachers")({
@@ -57,6 +62,11 @@ function TeachersPage() {
       ) : (
         myGroups.map((g) => {
           const resources = getGroupResourcesForGroup(state, g.id);
+          const progress = getCurriculumProgress(state, g.subject_id, g.grade_id);
+          const pct =
+            progress.lessonCount > 0
+              ? Math.round((progress.doneCount / progress.lessonCount) * 100)
+              : 0;
           return (
             <Panel
               key={g.id}
@@ -76,6 +86,30 @@ function TeachersPage() {
                   <MessageSquareText className="size-3.5" /> رسالة سريعة
                 </button>
               </div>
+
+              {progress.lessonCount > 0 ? (
+                <div className="mt-3 rounded-xl border-2 border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-black text-muted-foreground">تقدّم المنهج</p>
+                    <p className="text-xs font-black text-foreground">
+                      {formatNumber(progress.doneCount)} / {formatNumber(progress.lessonCount)} درس
+                    </p>
+                  </div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  {progress.nextLesson ? (
+                    <p className="mt-2 text-[11px] font-bold text-muted-foreground">
+                      الدرس القادم: {progress.nextLesson.title}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[11px] font-bold text-success">أكملتوا كل دروس المنهج!</p>
+                  )}
+                </div>
+              ) : null}
 
               <div className="mt-3">
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-black text-muted-foreground">

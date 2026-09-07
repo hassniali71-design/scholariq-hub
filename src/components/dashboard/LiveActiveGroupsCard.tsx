@@ -13,7 +13,7 @@ import type { Group } from "@/types";
  * المنطق:
  *  - يقرأ جدول اليوم من `state.groups` ويختار المجموعات المسجّلة ليوم `today`.
  *  - يحدد لكل مجموعة: هل حان وقت بدئها (started)؟ هل فعّلها **الموظف** (activated)؟
- *  - `activated` معتمد حصراً على `groupActivations` (Migration 0026) — يُكتب فقط
+ *  - `activated` معتمد حصراً على `groupActivations` (Migration 0029) — يُكتب فقط
  *    من `startGroupSession`/`markAttendanceForGroup` (فعل الموظف). أي حركة من
  *    المدرس في وضع الحصة (تسجيل حضور من الروستر، رفع واجب، إنهاء الحصة) لا تُحسب
  *    هنا إطلاقاً — فصل متعمّد بطلب صريح.

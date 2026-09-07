@@ -65,7 +65,7 @@ export interface Student {
    * the group's scheduled weekday).
    */
   due_day_of_month?: number | null;
-  /** صورة بروفايل الطالب (base64) — Migration 0025، بنفس نمط TeacherLaunch.file_data. */
+  /** صورة بروفايل الطالب (base64) — Migration 0028، بنفس نمط TeacherLaunch.file_data. */
   avatar_data?: string | null;
   avatar_mime?: string | null;
 }
@@ -180,7 +180,7 @@ export interface Group {
 }
 
 /**
- * Migration 0027 — تسجيل الطالب في مجموعة **إضافية** (مادة تانية)، منفصل تماماً
+ * Migration 0030 — تسجيل الطالب في مجموعة **إضافية** (مادة تانية)، منفصل تماماً
  * عن `Student.group_id` (المجموعة الأساسية القديمة اللي كل الحضور/المدفوعات/
  * وضع الحصة لسه معتمدين عليها بلا أي تغيير). إضافي بحت لصفحة "مدرّسيني ومنهجي" —
  * صفر تأثير على أي سلوك موجود.
@@ -418,7 +418,7 @@ export interface CurriculumLesson {
 }
 
 /**
- * Migration 0026 — إشارة "المجموعة نشطة الآن" مستقلة تماماً عن sessionRecords/
+ * Migration 0029 — إشارة "المجموعة نشطة الآن" مستقلة تماماً عن sessionRecords/
  * attendanceRecords. تُكتب فقط من إجراء الموظف (بوابة الحضور markAttendanceForGroup،
  * أو زر بدء الحصة startGroupSession) — أي حركة يعملها المدرس في "وضع الحصة" (تسجيل
  * حضور من الروستر، إنهاء الحصة) لا تكتب هنا إطلاقاً، فمينفعش تُظهر المجموعة كـ"نشطة"
@@ -635,6 +635,9 @@ export interface FinanceSettings {
   default_group_capacity: number;
   updated_at: string;
 }
+
+/** Alias مطابق لاسم الجدول الفعلي في القاعدة `center_finance_settings` (db/0009). */
+export type CenterFinanceSettings = FinanceSettings;
 
 /** سجل تسليم واستلام الخزنة: المدير استلم مبلغ من موظف معيّن بتاريخه. */
 export interface SafeHandover {

@@ -166,7 +166,7 @@ export function buildWeeklyAttendance(state: DataState): WeeklyAttendancePoint[]
 
 /**
  * حضور طالب واحد موزَّع على أيام الأسبوع (بالأيام مقابل بعضها، مش أسابيع مقابل
- * بعضها) — عبر كل مجموعاته (الأساسية + الإضافية، Migration 0027)، بحسب اليوم
+ * بعضها) — عبر كل مجموعاته (الأساسية + الإضافية، Migration 0030)، بحسب اليوم
  * اللي كل مجموعة بتنعقد فيه.
  */
 export function buildStudentAttendanceByWeekday(
@@ -212,7 +212,7 @@ function parseSlotMinutes(time: string): number | null {
  *
  * فصل متعمّد عن وضع الحصة عند المدرس: أي حركة يعملها المدرس (تسجيل حضور من
  * الروستر، إنهاء الحصة) لا تُحسب هنا إطلاقاً — `activated` معتمد فقط على
- * `groupActivations` (Migration 0026)، اللي بيتكتب حصراً من `startGroupSession`
+ * `groupActivations` (Migration 0029)، اللي بيتكتب حصراً من `startGroupSession`
  * و`markAttendanceForGroup` (مسارات الموظف فقط). بيانات الحضور/الحصص الحقيقية
  * تفضل تتسجّل زي ما هي لالتزام المدرسين والتقارير — بس مالهاش تأثير على "نشطة الآن".
  */

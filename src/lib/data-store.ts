@@ -316,9 +316,9 @@ export interface DataState {
   teacherLaunches: TeacherLaunch[];
   /** Migration 0023 (المرحلة A): محاولات الطلاب على الواجبات الإلكترونية. */
   homeworkAttempts: HomeworkAttempt[];
-  /** Migration 0026: إشارة "نشطة الآن" مستقلة — فعل الموظف فقط، انظر تعليق GroupActivation. */
+  /** Migration 0029: إشارة "نشطة الآن" مستقلة — فعل الموظف فقط، انظر تعليق GroupActivation. */
   groupActivations: GroupActivation[];
-  /** Migration 0027: تسجيل الطالب في مجموعات إضافية (مواد تانية) — إضافي بحت. */
+  /** Migration 0030: تسجيل الطالب في مجموعات إضافية (مواد تانية) — إضافي بحت. */
   studentGroupEnrollments: StudentGroupEnrollment[];
 }
 
@@ -617,7 +617,7 @@ export function resolveCurrentStudent(state: DataState, identifier?: string | nu
   return findStudentByCode(state, identifier) ?? null;
 }
 
-/** صورة بروفايل الطالب (base64) — Migration 0025، نفس نمط تخزين ملفات teacher_launches. */
+/** صورة بروفايل الطالب (base64) — Migration 0028، نفس نمط تخزين ملفات teacher_launches. */
 export function setStudentAvatar(studentId: string, dataUrl: string, mime: string): void {
   update((state) => ({
     ...state,
@@ -918,6 +918,59 @@ export function getNextPlannedLesson(
     if (next) return next;
   }
   return undefined;
+}
+
+/** تقدّم منهج مادة/صف واحد: عدد الوحدات/الدروس والمكتمل منها + الدرس القادم — لصفحة "مدرّسيني ومنهجي". */
+export interface SubjectCurriculumProgress {
+  subject: Subject;
+  unitCount: number;
+  lessonCount: number;
+  doneCount: number;
+  inProgressCount: number;
+  nextLesson: CurriculumLesson | undefined;
+}
+
+export function getCurriculumProgress(
+  state: DataState,
+  subjectId: string,
+  gradeId: string,
+): SubjectCurriculumProgress {
+  const subject = state.subjects.find((s) => s.id === subjectId);
+  if (!subject) {
+    return {
+      subject: { id: subjectId, center_id: "", name: "مادة غير معروفة", theme_key: "" } as Subject,
+      unitCount: 0,
+      lessonCount: 0,
+      doneCount: 0,
+      inProgressCount: 0,
+      nextLesson: undefined,
+    };
+  }
+
+  const units = getCurriculumUnitsForSubjectGrade(state, subjectId, gradeId);
+  let unitCount = 0;
+  let lessonCount = 0;
+  let doneCount = 0;
+  let inProgressCount = 0;
+  let nextLesson: CurriculumLesson | undefined;
+
+  for (const unit of units) {
+    unitCount += 1;
+    const lessons = getCurriculumLessonsForUnit(state, unit.id);
+    for (const lesson of lessons) {
+      lessonCount += 1;
+      if (lesson.status === "done") {
+        doneCount += 1;
+      } else if (lesson.status === "in_progress") {
+        inProgressCount += 1;
+      }
+      if (!nextLesson && lesson.status !== "done") {
+        nextLesson = lesson;
+      }
+    }
+  }
+
+  return { subject, unitCount, lessonCount, doneCount, inProgressCount, nextLesson };
 }
 
 /** The current (general, not tied to one past session) score for a student in a category — §8. */
@@ -1269,7 +1322,7 @@ export function recordAttendance(
 }
 
 /**
- * Migration 0026 — يسجّل المجموعة كـ"نشطة الآن" لعرض "المجموعات النشطة" عند المالك.
+ * Migration 0029 — يسجّل المجموعة كـ"نشطة الآن" لعرض "المجموعات النشطة" عند المالك.
  * يُستدعى فقط من داخل `startGroupSession` و`markAttendanceForGroup` (فعل الموظف)،
  * أبداً من أي مسار يخص وضع الحصة عند المدرس — هذا هو الفصل المطلوب بالضبط.
  * تحقّق سريع من عدم تكرار تسجيل نفس المجموعة أكثر من مرة في نفس اليوم.
@@ -4271,7 +4324,7 @@ export function getGroupsForGrade(state: DataState, gradeId: string): Group[] {
 }
 
 /**
- * Migration 0027 — كل مجموعات الطالب: المجموعة الأساسية (student.group_id، لسه
+ * Migration 0030 — كل مجموعات الطالب: المجموعة الأساسية (student.group_id، لسه
  * المصدر الوحيد للحضور/المدفوعات/وضع الحصة) + أي مجموعات إضافية سُجِّل فيها عبر
  * enrollStudentInAdditionalGroup (لمواد تانية). مُستخدمة في صفحة "مدرّسيني ومنهجي".
  */
