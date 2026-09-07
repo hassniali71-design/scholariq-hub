@@ -14,6 +14,20 @@ import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
+/** ١٠ عبارات ترحيب تصلح لولد أو بنت — تُختار واحدة عشوائياً عند كل تحميل صفحة. */
+const WELCOME_PHRASES = [
+  "أهلاً يا بطلنا الصغير 🌟",
+  "يلا بينا نحقق إنجاز جديد النهارده! 🚀",
+  "فخورين بيك يا بطل، كمّل زي ما انت ماشي 💪",
+  "أهلاً يا نجم سنترنا ✨",
+  "كل يوم فرصة جديدة تتفوق فيها يا بطل 🏆",
+  "يوم سعيد يا بطلنا، يلا نبدأ! ☀️",
+  "إنت شعلة نشاط، يلا نشوف إنجازات النهارده 🔥",
+  "أهلاً بيك يا مصدر فخرنا 💙",
+  "جاهز تتفوق النهارده يا بطل؟ 🎯",
+  "أهلاً يا بطل، كل خطوة بتقربك من حلمك 🌈",
+];
+
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: "مالك السنتر",
   teacher: "مدرس",
@@ -37,6 +51,9 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   const { center } = useDataStore();
   const isHydrated = useIsHydrated();
   const currentStudent = useCurrentStudent();
+  const [welcomePhrase] = useState(
+    () => WELCOME_PHRASES[Math.floor(Math.random() * WELCOME_PHRASES.length)]!,
+  );
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
@@ -76,7 +93,6 @@ export function AppShell({ role, title, description, actions, children }: AppShe
     // مرتين" (سباق بين التنقّلين وTanStack Router). الاعتماد على sync() وحدها كافٍ.
     signOut();
   };
-
 
   /**
    * `!isHydrated` هنا هو تصحيح لباغ حقيقي: قبل ما بيانات المركز الحقيقية توصل من
@@ -123,7 +139,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
               fallback={<span className="text-4xl">👤</span>}
             />
             <div className="min-w-0">
-              <p className="text-xs font-bold text-white/70">أهلاً يا بطلنا الصغير 🌟</p>
+              <p className="text-xs font-bold text-white/70">{welcomePhrase}</p>
               <p className="truncate text-lg font-black text-white">{currentStudent.full_name}</p>
             </div>
           </div>
