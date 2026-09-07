@@ -22,6 +22,8 @@ import { TodayOverviewPanels } from "@/components/dashboard/TodayOverviewPanels"
 import { AppShell } from "@/components/layout/AppShell";
 import { ActivityLogPanel } from "@/components/owner/ActivityLogPanel";
 import { NotificationsPanel } from "@/components/owner/NotificationsPanel";
+import { SubjectQuotesCard } from "@/components/owner/SubjectQuotesCard";
+import { OwnerNotesCard } from "@/components/teacher/OwnerNotesCard";
 import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
 import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
@@ -353,6 +355,12 @@ function OwnerDashboard() {
       <div className="grid gap-6 xl:grid-cols-2">
         <NotificationsPanel notifications={notifications} />
         <ActivityLogPanel entries={activityLog} />
+      </div>
+
+      {/* === عبارات المواد + ملاحظة للمدرس/الموظف === */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SubjectQuotesCard />
+        <OwnerNotesCard canCompose audience="teacher" />
       </div>
 
       {/* === إشغال المجموعات (مع الإعدادي أيضاً) === */}

@@ -27,6 +27,7 @@ import {
   addTeacherNote,
   classifyStudent,
   classificationReason,
+  getActiveSubjectQuote,
   getEventsForTeacherToday,
   getGroupsForTeacher,
   getStudentsForTeacher,
@@ -101,6 +102,7 @@ function TeacherHome() {
         theme={theme}
         groupsCount={myGroups.length}
         studentsCount={myStudents.length}
+        ownerQuote={getActiveSubjectQuote(state, teacher.subject_id)?.text}
       />
 
       <div className="flex items-center gap-3">

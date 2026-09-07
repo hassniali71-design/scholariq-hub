@@ -13,6 +13,8 @@ interface SubjectRoomHeaderProps {
   theme: SubjectTheme;
   groupsCount: number;
   studentsCount: number;
+  /** عبارة المادة التي أطلقها المالك (Migration 0033) — لها أولوية على اقتباس اليوم الثابت. */
+  ownerQuote?: string | null | undefined;
 }
 
 /**
@@ -30,9 +32,10 @@ export function SubjectRoomHeader({
   theme,
   groupsCount,
   studentsCount,
+  ownerQuote,
 }: SubjectRoomHeaderProps) {
   const Icon = theme.icon;
-  const quote = getTodayQuote(themeKey);
+  const quote = ownerQuote?.trim() || getTodayQuote(themeKey);
   const coverKey = teacher.cover_image_key?.trim();
   const coverUrl = coverKey ? `/branding/covers/${coverKey}.jpg` : null;
   const displayedSubject = subjectDisplayName(subjectName);
@@ -118,9 +121,9 @@ export function SubjectRoomHeader({
       </div>
 
       {quote ? (
-        <div className="flex items-start gap-3 rounded-xl border-2 border-border bg-background p-4">
-          <Quote className="size-5 shrink-0 text-muted-foreground" />
-          <p className="text-sm font-extrabold text-foreground">{quote}</p>
+        <div className="flex items-start gap-3 rounded-xl border-2 border-border bg-background p-4 md:p-5">
+          <Quote className="size-5 shrink-0 text-muted-foreground md:size-6" />
+          <p className="text-base font-extrabold text-foreground md:text-lg">{quote}</p>
         </div>
       ) : null}
     </div>

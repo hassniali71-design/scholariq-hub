@@ -81,6 +81,7 @@ import type {
   Student,
   StudentGroupEnrollment,
   Subject,
+  SubjectQuote,
   SuggestedActivity,
   Task,
   TaskAssigneeRole,
@@ -320,6 +321,8 @@ export interface DataState {
   groupActivations: GroupActivation[];
   /** Migration 0030: تسجيل الطالب في مجموعات إضافية (مواد تانية) — إضافي بحت. */
   studentGroupEnrollments: StudentGroupEnrollment[];
+  /** Migration 0033: عبارات المواد القابلة للتعديل/الإطلاق من المالك. */
+  subjectQuotes: SubjectQuote[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -431,6 +434,7 @@ function seedState(): DataState {
     homeworkAttempts: [],
     groupActivations: [],
     studentGroupEnrollments: [],
+    subjectQuotes: [],
   };
 }
 
@@ -637,6 +641,56 @@ export function setTeacherAvatar(teacherId: string, dataUrl: string, mime: strin
     ),
   }));
   syncUpdate("teachers", teacherId, { avatar_data: dataUrl, avatar_mime: mime });
+}
+
+/** العبارة المُطلَقة حالياً للمادة، أو `null` — تُستخدم بدل daily-quotes.ts عند وجودها. */
+export function getActiveSubjectQuote(state: DataState, subjectId: string | undefined | null): SubjectQuote | null {
+  if (!subjectId) return null;
+  return state.subjectQuotes.find((q) => q.subject_id === subjectId && q.is_active) ?? null;
+}
+
+/** إضافة عبارة جديدة لمادة معيّنة — Migration 0033. لا تُطلَق تلقائياً (المالك يطلقها بعدين). */
+export function addSubjectQuote(subjectId: string, text: string): void {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  let entry: SubjectQuote | null = null;
+  update((state) => {
+    entry = {
+      id: `sq-${Date.now()}`,
+      center_id: state.center.id,
+      subject_id: subjectId,
+      text: trimmed,
+      is_active: false,
+      created_at: new Date().toISOString(),
+    };
+    return { ...state, subjectQuotes: [entry, ...state.subjectQuotes] };
+  });
+  if (entry) syncInsert("subject_quotes", entry);
+}
+
+/** إطلاق عبارة لتصبح الوحيدة النشطة لمادتها — تُلغى نشاط أي عبارة أخرى لنفس المادة. */
+export function launchSubjectQuote(quoteId: string, subjectId: string): void {
+  const previouslyActive = readState().subjectQuotes.find(
+    (q) => q.subject_id === subjectId && q.is_active && q.id !== quoteId,
+  );
+  update((state) => ({
+    ...state,
+    subjectQuotes: state.subjectQuotes.map((q) => {
+      if (q.subject_id !== subjectId) return q;
+      return { ...q, is_active: q.id === quoteId };
+    }),
+  }));
+  syncUpdate("subject_quotes", quoteId, { is_active: true });
+  if (previouslyActive) syncUpdate("subject_quotes", previouslyActive.id, { is_active: false });
+}
+
+/** حذف عبارة مادة. */
+export function deleteSubjectQuote(quoteId: string): void {
+  update((state) => ({
+    ...state,
+    subjectQuotes: state.subjectQuotes.filter((q) => q.id !== quoteId),
+  }));
+  syncDeleteIds("subject_quotes", [quoteId]);
 }
 
 /**

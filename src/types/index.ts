@@ -159,6 +159,20 @@ export interface PlatformTeacherNote {
   updated_at: string;
 }
 
+/**
+ * عبارة/اقتباس لمادة معيّنة يضيفه المالك — Migration 0033. `is_active` يحدد
+ * العبارة "المُطلَقة" حالياً لهذه المادة (واحدة بحد أقصى)، تظهر في غرفة المادة
+ * عند المدرس بدل الاقتباس الثابت في daily-quotes.ts.
+ */
+export interface SubjectQuote {
+  id: UUID;
+  center_id: UUID;
+  subject_id: UUID;
+  text: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Group {
   id: UUID;
   center_id: UUID;
