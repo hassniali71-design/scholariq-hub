@@ -579,6 +579,25 @@ export function useDataStore(): DataState {
   return useSyncExternalStore(subscribeData, readState, () => SERVER_STATE);
 }
 
+/**
+ * `true` بس لما بيانات المركز الحقيقية للمستخدم المسجّل دخوله حالياً توصل فعلاً من
+ * Supabase — قبل كده `cache` بيكون لسه الـ seed placeholder (اسم مركز تجريبي من
+ * mock-data.ts). كانت AppShell بترسم `center.name` من غير انتظار الفحص ده، فكان
+ * يظهر لحظياً اسم المركز التجريبي بدل الحقيقي عند أول تحميل بعد تسجيل الدخول.
+ */
+export function useIsHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeData,
+    () => {
+      if (!USE_SUPABASE) return true;
+      readState();
+      const identifier = currentIdentifier();
+      return identifier !== null && hydratedForIdentifier === identifier;
+    },
+    () => false,
+  );
+}
+
 /* ---------------- Lookups ---------------- */
 
 export function findStudentByCode(state: DataState, code: string): Student | undefined {

@@ -9,7 +9,7 @@ import { AvatarCircle } from "@/components/shared/AvatarUpload";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore } from "@/lib/data-store";
+import { useDataStore, useIsHydrated } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -35,6 +35,7 @@ interface AppShellProps {
 export function AppShell({ role, title, description, actions, children }: AppShellProps) {
   const config = ROLES[role];
   const { center } = useDataStore();
+  const isHydrated = useIsHydrated();
   const currentStudent = useCurrentStudent();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -77,7 +78,13 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   };
 
 
-  if (!checked || !session) {
+  /**
+   * `!isHydrated` هنا هو تصحيح لباغ حقيقي: قبل ما بيانات المركز الحقيقية توصل من
+   * Supabase، `center.name` بيكون لسه اسم المركز التجريبي المزروع محلياً
+   * (mock-data.ts) — بدون الانتظار ده كان يظهر لحظياً اسم مركز غلط قبل ما يتصحح
+   * لاسم المركز الحقيقي. القالب ده مشترك لكل الأدوار، فالإصلاح بيغطي كل الصفحات.
+   */
+  if (!checked || !session || !isHydrated) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">
         <p className="text-base font-black text-muted-foreground">جارٍ التحقق من الصلاحيات…</p>
