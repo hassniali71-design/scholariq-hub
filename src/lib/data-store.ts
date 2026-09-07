@@ -2248,7 +2248,7 @@ export function getPlatformNotesForSubject(
 }
 
 export function closeShift(countedAmount: number): { expected: number; diff: number } {
-  let closure: ShiftClosure | null = null;
+  let closure!: ShiftClosure;
   update((state) => {
     const expected = state.payments.reduce((sum, p) => sum + p.amount, 0);
     closure = {
@@ -2261,7 +2261,7 @@ export function closeShift(countedAmount: number): { expected: number; diff: num
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  const c = closure as ShiftClosure;
+  const c = closure;
   syncInsert("shift_closures", c);
   logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
   // القيمة المرجعة هي المرجع الرسمي المُسجَّل فعلياً (محسوبة لحظة الإغلاق نفسها) —

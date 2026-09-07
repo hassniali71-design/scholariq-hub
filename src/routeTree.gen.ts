@@ -32,9 +32,9 @@ import { Route as StaffCashierRouteImport } from './routes/staff.cashier'
 import { Route as StaffShiftRouteImport } from './routes/staff.shift'
 import { Route as StaffTasksRouteImport } from './routes/staff.tasks'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
-import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
 import { Route as StudentAttendanceRouteImport } from './routes/student.attendance'
 import { Route as StudentInboxRouteImport } from './routes/student.inbox'
+import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
 import { Route as StudentLevelsRouteImport } from './routes/student.levels'
 import { Route as StudentTeachersRouteImport } from './routes/student.teachers'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
@@ -160,11 +160,6 @@ const StudentIndexRoute = StudentIndexRouteImport.update({
   path: '/student/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
-  id: '/student/leaderboard',
-  path: '/student/leaderboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
   id: '/student/attendance',
   path: '/student/attendance',
@@ -173,6 +168,11 @@ const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
 const StudentInboxRoute = StudentInboxRouteImport.update({
   id: '/student/inbox',
   path: '/student/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
+  id: '/student/leaderboard',
+  path: '/student/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudentLevelsRoute = StudentLevelsRouteImport.update({
@@ -241,9 +241,9 @@ export interface FileRoutesByFullPath {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
-  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/inbox': typeof StudentInboxRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/levels': typeof StudentLevelsRoute
   '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
@@ -278,9 +278,9 @@ export interface FileRoutesByTo {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
-  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/inbox': typeof StudentInboxRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/levels': typeof StudentLevelsRoute
   '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
@@ -316,9 +316,9 @@ export interface FileRoutesById {
   '/staff/cashier': typeof StaffCashierRoute
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
-  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/inbox': typeof StudentInboxRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/levels': typeof StudentLevelsRoute
   '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
@@ -355,9 +355,9 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/staff/tasks'
-    | '/student/leaderboard'
     | '/student/attendance'
     | '/student/inbox'
+    | '/student/leaderboard'
     | '/student/levels'
     | '/student/teachers'
     | '/teacher/assessments'
@@ -392,9 +392,9 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/staff/tasks'
-    | '/student/leaderboard'
     | '/student/attendance'
     | '/student/inbox'
+    | '/student/leaderboard'
     | '/student/levels'
     | '/student/teachers'
     | '/teacher/assessments'
@@ -429,9 +429,9 @@ export interface FileRouteTypes {
     | '/staff/cashier'
     | '/staff/shift'
     | '/staff/tasks'
-    | '/student/leaderboard'
     | '/student/attendance'
     | '/student/inbox'
+    | '/student/leaderboard'
     | '/student/levels'
     | '/student/teachers'
     | '/teacher/assessments'
@@ -466,9 +466,9 @@ export interface RootRouteChildren {
   StaffCashierRoute: typeof StaffCashierRoute
   StaffShiftRoute: typeof StaffShiftRoute
   StaffTasksRoute: typeof StaffTasksRoute
-  StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   StudentAttendanceRoute: typeof StudentAttendanceRoute
   StudentInboxRoute: typeof StudentInboxRoute
+  StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   StudentLevelsRoute: typeof StudentLevelsRoute
   StudentTeachersRoute: typeof StudentTeachersRoute
   TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
@@ -647,13 +647,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/student/leaderboard': {
-      id: '/student/leaderboard'
-      path: '/student/leaderboard'
-      fullPath: '/student/leaderboard'
-      preLoaderRoute: typeof StudentLeaderboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/student/attendance': {
       id: '/student/attendance'
       path: '/student/attendance'
@@ -666,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/student/inbox'
       fullPath: '/student/inbox'
       preLoaderRoute: typeof StudentInboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/leaderboard': {
+      id: '/student/leaderboard'
+      path: '/student/leaderboard'
+      fullPath: '/student/leaderboard'
+      preLoaderRoute: typeof StudentLeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/student/levels': {
@@ -763,9 +763,9 @@ const rootRouteChildren: RootRouteChildren = {
   StaffCashierRoute: StaffCashierRoute,
   StaffShiftRoute: StaffShiftRoute,
   StaffTasksRoute: StaffTasksRoute,
-  StudentLeaderboardRoute: StudentLeaderboardRoute,
   StudentAttendanceRoute: StudentAttendanceRoute,
   StudentInboxRoute: StudentInboxRoute,
+  StudentLeaderboardRoute: StudentLeaderboardRoute,
   StudentLevelsRoute: StudentLevelsRoute,
   StudentTeachersRoute: StudentTeachersRoute,
   TeacherAssessmentsRoute: TeacherAssessmentsRoute,
