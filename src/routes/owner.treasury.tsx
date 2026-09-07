@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel, StatCard } from "@/components/dashboard/StatCard";
-import { SubjectPricingPanel, ExpensesPanel, PayrollPanel } from "@/components/owner/FinanceOpsPanels";
+import {
+  SubjectPricingPanel,
+  ExpensesPanel,
+  PayrollPanel,
+} from "@/components/owner/FinanceOpsPanels";
 import { MonthOverMonthPanel } from "@/components/owner/MonthOverMonthPanel";
 import { PaperCreditsPanel } from "@/components/owner/PaperCreditsPanel";
 import { AppShell } from "@/components/layout/AppShell";
@@ -30,7 +34,7 @@ function TreasuryPage() {
   const [staff, setStaff] = useState<Account[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    const cancelled = false;
     const refresh = () => {
       void getAccounts().then((rows) => {
         if (!cancelled) setStaff(rows.filter((a) => a.role === "staff"));
@@ -96,11 +100,7 @@ function TreasuryPage() {
           icon={HandCoins}
           tone={totalExpenses > 0 ? "warning" : "success"}
         />
-        <StatCard
-          label="أكبر تحصيل"
-          value={formatCurrency(biggestPayment)}
-          icon={Banknote}
-        />
+        <StatCard label="أكبر تحصيل" value={formatCurrency(biggestPayment)} icon={Banknote} />
       </div>
 
       <MonthOverMonthPanel />

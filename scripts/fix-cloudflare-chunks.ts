@@ -40,12 +40,15 @@ function walk(dir: string, out: string[] = []): string[] {
 function fixFile(path: string): boolean {
   const src = readFileSync(path, "utf8");
   // Matches: import { _ as __toESM, m as __commonJSMin } from "...createServerFn-*.mjs";
-  const importLineRe = /^import\s*\{([^}]*)\}\s*from\s*["'][^"']*createServerFn-[^"']*\.mjs["'];\s*\n?/m;
+  const importLineRe =
+    /^import\s*\{([^}]*)\}\s*from\s*["'][^"']*createServerFn-[^"']*\.mjs["'];\s*\n?/m;
   const match = src.match(importLineRe);
   if (!match) return false;
 
   const specifiers = match[1]!.split(",").map((s) => s.trim());
-  const helperSpecs = specifiers.filter((s) => HELPER_NAMES.some((name) => s.endsWith(`as ${name}`)));
+  const helperSpecs = specifiers.filter((s) =>
+    HELPER_NAMES.some((name) => s.endsWith(`as ${name}`)),
+  );
   const nonHelperSpecs = specifiers.filter((s) => !helperSpecs.includes(s));
 
   if (helperSpecs.length === 0) return false;
@@ -53,7 +56,12 @@ function fixFile(path: string): boolean {
   const usedHelperNames = helperSpecs.map((s) => s.split(" as ")[1]!.trim());
   const inlineDefs = usedHelperNames.map((name) => HELPER_DEFS[name]).join("\n");
 
-  let next = src.replace(importLineRe, nonHelperSpecs.length > 0 ? `import { ${nonHelperSpecs.join(", ")} } from ${match[0]!.match(/from\s*("[^"]*")/)![1]};\n` : "");
+  let next = src.replace(
+    importLineRe,
+    nonHelperSpecs.length > 0
+      ? `import { ${nonHelperSpecs.join(", ")} } from ${match[0]!.match(/from\s*("[^"]*")/)![1]};\n`
+      : "",
+  );
   next = `${inlineDefs}\n${next}`;
   writeFileSync(path, next);
   return true;

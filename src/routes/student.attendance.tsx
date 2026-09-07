@@ -55,15 +55,36 @@ function AttendancePage() {
       description="سجل حقيقي بالكامل — كل حصة حضرتها أو غبت عنها"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="معدل الحضور" value={formatPercent(rate)} icon={CalendarCheck} tone={rate >= 85 ? "success" : "warning"} />
-        <StatCard label="حصص حاضرة" value={formatNumber(presentCount)} icon={CheckCircle2} tone="success" />
-        <StatCard label="حصص متأخر فيها" value={formatNumber(lateCount)} icon={Clock} tone="warning" />
-        <StatCard label="حصص غائبة" value={formatNumber(absentCount)} icon={XCircle} tone="destructive" />
+        <StatCard
+          label="معدل الحضور"
+          value={formatPercent(rate)}
+          icon={CalendarCheck}
+          tone={rate >= 85 ? "success" : "warning"}
+        />
+        <StatCard
+          label="حصص حاضرة"
+          value={formatNumber(presentCount)}
+          icon={CheckCircle2}
+          tone="success"
+        />
+        <StatCard
+          label="حصص متأخر فيها"
+          value={formatNumber(lateCount)}
+          icon={Clock}
+          tone="warning"
+        />
+        <StatCard
+          label="حصص غائبة"
+          value={formatNumber(absentCount)}
+          icon={XCircle}
+          tone="destructive"
+        />
       </div>
 
       {totalLateMinutes > 0 ? (
         <p className="rounded-xl border-2 border-warning/30 bg-warning/5 p-4 text-sm font-bold text-foreground">
-          إجمالي دقائق التأخير المسجَّلة: {formatNumber(totalLateMinutes)} دقيقة عبر {formatNumber(lateCount)} حصة.
+          إجمالي دقائق التأخير المسجَّلة: {formatNumber(totalLateMinutes)} دقيقة عبر{" "}
+          {formatNumber(lateCount)} حصة.
         </p>
       ) : null}
 
@@ -86,12 +107,20 @@ function AttendancePage() {
                 <div>
                   <p className="text-sm font-black text-foreground">{r.group_name}</p>
                   <p className="text-xs font-bold text-muted-foreground">
-                    {r.checked_in_at && r.checked_in_at !== "—" ? formatDateTime(r.checked_in_at) : "—"}
+                    {r.checked_in_at && r.checked_in_at !== "—"
+                      ? formatDateTime(r.checked_in_at)
+                      : "—"}
                     {r.late_minutes ? ` · متأخر ${formatNumber(r.late_minutes)} دقيقة` : ""}
                   </p>
                 </div>
                 <StatusBadge
-                  tone={r.status === "present" ? "success" : r.status === "late" ? "warning" : "destructive"}
+                  tone={
+                    r.status === "present"
+                      ? "success"
+                      : r.status === "late"
+                        ? "warning"
+                        : "destructive"
+                  }
                 >
                   {r.status === "present" ? "حاضر" : r.status === "late" ? "متأخر" : "غائب"}
                 </StatusBadge>

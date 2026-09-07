@@ -130,7 +130,9 @@ export function LiveActiveGroupsCard({
           <PlayCircle className="size-6 text-primary" />
           المجموعات النشطة الآن
         </p>
-        <StatusBadge tone="primary">{formatNumber(live.length)} حصة اليوم · {today}</StatusBadge>
+        <StatusBadge tone="primary">
+          {formatNumber(live.length)} حصة اليوم · {today}
+        </StatusBadge>
       </div>
       <p className="mt-1 text-sm font-bold text-muted-foreground">
         العداد يتحدث كل ثانية. الحصة تُعتبر "بدأت" فقط لما الموظف يفعّلها من صفحته.
@@ -189,14 +191,11 @@ function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
         </p>
         <p className="mt-1 flex items-center gap-2 text-xs font-bold text-muted-foreground">
           <Users className="size-3" />
-          {formatNumber(group.enrolled)} / {formatNumber(group.capacity)} طالب · الموعد{" "}
-          {group.time}
+          {formatNumber(group.enrolled)} / {formatNumber(group.capacity)} طالب · الموعد {group.time}
         </p>
       </div>
       <div className="flex items-center gap-2">
-        {started && !activated && canControl ? (
-          <DelayButton groupName={group.name} />
-        ) : null}
+        {started && !activated && canControl ? <DelayButton groupName={group.name} /> : null}
         {started && !activated && canControl ? (
           <button
             type="button"
@@ -205,9 +204,7 @@ function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
               if (result.marked === 0) {
                 toast.info(`كل طلاب ${group.name} حضورهم مسجَّل بالفعل`);
               } else {
-                toast.success(
-                  `تم تسجيل بدء حصة ${group.name} — ${result.marked} طالب`,
-                );
+                toast.success(`تم تسجيل بدء حصة ${group.name} — ${result.marked} طالب`);
               }
             }}
             className="flex items-center gap-1.5 rounded-xl bg-navy px-3 py-1.5 text-xs font-black text-navy-foreground hover:opacity-90"

@@ -19,11 +19,7 @@ import type { Group } from "@/types";
  * SheetJS (~717KB) يُستورَد ديناميكياً داخل `parseQuestionsFromXlsx`
  * فقط — لا يُحمَّل في الـ bundle الأساسي ولا في وضع التشغيل.
  */
-type ActivityMode =
-  | "interactive"
-  | "website_homework"
-  | "group_challenge"
-  | "individual_challenge";
+type ActivityMode = "interactive" | "website_homework" | "group_challenge" | "individual_challenge";
 
 const ACTIVITY_MODES: { key: ActivityMode; label: string; hint: string }[] = [
   {
@@ -179,9 +175,7 @@ export function InteractiveActivityStudio({
         <div
           className={cn(
             "rounded-xl border-2 border-dashed p-4 text-center",
-            questions.length > 0
-              ? "border-success/40 bg-success/5"
-              : "border-border bg-canvas/30",
+            questions.length > 0 ? "border-success/40 bg-success/5" : "border-border bg-canvas/30",
           )}
         >
           {questions.length > 0 ? (
@@ -196,9 +190,7 @@ export function InteractiveActivityStudio({
           ) : (
             <>
               <FileSpreadsheet className="mx-auto size-8 text-primary" />
-              <p className="mt-2 text-sm font-black text-foreground">
-                ارفع شيت Excel (.xlsx)
-              </p>
+              <p className="mt-2 text-sm font-black text-foreground">ارفع شيت Excel (.xlsx)</p>
               <p className="mt-1 text-xs font-bold text-muted-foreground">
                 أعمدة: سؤال · اختيار 1..4 · رقم الإجابة الصحيحة
               </p>
@@ -251,12 +243,11 @@ export function InteractiveActivityStudio({
 
         {questions.length > 0 ? (
           <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            <p className="text-[11px] font-black text-muted-foreground">معاينة ({questions.length} سؤال):</p>
+            <p className="text-[11px] font-black text-muted-foreground">
+              معاينة ({questions.length} سؤال):
+            </p>
             {questions.slice(0, 5).map((q, i) => (
-              <div
-                key={q.id}
-                className="rounded-xl border-2 border-border bg-background p-3"
-              >
+              <div key={q.id} className="rounded-xl border-2 border-border bg-background p-3">
                 <p className="text-xs font-black text-foreground">
                   {i + 1}. {q.text}
                 </p>

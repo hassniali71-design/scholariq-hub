@@ -162,13 +162,7 @@ const RESOURCE_ICON: Record<GroupResource["resource_type"], typeof Link2> = {
   other: BookOpen,
 };
 
-function ResourceItem({
-  resource,
-  onDelete,
-}: {
-  resource: GroupResource;
-  onDelete: () => void;
-}) {
+function ResourceItem({ resource, onDelete }: { resource: GroupResource; onDelete: () => void }) {
   const Icon = RESOURCE_ICON[resource.resource_type];
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border-2 border-border bg-background p-3">
@@ -230,13 +224,7 @@ const TYPE_TONE: Record<TeacherLaunch["launch_type"], string> = {
   oral_recitation: "bg-success/10 text-success",
 };
 
-function LaunchItem({
-  launch,
-  onDelete,
-}: {
-  launch: TeacherLaunch;
-  onDelete: () => void;
-}) {
+function LaunchItem({ launch, onDelete }: { launch: TeacherLaunch; onDelete: () => void }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border-2 border-border bg-background p-3">
       <div className="min-w-0 flex-1">
@@ -244,7 +232,12 @@ function LaunchItem({
           <span className="flex size-7 items-center justify-center rounded-lg bg-info/10 text-info">
             <ClipboardList className="size-3.5" />
           </span>
-          <span className={cn("rounded-lg px-2 py-0.5 text-[11px] font-black", TYPE_TONE[launch.launch_type])}>
+          <span
+            className={cn(
+              "rounded-lg px-2 py-0.5 text-[11px] font-black",
+              TYPE_TONE[launch.launch_type],
+            )}
+          >
             {TYPE_LABEL[launch.launch_type]}
           </span>
           <p className="text-sm font-black text-foreground">{launch.title}</p>

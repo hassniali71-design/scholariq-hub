@@ -55,7 +55,12 @@ function TeacherTasksPage() {
       description={`المهام الموكلة لك شخصياً في ${state.center.name} — للاطلاع فقط، لا يمكن إضافة مهام من هنا`}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard label="مهام مفتوحة" value={formatNumber(open.length)} icon={ListTodo} tone="warning" />
+        <StatCard
+          label="مهام مفتوحة"
+          value={formatNumber(open.length)}
+          icon={ListTodo}
+          tone="warning"
+        />
         <StatCard
           label="مهام مستعجلة/متأخرة"
           value={formatNumber(urgent.length)}
@@ -75,9 +80,7 @@ function TeacherTasksPage() {
           <TaskList tasks={urgent} />
         </Panel>
         <Panel title="مهامي المفتوحة" description="مرتبة بالأحدث">
-          <TaskList
-            tasks={[...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))}
-          />
+          <TaskList tasks={[...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))} />
         </Panel>
       </div>
     </AppShell>
@@ -119,7 +122,9 @@ function TaskList({ tasks }: { tasks: Task[] }) {
                 aria-label="إنجاز"
               />
               <div className="min-w-0">
-                <p className={`text-base font-black ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                <p
+                  className={`text-base font-black ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+                >
                   {t.is_urgent ? "🚨 " : ""}
                   {t.title}
                 </p>

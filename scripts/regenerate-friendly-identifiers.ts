@@ -74,7 +74,9 @@ async function renameEverywhere(table: string, column: string, oldValue: string,
   if (count) console.log(`    ↳ ${table}.${column}: ${count} صف`);
 }
 
-async function regenerateOne(account: AccountRow): Promise<{ identifier: string; password: string } | null> {
+async function regenerateOne(
+  account: AccountRow,
+): Promise<{ identifier: string; password: string } | null> {
   if (account.role === "visitor") return null;
   const prefix = ROLE_PREFIX[account.role as keyof typeof ROLE_PREFIX];
   if (!prefix) return null; // parent ليس له حساب مستقل أصلاً
@@ -122,7 +124,14 @@ async function main() {
   }
 
   console.log(`\nإعادة توليد ${accounts.length} حساب (بخلاف حساب المنصة)...\n`);
-  const results: { center: string; role: string; name: string; old: string; new: string; password: string }[] = [];
+  const results: {
+    center: string;
+    role: string;
+    name: string;
+    old: string;
+    new: string;
+    password: string;
+  }[] = [];
 
   for (const account of accounts as AccountRow[]) {
     const result = await regenerateOne(account);
@@ -135,7 +144,9 @@ async function main() {
       new: result.identifier,
       password: result.password,
     });
-    console.log(`  ✓ [${account.center_id}] ${account.full_name} (${account.role}): ${account.identifier} → ${result.identifier} / ${result.password}`);
+    console.log(
+      `  ✓ [${account.center_id}] ${account.full_name} (${account.role}): ${account.identifier} → ${result.identifier} / ${result.password}`,
+    );
   }
 
   console.log("\n=== ملخّص نهائي — احفظ الجدول ده قبل غلق الترمينال ===\n");

@@ -21,5 +21,7 @@ export const Route = createFileRoute("/login/$slug")({
 
 function LoginBySlug() {
   const center = Route.useLoaderData();
-  return <LoginCard branding={center ? { name: center.name, accentColor: center.accent_color } : null} />;
+  return (
+    <LoginCard branding={center ? { name: center.name, accentColor: center.accent_color } : null} />
+  );
 }

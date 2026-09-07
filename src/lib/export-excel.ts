@@ -6,7 +6,9 @@ let xlsxPromise: Promise<XLSXModule> | undefined;
 
 async function loadXlsx(): Promise<XLSXModule> {
   if (!xlsxPromise) {
-    xlsxPromise = import("xlsx").then((m) => (m as unknown as { default?: XLSXModule }).default ?? m);
+    xlsxPromise = import("xlsx").then(
+      (m) => (m as unknown as { default?: XLSXModule }).default ?? m,
+    );
   }
   return xlsxPromise;
 }

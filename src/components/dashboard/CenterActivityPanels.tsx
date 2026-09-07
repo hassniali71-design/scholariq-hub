@@ -70,14 +70,22 @@ export function CenterActivityPanels() {
   // المالي
   const revenueToday = todayPayments.reduce((s, p) => s + Number(p.amount), 0);
   const inSafe = state.safeHandovers.reduce((s, h) => s + Number(h.amount), 0);
-  const financePct = revenueToday > 0 || inSafe > 0
-    ? Math.min(100, Math.round((revenueToday / Math.max(1, revenueToday + inSafe * 0.3)) * 100 + 30))
-    : 0;
+  const financePct =
+    revenueToday > 0 || inSafe > 0
+      ? Math.min(
+          100,
+          Math.round((revenueToday / Math.max(1, revenueToday + inSafe * 0.3)) * 100 + 30),
+        )
+      : 0;
   const newStudents = state.students.length; // مكافئ — الـ seed لا يميّز اليوم
-  const financeScore = Math.min(100, Math.round(financePct * 0.7 + (newStudents > 0 ? 20 : 0) + 10));
+  const financeScore = Math.min(
+    100,
+    Math.round(financePct * 0.7 + (newStudents > 0 ? 20 : 0) + 10),
+  );
 
-  const overall = Math.round((operationalScore * 0.5 + financeScore * 0.5));
-  const hasAnyData = todayAttendance.length + todaySessions.length + todayPayments.length + todayHomework.length > 0;
+  const overall = Math.round(operationalScore * 0.5 + financeScore * 0.5);
+  const hasAnyData =
+    todayAttendance.length + todaySessions.length + todayPayments.length + todayHomework.length > 0;
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -117,19 +125,14 @@ export function CenterActivityPanels() {
           />
         </div>
       </Panel>
-      <Panel
-        title="الحركة المالية والخزنة اليوم"
-        description="مدفوعات + الخزنة + التسجيلات"
-      >
+      <Panel title="الحركة المالية والخزنة اليوم" description="مدفوعات + الخزنة + التسجيلات">
         <div className="flex items-end justify-between">
           <div>
             <p className="kpi-number text-6xl font-black text-success">
               {revenueToday + inSafe > 0 ? formatPercent(financeScore) : "0%"}
             </p>
             <p className="text-sm font-bold text-muted-foreground">
-              {revenueToday + inSafe > 0
-                ? "مؤشر مالي لليوم"
-                : "لا توجد حركة مالية اليوم"}
+              {revenueToday + inSafe > 0 ? "مؤشر مالي لليوم" : "لا توجد حركة مالية اليوم"}
             </p>
           </div>
           <Banknote className="size-12 text-success" />
@@ -140,16 +143,8 @@ export function CenterActivityPanels() {
             value={`${formatNumber(Math.round(revenueToday))} ج`}
             tone="success"
           />
-          <Mini
-            label="في الخزنة"
-            value={`${formatNumber(Math.round(inSafe))} ج`}
-            tone="success"
-          />
-          <Mini
-            label="طلاب نشطون"
-            value={formatNumber(newStudents)}
-            tone="success"
-          />
+          <Mini label="في الخزنة" value={`${formatNumber(Math.round(inSafe))} ج`} tone="success" />
+          <Mini label="طلاب نشطون" value={formatNumber(newStudents)} tone="success" />
         </div>
       </Panel>
     </div>

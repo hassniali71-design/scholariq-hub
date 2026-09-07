@@ -32,7 +32,9 @@ function OwnerTasksPage() {
   const today = new Date().toDateString();
 
   const stats = useMemo(() => {
-    const completedToday = done.filter((t) => new Date(t.completed_at ?? 0).toDateString() === today);
+    const completedToday = done.filter(
+      (t) => new Date(t.completed_at ?? 0).toDateString() === today,
+    );
     return {
       open: open.length,
       done: done.length,
@@ -44,8 +46,18 @@ function OwnerTasksPage() {
   return (
     <AppShell role="owner" title="كل المهام" description="كل المهام الموكلة على كل أدوار السنتر">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="مهام مفتوحة" value={formatNumber(stats.open)} icon={ListTodo} tone="warning" />
-        <StatCard label="مهام مستعجلة" value={formatNumber(stats.urgent)} icon={Clock} tone="destructive" />
+        <StatCard
+          label="مهام مفتوحة"
+          value={formatNumber(stats.open)}
+          icon={ListTodo}
+          tone="warning"
+        />
+        <StatCard
+          label="مهام مستعجلة"
+          value={formatNumber(stats.urgent)}
+          icon={Clock}
+          tone="destructive"
+        />
         <StatCard
           label="مهام مكتملة"
           value={formatNumber(stats.done)}
@@ -61,10 +73,7 @@ function OwnerTasksPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Panel
-          title="بطاقة الأحداث اليومية"
-          description="إضافة مهمة جديدة تظهر فوراً للمكلَّف"
-        >
+        <Panel title="بطاقة الأحداث اليومية" description="إضافة مهمة جديدة تظهر فوراً للمكلَّف">
           <DailyTasksCard role="owner" />
         </Panel>
         <Panel
@@ -150,7 +159,9 @@ function TaskList({
                 aria-label="إنجاز"
               />
               <div className="min-w-0">
-                <p className={`text-base font-black ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                <p
+                  className={`text-base font-black ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+                >
                   {t.is_urgent ? "🚨 " : ""}
                   {t.title}
                 </p>

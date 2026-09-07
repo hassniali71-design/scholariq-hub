@@ -35,9 +35,7 @@ export function GroupCreateModal({ open, onClose }: GroupCreateModalProps) {
      * include any teacher whose `subject_id` matches OR is null (i.e.
      * teaches all subjects).
      */
-    return teachers.filter(
-      (t) => t.subject_id === subjectId || t.subject_id === null,
-    );
+    return teachers.filter((t) => t.subject_id === subjectId || t.subject_id === null);
   }, [teachers, subjectId]);
 
   const eligibleStudents = useMemo(() => {
@@ -285,7 +283,9 @@ export function GroupCreateModal({ open, onClose }: GroupCreateModalProps) {
                         <span
                           className={cn(
                             "flex size-5 items-center justify-center rounded-md border-2",
-                            checked ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                            checked
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border",
                           )}
                         >
                           {checked ? <Check className="size-3" /> : null}

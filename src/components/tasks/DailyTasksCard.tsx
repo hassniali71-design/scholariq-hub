@@ -30,7 +30,11 @@ const TASK_TYPES: { key: TaskType; label: string }[] = [
   { key: "communication", label: "تواصل" },
 ];
 
-const PRIORITIES: { key: TaskPriority; label: string; tone: "neutral" | "primary" | "destructive" }[] = [
+const PRIORITIES: {
+  key: TaskPriority;
+  label: string;
+  tone: "neutral" | "primary" | "destructive";
+}[] = [
   { key: "low", label: "منخفضة", tone: "neutral" },
   { key: "medium", label: "متوسطة", tone: "primary" },
   { key: "high", label: "عالية", tone: "destructive" },
@@ -80,7 +84,9 @@ export function DailyTasksCard({ role, assigneeId, assigneeName }: DailyTasksCar
             <span className="text-2xl">📋</span>
             الأحداث اليومية
           </p>
-          <StatusBadge tone={urgentCount > 0 ? "destructive" : openTasks.length > 0 ? "warning" : "success"}>
+          <StatusBadge
+            tone={urgentCount > 0 ? "destructive" : openTasks.length > 0 ? "warning" : "success"}
+          >
             {formatNumber(openTasks.length)} مفتوحة · {formatNumber(urgentCount)} مستعجل
           </StatusBadge>
         </div>
@@ -116,7 +122,9 @@ export function DailyTasksCard({ role, assigneeId, assigneeName }: DailyTasksCar
               onClick={() => setShowAll((v) => !v)}
               className="text-sm font-black text-primary hover:underline"
             >
-              {showAll ? "عرض أحدث 4 مهام" : `عرض باقي المهام (${formatNumber(openTasks.length - preview.length)})`}
+              {showAll
+                ? "عرض أحدث 4 مهام"
+                : `عرض باقي المهام (${formatNumber(openTasks.length - preview.length)})`}
             </button>
           ) : null}
         </div>
@@ -128,8 +136,7 @@ export function DailyTasksCard({ role, assigneeId, assigneeName }: DailyTasksCar
           defaultRole={role}
           defaultAssigneeId={identifier}
           defaultAssigneeName={
-            assigneeName ??
-              (role === "owner" ? "المالك" : session?.full_name ?? "—")
+            assigneeName ?? (role === "owner" ? "المالك" : (session?.full_name ?? "—"))
           }
         />
       ) : null}
@@ -154,9 +161,7 @@ function TaskRow({ task, role }: { task: Task; role: TaskAssigneeRole }) {
         <input
           type="checkbox"
           checked={done}
-          onChange={() =>
-            setTaskStatus(task.id, done ? "pending" : "done")
-          }
+          onChange={() => setTaskStatus(task.id, done ? "pending" : "done")}
           className="mt-1 size-5 cursor-pointer accent-success"
           aria-label="إنجاز المهمة"
         />
@@ -206,7 +211,12 @@ interface AddTaskModalProps {
   defaultAssigneeName: string;
 }
 
-function AddTaskModal({ onClose, defaultRole, defaultAssigneeId, defaultAssigneeName }: AddTaskModalProps) {
+function AddTaskModal({
+  onClose,
+  defaultRole,
+  defaultAssigneeId,
+  defaultAssigneeName,
+}: AddTaskModalProps) {
   const state = useDataStore();
   const session = typeof window !== "undefined" ? getSession() : null;
   const [title, setTitle] = useState("");
@@ -268,10 +278,7 @@ function AddTaskModal({ onClose, defaultRole, defaultAssigneeId, defaultAssignee
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
-      <div
-        className="card-crisp w-full max-w-xl p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="card-crisp w-full max-w-xl p-6" onClick={(e) => e.stopPropagation()}>
         <p className="text-xl font-black text-foreground">إضافة مهمة جديدة</p>
         <p className="mt-1 text-sm font-bold text-muted-foreground">
           المهمة تُحفظ فعلياً وتظهر للمُكلَّف وللمالك في نفس اللحظة

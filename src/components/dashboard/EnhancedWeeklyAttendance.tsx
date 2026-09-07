@@ -95,7 +95,11 @@ export function EnhancedWeeklyAttendance() {
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} barCategoryGap="35%" barGap={12}>
-                <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="4 4"
+                  stroke="var(--color-border)"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="day"
                   tick={{ fontSize: 16, fontWeight: 900, fill: "var(--color-foreground)" }}

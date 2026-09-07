@@ -23,11 +23,7 @@ import { StudentScoreKeyboard } from "./StudentScoreKeyboard";
  * - لكل محاولة: لوحة مفاتيح رقمية 0..max، يحفظ بـ `scoreHomeworkAttempt`.
  * - يدعم `due_at` (إن وُجد) يظهر كمؤقت "مضى على التسليم X ساعة".
  */
-export function CorrectionPanel({
-  variant = "session",
-}: {
-  variant?: "session" | "dashboard";
-}) {
+export function CorrectionPanel({ variant = "session" }: { variant?: "session" | "dashboard" }) {
   const state = useDataStore();
   const teacher = useCurrentTeacher();
   const [scores, setScores] = useState<Record<string, { value: number; max: number }>>({});
@@ -38,16 +34,6 @@ export function CorrectionPanel({
     [state, teacher],
   );
 
-  if (!teacher) {
-    return (
-      <Panel title="تصحيح الواجبات" description="يلزم تسجيل الدخول كمدرس">
-        <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
-          لا يوجد مدرس مسجّل دخوله.
-        </p>
-      </Panel>
-    );
-  }
-
   const grouped = useMemo(() => {
     const map = new Map<string, PendingCorrection[]>();
     for (const p of pending) {
@@ -57,6 +43,16 @@ export function CorrectionPanel({
     }
     return Array.from(map.entries());
   }, [pending]);
+
+  if (!teacher) {
+    return (
+      <Panel title="تصحيح الواجبات" description="يلزم تسجيل الدخول كمدرس">
+        <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+          لا يوجد مدرس مسجّل دخوله.
+        </p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel
@@ -73,16 +69,15 @@ export function CorrectionPanel({
           ممتاز — لا توجد محاولات تحتاج تصحيح. المحاولات تظهر هنا بعد 24 ساعة من التسليم.
         </p>
       ) : (
-        <div className={cn("space-y-3", variant === "session" ? "max-h-96 overflow-y-auto pr-1" : "")}>
+        <div
+          className={cn("space-y-3", variant === "session" ? "max-h-96 overflow-y-auto pr-1" : "")}
+        >
           {grouped.map(([launchId, items]) => {
             const launch = items[0]!.launch;
             const attempts = getHomeworkAttemptsForLaunch(state, launchId);
             const isOpen = openLaunchId === launchId;
             return (
-              <div
-                key={launchId}
-                className="rounded-xl border-2 border-border bg-background p-3"
-              >
+              <div key={launchId} className="rounded-xl border-2 border-border bg-background p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -90,7 +85,10 @@ export function CorrectionPanel({
                       <p className="truncate text-sm font-black text-foreground">{launch.title}</p>
                     </div>
                     <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-                      أُطلق {new Date(launch.created_at).toLocaleString("ar-EG", { numberingSystem: "latn" })}
+                      أُطلق{" "}
+                      {new Date(launch.created_at).toLocaleString("ar-EG", {
+                        numberingSystem: "latn",
+                      })}
                       {launch.due_at
                         ? ` · يُسلَّم قبل ${new Date(launch.due_at).toLocaleString("ar-EG", { numberingSystem: "latn" })}`
                         : null}

@@ -17,6 +17,7 @@ function assertServerOnly() {
  * `Database` type — supabase-js's table-row generics resolve to `never` without one, so the
  * client is intentionally typed loosely here rather than fighting that for every call site.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above: no hand-written Database type exists.
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 let client: AnySupabaseClient | null = null;

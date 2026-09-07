@@ -43,7 +43,12 @@ function LeaderboardPage() {
     return [...state.students]
       .filter((s) => s.group_id === student.group_id)
       .sort((a, b) => b.points - a.points)
-      .map((s, i) => ({ rank: i + 1, student_id: s.id, student_name: s.full_name, points: s.points }));
+      .map((s, i) => ({
+        rank: i + 1,
+        student_id: s.id,
+        student_name: s.full_name,
+        points: s.points,
+      }));
   }, [state.students, student?.group_id]);
 
   const badges = useMemo(
@@ -65,7 +70,9 @@ function LeaderboardPage() {
     <AppShell
       role="student"
       title="لوحة الشرف"
-      description={student.group_id ? `ترتيبك داخل مجموعة ${student.group_name}` : "لسه مش مسجَّل في مجموعة"}
+      description={
+        student.group_id ? `ترتيبك داخل مجموعة ${student.group_name}` : "لسه مش مسجَّل في مجموعة"
+      }
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="نقاطي" value={formatNumber(me.points)} icon={Sparkles} tone="warning" />
@@ -99,9 +106,15 @@ function LeaderboardPage() {
                       : "rounded-2xl border-2 border-border p-6 text-center"
                   }
                 >
-                  <span className="text-3xl">{e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : "🥉"}</span>
+                  <span className="text-3xl">
+                    {e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : "🥉"}
+                  </span>
                   <p className="mt-3 text-lg font-black">{e.student_name}</p>
-                  <p className={e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"}>
+                  <p
+                    className={
+                      e.rank === 1 ? "mt-2 text-3xl font-black" : "kpi-number mt-2 text-3xl"
+                    }
+                  >
                     {formatNumber(e.points)}
                   </p>
                 </div>
@@ -144,7 +157,10 @@ function LeaderboardPage() {
             {badges.map((b) => {
               const Icon = BADGE_ICON[b.key];
               return (
-                <div key={b.key} className="rounded-xl border-2 border-success/30 bg-success/5 p-4 text-center">
+                <div
+                  key={b.key}
+                  className="rounded-xl border-2 border-success/30 bg-success/5 p-4 text-center"
+                >
                   <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-success/15 text-success">
                     <Icon className="size-6" />
                   </span>

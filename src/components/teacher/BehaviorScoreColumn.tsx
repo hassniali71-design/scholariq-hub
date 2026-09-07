@@ -81,7 +81,9 @@ export function BehaviorScoreColumn({
             ) : null}
             {compact && score ? (
               <p className="mt-1 text-[10px] font-bold text-muted-foreground">
-                {new Date(score.recorded_at).toLocaleDateString("ar-EG", { numberingSystem: "latn" })}
+                {new Date(score.recorded_at).toLocaleDateString("ar-EG", {
+                  numberingSystem: "latn",
+                })}
               </p>
             ) : null}
           </div>

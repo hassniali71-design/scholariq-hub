@@ -1,6 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, CheckCircle2, ClipboardCheck, LockKeyhole, TrendingUp, Users } from "lucide-react";
+import {
+  Banknote,
+  CheckCircle2,
+  ClipboardCheck,
+  LockKeyhole,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
@@ -35,9 +42,7 @@ function ShiftPage() {
   const [closed, setClosed] = useState(false);
   // بعد التقفيل، الفرق المعروض هو نفسه اللي اتسجّل فعلياً وقت الضغط على الزرار
   // (راجع من closeShift)، مش قيمة بتتحسب تاني من بيانات ممكن تكون اتغيّرت بعد كده.
-  const [closedResult, setClosedResult] = useState<{ expected: number; diff: number } | null>(
-    null,
-  );
+  const [closedResult, setClosedResult] = useState<{ expected: number; diff: number } | null>(null);
   const diff = closedResult ? closedResult.diff : counted - expected;
 
   const last5 = useMemo(() => shiftClosures.slice(0, 5), [shiftClosures]);
@@ -47,9 +52,7 @@ function ShiftPage() {
   const avgExpected = last5.length
     ? last5.reduce((s, c) => s + Number(c.expected), 0) / last5.length
     : 0;
-  const avgDiff = last5.length
-    ? last5.reduce((s, c) => s + Number(c.diff), 0) / last5.length
-    : 0;
+  const avgDiff = last5.length ? last5.reduce((s, c) => s + Number(c.diff), 0) / last5.length : 0;
 
   const lastHourAbsent = attendanceRecords.some(
     (a) =>
@@ -117,7 +120,8 @@ function ShiftPage() {
 
             <button
               onClick={() => {
-                if (!window.confirm("متأكد إنك عايز تقفل الوردية بالمبلغ ده؟ العملية دي نهائية.")) return;
+                if (!window.confirm("متأكد إنك عايز تقفل الوردية بالمبلغ ده؟ العملية دي نهائية."))
+                  return;
                 setClosedResult(closeShift(counted));
                 setClosed(true);
                 toast.success("تم تقفيل الوردية وإرسال التقرير للمالك");
@@ -132,7 +136,11 @@ function ShiftPage() {
 
         <Panel
           title="مقارنة مع آخر 5 ورديات"
-          description={last5.length ? `متوسط ${formatNumber(last5.length)} ورديات سابقة` : "لا يوجد سجل ورديات بعد"}
+          description={
+            last5.length
+              ? `متوسط ${formatNumber(last5.length)} ورديات سابقة`
+              : "لا يوجد سجل ورديات بعد"
+          }
           actions={
             <span className="flex items-center gap-1 text-xs font-black text-muted-foreground">
               <TrendingUp className="size-3" /> مرجع
@@ -153,7 +161,12 @@ function ShiftPage() {
                 <td className="py-2 font-black">المتوقع</td>
                 <td className="py-2 font-black">{formatCurrency(expected)}</td>
                 <td className="py-2">{formatCurrency(avgExpected)}</td>
-                <td className={cn("py-2", expected - avgExpected >= 0 ? "text-success" : "text-destructive")}>
+                <td
+                  className={cn(
+                    "py-2",
+                    expected - avgExpected >= 0 ? "text-success" : "text-destructive",
+                  )}
+                >
                   {expected - avgExpected >= 0 ? "+" : ""}
                   {formatCurrency(expected - avgExpected)}
                 </td>
@@ -162,7 +175,12 @@ function ShiftPage() {
                 <td className="py-2 font-black">الفعلي</td>
                 <td className="py-2 font-black">{formatCurrency(counted)}</td>
                 <td className="py-2">{formatCurrency(avgCounted)}</td>
-                <td className={cn("py-2", counted - avgCounted >= 0 ? "text-success" : "text-destructive")}>
+                <td
+                  className={cn(
+                    "py-2",
+                    counted - avgCounted >= 0 ? "text-success" : "text-destructive",
+                  )}
+                >
                   {counted - avgCounted >= 0 ? "+" : ""}
                   {formatCurrency(counted - avgCounted)}
                 </td>

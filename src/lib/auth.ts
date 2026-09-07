@@ -1,4 +1,8 @@
-import { CURRENT_TENANT, students as seedStudents, teachers as seedTeachers } from "@/lib/mock-data";
+import {
+  CURRENT_TENANT,
+  students as seedStudents,
+  teachers as seedTeachers,
+} from "@/lib/mock-data";
 import {
   createAccount,
   deleteAccount as deleteAccountFn,
@@ -413,7 +417,9 @@ export async function updateAccount(
  * §0.3 — التحقق من كلمة سر المالك قبل عمليات الحذف الجذري.
  * يرجع true/false — لا يُعيد أي بيانات.
  */
-export async function verifyOwnerPassword(password: string): Promise<{ ok: boolean; error?: string }> {
+export async function verifyOwnerPassword(
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
   if (USE_SUPABASE) {
     const identifier = getSession()?.identifier;
     if (!identifier) return { ok: false, error: "انتهت الجلسة" };

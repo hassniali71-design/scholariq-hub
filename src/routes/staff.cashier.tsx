@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Banknote, CheckCircle2, Clock, CreditCard, Download, Play, Plus, Receipt, Search, Smartphone } from "lucide-react";
+import {
+  Banknote,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Download,
+  Play,
+  Plus,
+  Receipt,
+  Search,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
@@ -158,8 +169,7 @@ function CashierPage() {
       toast.error("اختر قناة المحفظة واكتب الرقم المرجعي");
       return;
     }
-    const reference =
-      method === "cash" ? null : `${walletRail} - ${referenceNumber.trim()}`;
+    const reference = method === "cash" ? null : `${walletRail} - ${referenceNumber.trim()}`;
     recordPayment(student.code, amount, method, item.trim(), reference);
     toast.success("تم التحصيل وطباعة الإيصال", {
       description: `${student.full_name} · ${formatCurrency(amount)}`,
@@ -169,19 +179,20 @@ function CashierPage() {
   };
 
   const exportCsv = () => {
-    const rows = records
-      .slice()
-      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    const rows = records.slice().sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     const header = ["اسم الطالب", "الكود", "المبلغ", "الوسيلة", "البند", "التاريخ"];
     const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const csv = [header, ...rows.map((r) => [
-      r.student_name,
-      r.student_code,
-      String(r.amount),
-      METHOD_LABELS[r.method] ?? r.method,
-      r.item,
-      r.created_at,
-    ])]
+    const csv = [
+      header,
+      ...rows.map((r) => [
+        r.student_name,
+        r.student_code,
+        String(r.amount),
+        METHOD_LABELS[r.method] ?? r.method,
+        r.item,
+        r.created_at,
+      ]),
+    ]
       .map((line) => line.map(escape).join(","))
       .join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -212,10 +223,7 @@ function CashierPage() {
       }
       if (receiptQuery.trim()) {
         const q = receiptQuery.trim().toLowerCase();
-        if (
-          !r.student_name.toLowerCase().includes(q) &&
-          !r.student_code.toLowerCase().includes(q)
-        )
+        if (!r.student_name.toLowerCase().includes(q) && !r.student_code.toLowerCase().includes(q))
           return false;
       }
       return true;
@@ -229,7 +237,12 @@ function CashierPage() {
       description="تحصيل حسب كل مادة مع إيصال فوري وإشعار واتساب"
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="إجمالي تحصيل اليوم" value={formatCurrency(todayTotal)} icon={Banknote} tone="success" />
+        <StatCard
+          label="إجمالي تحصيل اليوم"
+          value={formatCurrency(todayTotal)}
+          icon={Banknote}
+          tone="success"
+        />
         <StatCard label="متوسط قيمة العملية" value={formatCurrency(todayAvg)} icon={Receipt} />
         <StatCard label="عدد عمليات اليوم" value={formatNumber(todayCount)} icon={Receipt} />
       </div>
@@ -540,9 +553,7 @@ function UpcomingGroupsPanel() {
       <div className="space-y-2">
         {[...now, ...today].map((u) => {
           const tone =
-            u.status === "now"
-              ? "border-success/40 bg-success/5"
-              : "border-border bg-background";
+            u.status === "now" ? "border-success/40 bg-success/5" : "border-border bg-background";
           return (
             <div
               key={u.group.id}
@@ -562,7 +573,8 @@ function UpcomingGroupsPanel() {
                   </p>
                 </div>
                 <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-                  المدرس: {u.teacher?.full_name ?? u.group.teacher_name} · {u.group.weekday} {u.group.time}
+                  المدرس: {u.teacher?.full_name ?? u.group.teacher_name} · {u.group.weekday}{" "}
+                  {u.group.time}
                   {u.attendanceMarkedToday > 0
                     ? ` · ${formatNumber(u.attendanceMarkedToday)} حضور`
                     : ""}
@@ -584,9 +596,7 @@ function UpcomingGroupsPanel() {
                   if (result.marked === 0) {
                     toast.info(`كل طلاب ${u.group.name} حضورهم مسجَّل بالفعل`);
                   } else {
-                    toast.success(
-                      `بدأت حصة ${u.group.name} — تم تسجيل ${result.marked} طالب`,
-                    );
+                    toast.success(`بدأت حصة ${u.group.name} — تم تسجيل ${result.marked} طالب`);
                   }
                 }}
                 className="flex items-center gap-1.5 rounded-xl bg-navy px-3 py-2 text-xs font-black text-navy-foreground hover:opacity-90"

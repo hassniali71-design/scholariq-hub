@@ -3,7 +3,12 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/dashboard/StatCard";
-import { addGroupResource, deleteGroupResource, getGroupResourcesForGroup, useDataStore } from "@/lib/data-store";
+import {
+  addGroupResource,
+  deleteGroupResource,
+  getGroupResourcesForGroup,
+  useDataStore,
+} from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { GroupResourceType } from "@/types";
 
@@ -31,12 +36,18 @@ export function GroupResourcesPanel({
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
 
-  const resources = useMemo(() => getGroupResourcesForGroup(state, groupId), [state.groupResources, groupId]);
+  const resources = useMemo(
+    () => getGroupResourcesForGroup(state, groupId),
+    [state.groupResources, groupId],
+  );
   const filtered = useMemo(() => {
     if (!search.trim()) return resources;
     const q = search.trim().toLowerCase();
     return resources.filter(
-      (r) => r.name.toLowerCase().includes(q) || r.url.toLowerCase().includes(q) || (r.unit ?? "").toLowerCase().includes(q),
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.url.toLowerCase().includes(q) ||
+        (r.unit ?? "").toLowerCase().includes(q),
     );
   }, [resources, search]);
 
@@ -65,7 +76,12 @@ export function GroupResourcesPanel({
           />
         </div>
 
-        <div className={cn("space-y-2 overflow-y-auto pr-1", variant === "session" ? "max-h-72" : "max-h-[420px]")}>
+        <div
+          className={cn(
+            "space-y-2 overflow-y-auto pr-1",
+            variant === "session" ? "max-h-72" : "max-h-[420px]",
+          )}
+        >
           {filtered.length === 0 ? (
             <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
               {resources.length === 0
@@ -82,7 +98,12 @@ export function GroupResourcesPanel({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={cn("flex size-7 items-center justify-center rounded-lg", RESOURCE_TONE[r.resource_type])}>
+                      <span
+                        className={cn(
+                          "flex size-7 items-center justify-center rounded-lg",
+                          RESOURCE_TONE[r.resource_type],
+                        )}
+                      >
                         <Icon className="size-3.5" />
                       </span>
                       <a
@@ -95,9 +116,14 @@ export function GroupResourcesPanel({
                       </a>
                     </div>
                     {r.unit ? (
-                      <p className="mt-1 text-xs font-bold text-muted-foreground">الوحدة: {r.unit}</p>
+                      <p className="mt-1 text-xs font-bold text-muted-foreground">
+                        الوحدة: {r.unit}
+                      </p>
                     ) : null}
-                    <p className="mt-1 line-clamp-1 text-[11px] font-bold text-muted-foreground" dir="ltr">
+                    <p
+                      className="mt-1 line-clamp-1 text-[11px] font-bold text-muted-foreground"
+                      dir="ltr"
+                    >
                       {r.url}
                     </p>
                   </div>

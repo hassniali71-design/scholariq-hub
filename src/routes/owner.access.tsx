@@ -103,9 +103,7 @@ function CredentialCard({ data }: { data: CreatedCredentials }) {
           </button>
         ) : null}
       </div>
-      <p className="mt-2 text-xs font-bold text-muted-foreground">
-        اضغط على كل سطر لنسخه.
-      </p>
+      <p className="mt-2 text-xs font-bold text-muted-foreground">اضغط على كل سطر لنسخه.</p>
     </div>
   );
 }
@@ -435,15 +433,15 @@ function TeacherProvisionForm() {
       />
 
       <div>
-        <p className="mb-1.5 text-xs font-black text-muted-foreground">المراحل (يمكن اختيار أكثر من مرحلة)</p>
+        <p className="mb-1.5 text-xs font-black text-muted-foreground">
+          المراحل (يمكن اختيار أكثر من مرحلة)
+        </p>
         <div className="grid grid-cols-3 gap-2">
-          {(
-            [
-              { key: "primary" as const, label: "ابتدائي" },
-              { key: "prep" as const, label: "إعدادي" },
-              { key: "secondary" as const, label: "ثانوي" },
-            ]
-          ).map((opt) => (
+          {[
+            { key: "primary" as const, label: "ابتدائي" },
+            { key: "prep" as const, label: "إعدادي" },
+            { key: "secondary" as const, label: "ثانوي" },
+          ].map((opt) => (
             <label
               key={opt.key}
               className={`flex cursor-pointer items-center justify-center rounded-xl border-2 px-3 py-2 text-sm font-black ${
@@ -748,14 +746,26 @@ function AccountRow({ account }: { account: Account }) {
     return (
       <tr className="border-t-2 border-border text-base font-extrabold">
         <td className="px-5 py-3">
-          <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input
+            className={inputCls}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
         <td className="px-5 py-3">
-          <input className={inputCls} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+          <input
+            className={inputCls}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
-          <input className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            className={inputCls}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </td>
         <td className="px-5 py-3">
           <div className="flex gap-2">

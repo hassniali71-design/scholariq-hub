@@ -24,7 +24,10 @@ import { buildTeacherWeeklyMetrics } from "@/lib/owner-metrics";
  * `state.attendanceRecords` (present / total) for the students linked to
  * this teacher. Returns 0 when no data exists (avoids fake 85%).
  */
-function buildTeacherSeasonMetrics(state: ReturnType<typeof useDataStore>, teacherId: string): SeasonMetrics {
+function buildTeacherSeasonMetrics(
+  state: ReturnType<typeof useDataStore>,
+  teacherId: string,
+): SeasonMetrics {
   const students = getStudentsForTeacher(state, teacherId);
   if (students.length === 0) return { avgScore: 0, attendance: 0, behavior: null };
   const studentIds = new Set(students.map((s) => s.id));
@@ -75,9 +78,7 @@ function CompliancePage() {
   // 4 كروت وصفية أعلى الصفحة
   const complianceMap = new Map(teachers.map((t) => [t.id, getTimerCompliance(state, t.id)]));
   const avg = teachers.length
-    ? Math.round(
-        teachers.reduce((s, t) => s + (complianceMap.get(t.id) ?? 0), 0) / teachers.length,
-      )
+    ? Math.round(teachers.reduce((s, t) => s + (complianceMap.get(t.id) ?? 0), 0) / teachers.length)
     : 0;
   const totalBreaches = teachers.reduce((s, t) => s + t.sla_breaches, 0);
   const totalPendingCorrections = teachers.reduce(
@@ -145,11 +146,7 @@ function CompliancePage() {
           value={formatNumber(sessionRecords.length)}
           icon={CheckCircle2}
           tone={sessionRecords.length > 0 ? "success" : "primary"}
-          trend={
-            sessionRecords.length > 0
-              ? "من سجل الحصص الفعلي"
-              : "لا توجد حصص مُسجَّلة بعد"
-          }
+          trend={sessionRecords.length > 0 ? "من سجل الحصص الفعلي" : "لا توجد حصص مُسجَّلة بعد"}
         />
         <StatCard
           label="إجمالي تمديد التايمر"
@@ -167,11 +164,7 @@ function CompliancePage() {
           value={formatNumber(totalPendingCorrections)}
           icon={ClipboardList}
           tone={totalPendingCorrections > 0 ? "warning" : "success"}
-          trend={
-            totalPendingCorrections > 0
-              ? "تراكمت من آخر 24 ساعة"
-              : "كل المدرسين خلّصوا"
-          }
+          trend={totalPendingCorrections > 0 ? "تراكمت من آخر 24 ساعة" : "كل المدرسين خلّصوا"}
         />
         <StatCard
           label="متوسط درجة السلوك"
@@ -207,8 +200,8 @@ function CompliancePage() {
 
       <p className="rounded-xl border-2 border-info/30 bg-info/5 p-4 text-sm font-bold text-foreground">
         📊 المؤشرات الأسبوعية تُحسب من الأفعال الفعلية: `recordAssessmentScore` (لإطلاق الواجبات)،
-        `homeworkTasks` (لمتابعة الواجبات)، `recordRandomPick` + `addTeacherNote` (للتفاعل).
-        كلما زاد استخدام المدرس لوضع الحصة، كلما ظهرت أرقامه الأسبوعية في لوحة المالك.
+        `homeworkTasks` (لمتابعة الواجبات)، `recordRandomPick` + `addTeacherNote` (للتفاعل). كلما
+        زاد استخدام المدرس لوضع الحصة، كلما ظهرت أرقامه الأسبوعية في لوحة المالك.
       </p>
     </AppShell>
   );

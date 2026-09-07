@@ -78,16 +78,10 @@ function TeacherSchedulePage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Stat title="اسمك" value={myTeacher.full_name} />
             <Stat title="المادة" value={myTeacher.subject} />
-            <Stat
-              title="عدد المواعيد"
-              value={`${formatNumber(mySlots.length)} موعد / أسبوع`}
-            />
+            <Stat title="عدد المواعيد" value={`${formatNumber(mySlots.length)} موعد / أسبوع`} />
           </div>
 
-          <Panel
-            title="مواعيدك"
-            description="قراءة فقط — أي تعديل يحتاج المالك من /owner/schedule"
-          >
+          <Panel title="مواعيدك" description="قراءة فقط — أي تعديل يحتاج المالك من /owner/schedule">
             {mySlots.length === 0 ? (
               <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-base font-bold text-muted-foreground">
                 لا توجد مواعيد بعد. تواصل مع إدارة السنتر.

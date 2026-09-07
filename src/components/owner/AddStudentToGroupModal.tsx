@@ -37,7 +37,10 @@ export function AddStudentToGroupModal({
   }, [state, group]);
 
   const filtered = eligible.filter(
-    (s) => !query.trim() || s.full_name.includes(query) || s.code.toLowerCase().includes(query.toLowerCase()),
+    (s) =>
+      !query.trim() ||
+      s.full_name.includes(query) ||
+      s.code.toLowerCase().includes(query.toLowerCase()),
   );
 
   if (!group) return null;
@@ -68,7 +71,9 @@ export function AddStudentToGroupModal({
       >
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-black text-foreground">إضافة طالب لمجموعة "{group.name}"</h3>
+            <h3 className="text-lg font-black text-foreground">
+              إضافة طالب لمجموعة "{group.name}"
+            </h3>
             <p className="text-xs font-bold text-muted-foreground">
               {group.enrolled}/{group.capacity} طالب حالياً — {group.subject} · {group.grade}
             </p>

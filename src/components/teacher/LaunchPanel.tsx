@@ -48,7 +48,12 @@ export function LaunchPanel({
         </button>
       }
     >
-      <div className={cn("space-y-2 overflow-y-auto pr-1", variant === "session" ? "max-h-72" : "max-h-[420px]")}>
+      <div
+        className={cn(
+          "space-y-2 overflow-y-auto pr-1",
+          variant === "session" ? "max-h-72" : "max-h-[420px]",
+        )}
+      >
         {launches.length === 0 ? (
           <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
             لا توجد مهام مُطلقة بعد. اضغط «إطلاق جديد» لتسجيل أول واجب أو نشاط.
@@ -110,7 +115,12 @@ function LaunchRow({ launch, onDelete }: { launch: TeacherLaunch; onDelete: () =
     <div className="flex items-start justify-between gap-3 rounded-xl border-2 border-border bg-background p-3">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-lg px-2 py-0.5 text-[11px] font-black", TYPE_TONE[launch.launch_type])}>
+          <span
+            className={cn(
+              "rounded-lg px-2 py-0.5 text-[11px] font-black",
+              TYPE_TONE[launch.launch_type],
+            )}
+          >
             {TYPE_LABEL[launch.launch_type]}
           </span>
           <p className="text-sm font-black text-foreground">{launch.title}</p>

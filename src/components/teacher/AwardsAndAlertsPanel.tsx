@@ -2,22 +2,23 @@ import { Award, Megaphone, Send, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import {
-  sendTeacherMessage,
-  useDataStore,
-} from "@/lib/data-store";
+import { sendTeacherMessage, useDataStore } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { Student } from "@/types";
 
 /* ---------------- Awards & Alerts data (4 وسام + 3 أنواع تنبيه) ---------------- */
 
-const AWARDS: { key: string; label: string; emoji: string; defaultText: (name: string) => string }[] = [
+const AWARDS: {
+  key: string;
+  label: string;
+  emoji: string;
+  defaultText: (name: string) => string;
+}[] = [
   {
     key: "star_of_week",
     label: "نجم الأسبوع",
     emoji: "🏅",
-    defaultText: (n) =>
-      `🌟 ${n}، مبروك! أنت نجم هذا الأسبوع — استمر على هذا المستوى المميز.`,
+    defaultText: (n) => `🌟 ${n}، مبروك! أنت نجم هذا الأسبوع — استمر على هذا المستوى المميز.`,
   },
   {
     key: "best_improvement",
@@ -41,7 +42,12 @@ const AWARDS: { key: string; label: string; emoji: string; defaultText: (name: s
   },
 ];
 
-const ALERTS: { key: string; label: string; emoji: string; defaultText: (name: string) => string }[] = [
+const ALERTS: {
+  key: string;
+  label: string;
+  emoji: string;
+  defaultText: (name: string) => string;
+}[] = [
   {
     key: "contact_guardian",
     label: "تواصل مع ولي الأمر",
@@ -53,15 +59,13 @@ const ALERTS: { key: string; label: string; emoji: string; defaultText: (name: s
     key: "one_on_one",
     label: "حديث فردي مع الطالب",
     emoji: "💬",
-    defaultText: (n) =>
-      `${n}، محتاج/ة نتكلم شوية بعد الحصة عن بعض النقاط اللي هنحسّنها سوا.`,
+    defaultText: (n) => `${n}، محتاج/ة نتكلم شوية بعد الحصة عن بعض النقاط اللي هنحسّنها سوا.`,
   },
   {
     key: "internal_note",
     label: "ملاحظة داخلية",
     emoji: "📝",
-    defaultText: (n) =>
-      `ملاحظة: الطالب/ة ${n} يحتاج متابعة إضافية في الأسبوع القادم.`,
+    defaultText: (n) => `ملاحظة: الطالب/ة ${n} يحتاج متابعة إضافية في الأسبوع القادم.`,
   },
 ];
 
@@ -198,12 +202,7 @@ function MessageModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3
-            className={cn(
-              "text-lg font-black",
-              isExcellent ? "text-success" : "text-warning",
-            )}
-          >
+          <h3 className={cn("text-lg font-black", isExcellent ? "text-success" : "text-warning")}>
             {isExcellent ? "🏅 إرسال وسام" : "📣 إرسال تنبيه"} — {student.full_name}
           </h3>
           <button

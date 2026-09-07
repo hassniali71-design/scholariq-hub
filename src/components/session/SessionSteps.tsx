@@ -211,7 +211,11 @@ export function LessonStep({
       .split("\n")
       .map((b) => b.trim())
       .filter(Boolean);
-    onEdit(slide.id, draftTitle.trim() || slide.title, bullets.length > 0 ? bullets : slide.bullets);
+    onEdit(
+      slide.id,
+      draftTitle.trim() || slide.title,
+      bullets.length > 0 ? bullets : slide.bullets,
+    );
     setEditing(false);
   };
 
@@ -285,7 +289,10 @@ export function LessonStep({
           {slides.map((s, i) => (
             <span
               key={s.id}
-              className={cn("h-2.5 rounded-full", i === index ? "w-8 bg-primary" : "w-2.5 bg-muted")}
+              className={cn(
+                "h-2.5 rounded-full",
+                i === index ? "w-8 bg-primary" : "w-2.5 bg-muted",
+              )}
             />
           ))}
         </div>
@@ -478,7 +485,9 @@ export function MatchingAnswerBody({
                 onClick={() => pickRight(t)}
                 className={cn(
                   "w-full rounded-xl border-2 px-4 py-3 text-right text-sm font-black transition-colors disabled:opacity-40",
-                  isConnected ? "border-success bg-success/10 text-success" : "border-border hover:border-primary",
+                  isConnected
+                    ? "border-success bg-success/10 text-success"
+                    : "border-border hover:border-primary",
                 )}
               >
                 {t}
@@ -655,7 +664,9 @@ export function BookExerciseCard({
 
   return (
     <div className="rounded-xl border-2 border-border p-4">
-      <p className="font-black text-foreground underline decoration-2 underline-offset-4">{title}</p>
+      <p className="font-black text-foreground underline decoration-2 underline-offset-4">
+        {title}
+      </p>
       {value && !editing ? (
         <p className="mt-2 text-sm font-bold text-muted-foreground">{value}</p>
       ) : null}

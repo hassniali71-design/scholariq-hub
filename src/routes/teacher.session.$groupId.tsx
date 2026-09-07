@@ -164,11 +164,7 @@ function SessionMode() {
   const teacherIdentifier = session?.identifier ?? teacher?.user_id ?? teacher?.id ?? "";
 
   useEffect(() => {
-    if (
-      teacher &&
-      group.teacher_id !== teacher.id &&
-      group.teacher_user_id !== teacher.user_id
-    ) {
+    if (teacher && group.teacher_id !== teacher.id && group.teacher_user_id !== teacher.user_id) {
       toast.error("هذه المجموعة لا تخص المدرس الحالي");
       navigate({ to: "/teacher" });
     }
@@ -249,9 +245,7 @@ function SessionMode() {
   );
   const attendedStudentIds = useMemo(
     () =>
-      new Set(
-        sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").map((s) => s.id),
-      ),
+      new Set(sessionStudents.filter((s) => attendanceStatus(s.id) !== "absent").map((s) => s.id)),
     [sessionStudents, attendanceStatus],
   );
 
@@ -421,11 +415,7 @@ function SessionMode() {
     navigate,
   ]);
 
-  if (
-    teacher &&
-    group.teacher_id !== teacher.id &&
-    group.teacher_user_id !== teacher.user_id
-  ) {
+  if (teacher && group.teacher_id !== teacher.id && group.teacher_user_id !== teacher.user_id) {
     return <Navigate to="/teacher" />;
   }
 
@@ -504,11 +494,7 @@ function SessionMode() {
 
             {activeSection === "attendance" ? (
               <div className="grid gap-4 xl:grid-cols-2">
-                <AttendanceRosterBox
-                  groupId={group.id}
-                  editable
-                  sessionId={sessionIdRef.current}
-                />
+                <AttendanceRosterBox groupId={group.id} editable sessionId={sessionIdRef.current} />
                 <OwnerNotesCard audience="teacher" />
               </div>
             ) : null}
@@ -516,7 +502,10 @@ function SessionMode() {
             {activeSection === "lesson" ? (
               <div className="space-y-4">
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <Panel title="نصائح للبدء" description="افتح الحصة بثبات — أول خمس دقائق تحدد الإيقاع.">
+                  <Panel
+                    title="نصائح للبدء"
+                    description="افتح الحصة بثبات — أول خمس دقائق تحدد الإيقاع."
+                  >
                     <ul className="space-y-2 text-sm font-bold text-muted-foreground">
                       <li className="flex gap-2">
                         <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -556,9 +545,7 @@ function SessionMode() {
                       slides={activeSlides}
                       index={slideIndex}
                       onPrev={() => setSlideIndex((i) => Math.max(0, i - 1))}
-                      onNext={() =>
-                        setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))
-                      }
+                      onNext={() => setSlideIndex((i) => Math.min(activeSlides.length - 1, i + 1))}
                       onFile={(file) => void handleUploadFile(file)}
                       onRetry={() => void handleRetryLesson()}
                       onEditSlide={(slideId, title, bullets) => {
@@ -698,7 +685,10 @@ function SessionMode() {
 
             {activeSection === "wrapup" ? (
               <div className="space-y-4">
-                <Panel title="حل تمارين الكتاب — داخل الحصة" description="أرقام الصفحات المطلوب حلها الآن.">
+                <Panel
+                  title="حل تمارين الكتاب — داخل الحصة"
+                  description="أرقام الصفحات المطلوب حلها الآن."
+                >
                   <BookExerciseCard
                     title="حل تمارين الكتاب — داخل الحصة"
                     value={

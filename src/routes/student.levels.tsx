@@ -107,7 +107,11 @@ function LevelsPage() {
                   <p className="text-sm font-black text-foreground">{subject.name}</p>
                   <p className="text-xs font-bold text-muted-foreground">
                     {formatNumber(summary.lessonsRecordedCount)} حصة مسجَّلة ·{" "}
-                    {summary.trend === "up" ? "في تحسّن" : summary.trend === "down" ? "في تراجع" : "مستقر"}
+                    {summary.trend === "up"
+                      ? "في تحسّن"
+                      : summary.trend === "down"
+                        ? "في تراجع"
+                        : "مستقر"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

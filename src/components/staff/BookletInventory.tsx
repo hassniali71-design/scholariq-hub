@@ -1,4 +1,12 @@
-import { AlertTriangle, BookOpen, FileText, GraduationCap, Plus, Printer, Receipt } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  FileText,
+  GraduationCap,
+  Plus,
+  Printer,
+  Receipt,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -88,10 +96,7 @@ export function BookletInventory() {
     const q = sellQuery.trim().toLowerCase();
     if (!q) return students.slice(0, 20);
     return students
-      .filter(
-        (s) =>
-          s.full_name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
-      )
+      .filter((s) => s.full_name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
       .slice(0, 20);
   }, [students, sellQuery]);
 
@@ -131,7 +136,15 @@ export function BookletInventory() {
       initialStock: form.initialStock,
     });
     toast.success("تم إضافة الصنف");
-    setForm({ kind: "booklet", title: "", subject: "", pageCount: 0, price: 0, paperPerUnit: 1, initialStock: 0 });
+    setForm({
+      kind: "booklet",
+      title: "",
+      subject: "",
+      pageCount: 0,
+      price: 0,
+      paperPerUnit: 1,
+      initialStock: 0,
+    });
   }
 
   function doPreorder(): void {
@@ -216,7 +229,7 @@ export function BookletInventory() {
 
   return (
     <AppShell role="staff" title="مخزون الملازم والكتب" description="إضافة · طباعة · بيع · إدارة">
-      {(lowStock > 0 || lowPaper) ? (
+      {lowStock > 0 || lowPaper ? (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-warning/40 bg-warning/10 p-3 text-sm font-black text-warning">
           <AlertTriangle className="size-4" />
           {lowStock > 0 ? `${formatNumber(lowStock)} صنف قارب على النفاد. ` : ""}
@@ -226,14 +239,24 @@ export function BookletInventory() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard label="عدد الأصناف" value={formatNumber(totalItems)} icon={BookOpen} />
-        <StatCard label="قيمة المخزون" value={formatCurrency(totalStockValue)} icon={BookOpen} tone="success" />
+        <StatCard
+          label="قيمة المخزون"
+          value={formatCurrency(totalStockValue)}
+          icon={BookOpen}
+          tone="success"
+        />
         <StatCard
           label="رصيد الورق المتاح لك"
           value={formatNumber(paperBalance)}
           icon={Printer}
           tone={lowPaper ? "destructive" : "primary"}
         />
-        <StatCard label="مبيعات اليوم" value={formatNumber(todaySalesCount)} icon={Receipt} tone="success" />
+        <StatCard
+          label="مبيعات اليوم"
+          value={formatNumber(todaySalesCount)}
+          icon={Receipt}
+          tone="success"
+        />
         <StatCard label="طبعات مسبقة" value={formatNumber(totalPreprinted)} icon={Printer} />
         <StatCard
           label="أصناف قاربت النفاد"
@@ -276,8 +299,16 @@ export function BookletInventory() {
               className="h-12 w-full rounded-xl border-2 border-border bg-background px-4 text-sm font-black outline-none focus:border-primary"
             />
             <div className="grid grid-cols-2 gap-2">
-              <NumField label="عدد الصفحات" value={form.pageCount} onChange={(v) => setForm({ ...form, pageCount: v })} />
-              <NumField label="السعر" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
+              <NumField
+                label="عدد الصفحات"
+                value={form.pageCount}
+                onChange={(v) => setForm({ ...form, pageCount: v })}
+              />
+              <NumField
+                label="السعر"
+                value={form.price}
+                onChange={(v) => setForm({ ...form, price: v })}
+              />
               <NumField
                 label="ورق لكل نسخة"
                 value={form.paperPerUnit}
@@ -463,7 +494,8 @@ export function BookletInventory() {
                     <span className="kpi-number text-base">{formatCurrency(s.total_amount)}</span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {s.booklet_title} × {formatNumber(s.quantity)} · {s.sold_by} · {formatDateTime(s.sold_at)}
+                    {s.booklet_title} × {formatNumber(s.quantity)} · {s.sold_by} ·{" "}
+                    {formatDateTime(s.sold_at)}
                   </p>
                 </div>
               ))
@@ -533,7 +565,8 @@ function BookletSelect({
 }
 
 function BookletCard({ booklet }: { booklet: BookletItem }) {
-  const Icon = booklet.kind === "book" ? BookOpen : booklet.kind === "exam" ? FileText : GraduationCap;
+  const Icon =
+    booklet.kind === "book" ? BookOpen : booklet.kind === "exam" ? FileText : GraduationCap;
   return (
     <div className="rounded-xl border-2 border-border p-4">
       <div className="flex items-start justify-between gap-2">
@@ -546,10 +579,12 @@ function BookletCard({ booklet }: { booklet: BookletItem }) {
       <p className="mt-1 text-xs text-muted-foreground">{booklet.subject}</p>
       <p className="kpi-number mt-2 text-xl">{formatCurrency(booklet.price)}</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {formatNumber(booklet.page_count)} صفحة · {formatNumber(booklet.in_stock)} متاح · {formatNumber(booklet.delivered)} مُسلَّم
+        {formatNumber(booklet.page_count)} صفحة · {formatNumber(booklet.in_stock)} متاح ·{" "}
+        {formatNumber(booklet.delivered)} مُسلَّم
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        ورق لكل نسخة: {formatNumber(booklet.paper_per_unit)} · مطبوعة مسبقاً: {formatNumber(booklet.printed)}
+        ورق لكل نسخة: {formatNumber(booklet.paper_per_unit)} · مطبوعة مسبقاً:{" "}
+        {formatNumber(booklet.printed)}
       </p>
       {booklet.in_stock < 10 ? (
         <div className="mt-2 text-xs font-black text-destructive">قارب على النفاد</div>
@@ -557,4 +592,3 @@ function BookletCard({ booklet }: { booklet: BookletItem }) {
     </div>
   );
 }
-

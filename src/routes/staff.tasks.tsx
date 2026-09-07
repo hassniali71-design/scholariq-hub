@@ -57,7 +57,9 @@ function StaffTasksPage() {
     (t) => t.is_urgent || (t.due_at && new Date(t.due_at) < now && t.status !== "done"),
   );
 
-  const weekDone = done.filter((t) => t.completed_at && Date.parse(t.completed_at) >= weekStart).length;
+  const weekDone = done.filter(
+    (t) => t.completed_at && Date.parse(t.completed_at) >= weekStart,
+  ).length;
   const last30 = now.getTime() - 30 * 86400000;
   const last30Done = done.filter((t) => t.completed_at && Date.parse(t.completed_at) >= last30);
   const avgHours = last30Done.length
@@ -80,7 +82,12 @@ function StaffTasksPage() {
       description={`كل المهام الموكلة لك شخصياً في ${state.center.name}`}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard label="مهام مفتوحة" value={formatNumber(open.length)} icon={ListTodo} tone="warning" />
+        <StatCard
+          label="مهام مفتوحة"
+          value={formatNumber(open.length)}
+          icon={ListTodo}
+          tone="warning"
+        />
         <StatCard
           label="مهام مستعجلة/متأخرة"
           value={formatNumber(urgent.length)}
@@ -104,11 +111,7 @@ function StaffTasksPage() {
           icon={CheckCheck}
           tone={onTimeRate !== null && onTimeRate >= 80 ? "success" : "warning"}
         />
-        <StatCard
-          label="مهام مؤجلة"
-          value={formatNumber(cancelled.length)}
-          icon={Clock}
-        />
+        <StatCard label="مهام مؤجلة" value={formatNumber(cancelled.length)} icon={Clock} />
       </div>
 
       <Panel title="ملخص الأداء" description="نظرة سريعة على حال المهام">
@@ -125,9 +128,7 @@ function StaffTasksPage() {
           <TaskList tasks={urgent} />
         </Panel>
         <Panel title="مهامي المفتوحة" description="مرتبة بالأحدث">
-          <TaskList
-            tasks={[...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))}
-          />
+          <TaskList tasks={[...open].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))} />
         </Panel>
       </div>
 
@@ -196,7 +197,9 @@ function TaskList({ tasks }: { tasks: Task[] }) {
                   {t.task_type} · {formatDateTime(t.created_at)}
                   {t.completed_at ? ` · نُجِزت ${formatDateTime(t.completed_at)}` : ""}
                 </p>
-                {t.note ? <p className="mt-1 text-xs font-bold text-muted-foreground">📝 {t.note}</p> : null}
+                {t.note ? (
+                  <p className="mt-1 text-xs font-bold text-muted-foreground">📝 {t.note}</p>
+                ) : null}
               </div>
               <StatusBadge tone={STATUS_TONE[t.status]}>{STATUS_LABEL[t.status]}</StatusBadge>
             </div>

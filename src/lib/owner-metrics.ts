@@ -382,10 +382,7 @@ export function buildTeacherWeeklyMetrics(
   const teacher = state.teachers.find((t) => t.id === teacherId);
   const homeworkGradedWeek = teacher
     ? state.homeworkTasks.filter(
-        (h) =>
-          h.subject === teacher.subject &&
-          h.status !== "pending" &&
-          isThisWeek(h.created_at),
+        (h) => h.subject === teacher.subject && h.status !== "pending" && isThisWeek(h.created_at),
       ).length
     : 0;
 
@@ -393,13 +390,10 @@ export function buildTeacherWeeklyMetrics(
   const engagementWeek =
     state.randomPickLogs.filter(
       (r) =>
-        state.sessionRecords.some(
-          (s) => s.teacher_id === teacherId && s.id === r.session_id,
-        ) && isThisWeek(r.picked_at),
+        state.sessionRecords.some((s) => s.teacher_id === teacherId && s.id === r.session_id) &&
+        isThisWeek(r.picked_at),
     ).length +
-    state.teacherNotes.filter(
-      (n) => n.teacher_id === teacherId && isThisWeek(n.date),
-    ).length;
+    state.teacherNotes.filter((n) => n.teacher_id === teacherId && isThisWeek(n.date)).length;
 
   return { homeworkLaunchedWeek, homeworkGradedWeek, engagementWeek };
 }

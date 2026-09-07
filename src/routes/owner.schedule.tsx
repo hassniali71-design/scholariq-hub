@@ -18,7 +18,8 @@ export const Route = createFileRoute("/owner/schedule")({
       { title: "غرفة تحكم الجدولة — لوحة المالك" },
       {
         name: "description",
-        content: "جدول مواعيد كل مدرس بصيغة 12 ساعة، جدولة المجموعات المعلَّقة، تصدير PDF لكل مدرس.",
+        content:
+          "جدول مواعيد كل مدرس بصيغة 12 ساعة، جدولة المجموعات المعلَّقة، تصدير PDF لكل مدرس.",
       },
     ],
   }),
@@ -45,11 +46,7 @@ const TIMES_12 = [
 
 /** تحويل "04:00 PM" إلى "04:00 م" لعرض الفاتح. */
 function format12hArabic(t: string): string {
-  return t
-    .replace(" AM", " ص")
-    .replace(" PM", " م")
-    .replace("AM", "ص")
-    .replace("PM", "م");
+  return t.replace(" AM", " ص").replace(" PM", " م").replace("AM", "ص").replace("PM", "م");
 }
 
 function SchedulePage() {

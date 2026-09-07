@@ -30,7 +30,6 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribeAuth, getSessionSnapshot, getServerSession);
 }
 
-
 /**
  * The student the active session is about, or `null` if no student matches
  * (invalid/stale session). Students authenticate with their own code,

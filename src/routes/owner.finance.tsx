@@ -103,8 +103,16 @@ function FinancePage() {
       .filter((p) => p.method === "wallet" || p.method === "instapay")
       .reduce((s, p) => s + Number(p.amount), 0);
     return [
-      { method: "cash", total: cashTotal, count: payments.filter((p) => p.method === "cash").length },
-      { method: "wallet", total: walletTotal, count: payments.filter((p) => p.method === "wallet" || p.method === "instapay").length },
+      {
+        method: "cash",
+        total: cashTotal,
+        count: payments.filter((p) => p.method === "cash").length,
+      },
+      {
+        method: "wallet",
+        total: walletTotal,
+        count: payments.filter((p) => p.method === "wallet" || p.method === "instapay").length,
+      },
     ];
   })();
 
@@ -169,7 +177,9 @@ function FinancePage() {
               : Math.round(
                   students.reduce((s, st) => {
                     const fees = st.subject_fees ?? {};
-                    return s + Object.values(fees).reduce((a: number, b: unknown) => a + Number(b), 0);
+                    return (
+                      s + Object.values(fees).reduce((a: number, b: unknown) => a + Number(b), 0)
+                    );
                   }, 0) / students.length,
                 ),
           )}
@@ -179,9 +189,7 @@ function FinancePage() {
           label="نسبة التحصيل الفعلي من المستحق"
           value={formatPercent(
             kpis.overdueTotal + kpis.monthRevenue > 0
-              ? Math.round(
-                  (kpis.monthRevenue / (kpis.overdueTotal + kpis.monthRevenue)) * 100,
-                )
+              ? Math.round((kpis.monthRevenue / (kpis.overdueTotal + kpis.monthRevenue)) * 100)
               : 0,
           )}
           icon={ArrowDownRight}
@@ -298,8 +306,12 @@ function FinancePage() {
                     className="border-b border-border last:border-0 transition-colors hover:bg-muted/40"
                   >
                     <td className="px-4 py-4 text-lg font-black text-foreground">{t.name}</td>
-                    <td className="px-4 py-4 text-base font-bold text-muted-foreground">{t.subject}</td>
-                    <td className="px-4 py-4 text-lg font-extrabold">{formatNumber(t.studentsCount)}</td>
+                    <td className="px-4 py-4 text-base font-bold text-muted-foreground">
+                      {t.subject}
+                    </td>
+                    <td className="px-4 py-4 text-lg font-extrabold">
+                      {formatNumber(t.studentsCount)}
+                    </td>
                     <td className="px-4 py-4 text-lg font-extrabold text-success">
                       {formatCurrency(t.revenue)}
                     </td>

@@ -80,8 +80,8 @@ export function SessionReviewPanel({
   return (
     <div className="space-y-6">
       <div className="rounded-xl border-2 border-dashed border-border p-4 text-center text-xs font-bold text-muted-foreground">
-        وضع مراجعة — هذا الدرس تم تدريسه بتاريخ {sessionRecord.date}. أي تعديل هنا يُحفظ فوراً
-        بأثر رجعي.
+        وضع مراجعة — هذا الدرس تم تدريسه بتاريخ {sessionRecord.date}. أي تعديل هنا يُحفظ فوراً بأثر
+        رجعي.
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -13,13 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { Group } from "@/types";
 
-const ACCEPTED_TYPES = [
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-];
+const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
 const ACCEPTED_LABEL = "PDF / PNG / JPG / WEBP / GIF";
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -51,13 +45,7 @@ function base64ToDataUrl(data: string, mime: string | null): string {
  * → `teacher_launches.launch_type='reading_assignment'` مع تخزين base64
  * في `file_data`. عرض المرفوعات السابقة مع رابط تحميل/معاينة.
  */
-export function ReviewUploadPanel({
-  group,
-  teacherId,
-}: {
-  group: Group;
-  teacherId: string;
-}) {
+export function ReviewUploadPanel({ group, teacherId }: { group: Group; teacherId: string }) {
   const state = useDataStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
@@ -112,10 +100,7 @@ export function ReviewUploadPanel({
   };
 
   return (
-    <Panel
-      title="المراجعات والقراءة"
-      description="PDF / صورة / مستند — للطلاب في صفحة المادة"
-    >
+    <Panel title="المراجعات والقراءة" description="PDF / صورة / مستند — للطلاب في صفحة المادة">
       <div className="space-y-3">
         <div className="rounded-xl border-2 border-dashed border-border bg-canvas/30 p-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -161,19 +146,14 @@ export function ReviewUploadPanel({
               const url = r.file_data ? base64ToDataUrl(r.file_data, r.file_mime) : "";
               const isImage = (r.file_mime ?? "").startsWith("image/");
               return (
-                <div
-                  key={r.id}
-                  className="rounded-xl border-2 border-border bg-background p-3"
-                >
+                <div key={r.id} className="rounded-xl border-2 border-border bg-background p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="flex size-7 items-center justify-center rounded-lg bg-info/10 text-info">
                           <FileUp className="size-3.5" />
                         </span>
-                        <p className="truncate text-sm font-black text-foreground">
-                          {r.title}
-                        </p>
+                        <p className="truncate text-sm font-black text-foreground">{r.title}</p>
                       </div>
                       <p className="mt-1 text-[11px] font-bold text-muted-foreground">
                         {r.file_name ?? "ملف بدون اسم"} ·{" "}

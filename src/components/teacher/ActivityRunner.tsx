@@ -107,7 +107,15 @@ export function ActivityRunner({
     setAsked((a) => a + 1);
     setRunning(true);
     startTimer();
-  }, [students, state.randomPickLogs, sessionId, attendedIds, group.id, questions.length, startTimer]);
+  }, [
+    students,
+    state.randomPickLogs,
+    sessionId,
+    attendedIds,
+    group.id,
+    questions.length,
+    startTimer,
+  ]);
 
   const handleAnswer = useCallback(
     (choiceIndex: number) => {
@@ -201,20 +209,19 @@ export function ActivityRunner({
       <div
         className={cn(
           "rounded-xl border-2 p-4",
-          running && timeLeft <= 5 ? "border-destructive/50 bg-destructive/5" : "border-border bg-canvas/40",
+          running && timeLeft <= 5
+            ? "border-destructive/50 bg-destructive/5"
+            : "border-border bg-canvas/40",
         )}
       >
         {picked ? (
-          <p className="mb-3 text-sm font-black text-primary">
-            🎯 {picked.full_name}
-          </p>
+          <p className="mb-3 text-sm font-black text-primary">🎯 {picked.full_name}</p>
         ) : null}
         <p className="text-base font-black text-foreground">{currentQuestion?.text}</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {currentQuestion?.options.map((opt, i) => {
             const isCorrect = i === currentQuestion.correct_index;
-            const isPicked =
-              picked !== null && revealed && currentQuestion.correct_index === i;
+            const isPicked = picked !== null && revealed && currentQuestion.correct_index === i;
             return (
               <button
                 key={i}
@@ -234,7 +241,9 @@ export function ActivityRunner({
                   {["أ", "ب", "ج", "د"][i] ?? i + 1}.
                 </span>
                 {opt}
-                {revealed && isCorrect ? <CheckCircle2 className="ms-2 inline size-4 text-success" /> : null}
+                {revealed && isCorrect ? (
+                  <CheckCircle2 className="ms-2 inline size-4 text-success" />
+                ) : null}
                 {revealed && isPicked === false ? null : null}
               </button>
             );

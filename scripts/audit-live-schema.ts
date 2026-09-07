@@ -18,7 +18,7 @@ if (!accessToken) throw new Error("SUPABASE_ACCESS_TOKEN missing from .env");
 const ref = "kpssxczlhczbbqdwgcuf";
 const API = `https://api.supabase.com/v1/projects/${ref}/database/query`;
 
-async function runQuery(query: string): Promise<any[]> {
+async function runQuery(query: string): Promise<unknown[]> {
   const res = await fetch(API, {
     method: "POST",
     headers: {
@@ -61,13 +61,11 @@ const tableNames = [...byTable.keys()].sort();
 console.log("TOTAL PUBLIC TABLES:", tableNames.length);
 for (const t of tableNames) {
   const seen = new Set<string>();
-  const clean = byTable
-    .get(t)!
-    .filter((c) => {
-      if (seen.has(c.column_name)) return false;
-      seen.add(c.column_name);
-      return true;
-    });
+  const clean = byTable.get(t)!.filter((c) => {
+    if (seen.has(c.column_name)) return false;
+    seen.add(c.column_name);
+    return true;
+  });
   console.log(`\n### ${t} (${clean.length})`);
   for (const c of clean) {
     console.log(

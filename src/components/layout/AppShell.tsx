@@ -72,7 +72,6 @@ export function AppShell({ role, title, description, actions, children }: AppShe
     goToCenterLogin(slug);
   };
 
-
   if (!checked || !session) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">

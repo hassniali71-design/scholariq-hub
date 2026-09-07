@@ -106,7 +106,9 @@ function TeachersPage() {
                       الدرس القادم: {progress.nextLesson.title}
                     </p>
                   ) : (
-                    <p className="mt-2 text-[11px] font-bold text-success">أكملتوا كل دروس المنهج!</p>
+                    <p className="mt-2 text-[11px] font-bold text-success">
+                      أكملتوا كل دروس المنهج!
+                    </p>
                   )}
                 </div>
               ) : null}
@@ -147,7 +149,9 @@ function TeachersPage() {
         })
       )}
 
-      {messageFor ? <QuickMessageModal group={messageFor} onClose={() => setMessageFor(null)} /> : null}
+      {messageFor ? (
+        <QuickMessageModal group={messageFor} onClose={() => setMessageFor(null)} />
+      ) : null}
     </AppShell>
   );
 }
@@ -159,14 +163,21 @@ function TeachersPage() {
 function QuickMessageModal({ group, onClose }: { group: Group; onClose: () => void }) {
   const [text, setText] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-md rounded-2xl border-2 border-border bg-background p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-black text-foreground">رسالة سريعة لـ{group.teacher_name}</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+          >
             <X className="size-4" />
           </button>
         </div>

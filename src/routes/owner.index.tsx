@@ -25,11 +25,7 @@ import { NotificationsPanel } from "@/components/owner/NotificationsPanel";
 import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
 import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
-import {
-  getFinanceSettings,
-  pushNotification,
-  useDataStore,
-} from "@/lib/data-store";
+import { getFinanceSettings, pushNotification, useDataStore } from "@/lib/data-store";
 import {
   buildActiveGroupsNow,
   buildDecisionAlerts,
@@ -67,10 +63,7 @@ function OwnerDashboard() {
   const settings = getFinanceSettings(state);
 
   const today = WEEKDAYS[new Date().getDay()]!;
-  const todayGroups = useMemo(
-    () => groups.filter((g) => g.weekday === today),
-    [groups, today],
-  );
+  const todayGroups = useMemo(() => groups.filter((g) => g.weekday === today), [groups, today]);
   const teachersToday = useMemo(
     () => teachers.filter((t) => todayGroups.some((g) => g.teacher_id === t.id)),
     [teachers, todayGroups],
@@ -176,7 +169,11 @@ function OwnerDashboard() {
           label="إشعارات مفتوحة"
           value={formatNumber(notifications.filter((n) => !n.read_at).length)}
           icon={Clock}
-          tone={notifications.filter((n) => !n.read_at && n.severity === "critical").length > 0 ? "destructive" : "primary"}
+          tone={
+            notifications.filter((n) => !n.read_at && n.severity === "critical").length > 0
+              ? "destructive"
+              : "primary"
+          }
           trend={`${formatNumber(alerts.length)} تنبيه حوكمة`}
         />
       </div>
@@ -188,7 +185,9 @@ function OwnerDashboard() {
           value={formatCurrency(kpis.monthRevenue)}
           icon={Banknote}
           tone="success"
-          trend={kpis.inSafe > 0 ? `${formatCurrency(kpis.inSafe)} في الخزنة` : "لا يوجد رصيد في الخزنة"}
+          trend={
+            kpis.inSafe > 0 ? `${formatCurrency(kpis.inSafe)} في الخزنة` : "لا يوجد رصيد في الخزنة"
+          }
         />
         <StatCard
           label="صافي الربح"
@@ -221,9 +220,7 @@ function OwnerDashboard() {
         <StatCard
           label="اشتراكات قريبة من الانتهاء"
           value={formatNumber(
-            students.filter(
-              (s) => s.payment_status === "overdue" || s.balance_due > 0,
-            ).length,
+            students.filter((s) => s.payment_status === "overdue" || s.balance_due > 0).length,
           )}
           icon={Wallet}
           tone="warning"
@@ -240,10 +237,7 @@ function OwnerDashboard() {
         <div className="xl:col-span-2">
           <DailyTasksCard role="owner" />
         </div>
-        <Panel
-          title="المهام المستعجلة"
-          description="مهام مفتوحة وعليها علامة مستعجل"
-        >
+        <Panel title="المهام المستعجلة" description="مهام مفتوحة وعليها علامة مستعجل">
           {urgentTasks.length === 0 ? (
             <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
               لا توجد مهام مستعجلة مفتوحة الآن.

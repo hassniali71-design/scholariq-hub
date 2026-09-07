@@ -6,11 +6,7 @@ import { toast } from "sonner";
 import { Panel, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import {
-  getGroupsForStudent,
-  getTeacherLaunchesForGroup,
-  useDataStore,
-} from "@/lib/data-store";
+import { getGroupsForStudent, getTeacherLaunchesForGroup, useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { TeacherLaunch } from "@/types";
 
@@ -41,9 +37,13 @@ const LAUNCH_LABEL: Record<string, string> = {
 /** أنواع بتخزّن بنك أسئلة (شامل الإجابة الصحيحة) داخل body — لا يُعرض نصها للطالب أبداً. */
 const STRUCTURED_BODY_TYPES = new Set(["online_homework", "online_quiz"]);
 
-function launchStatus(l: TeacherLaunch, submitted: boolean): { label: string; tone: "success" | "warning" | "destructive" | "neutral" } {
+function launchStatus(
+  l: TeacherLaunch,
+  submitted: boolean,
+): { label: string; tone: "success" | "warning" | "destructive" | "neutral" } {
   if (submitted) return { label: "تم التسليم", tone: "success" };
-  if (l.due_at && Date.parse(l.due_at) < Date.now()) return { label: "انتهى وقته", tone: "destructive" };
+  if (l.due_at && Date.parse(l.due_at) < Date.now())
+    return { label: "انتهى وقته", tone: "destructive" };
   if (l.due_at) return { label: "مطلوب — له موعد تسليم", tone: "warning" };
   return { label: "للاطلاع", tone: "neutral" };
 }

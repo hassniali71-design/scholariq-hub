@@ -61,13 +61,17 @@ export async function parseQuestionsFromXlsx(file: File): Promise<ParseResult> {
     if (!text) continue;
 
     // true_false detection: عمودين فقط (سؤال + صح/خطأ)
-    if (
-      (row.length <= 2 || (!c && !d && !e)) &&
-      (b !== undefined && b !== "")
-    ) {
+    if ((row.length <= 2 || (!c && !d && !e)) && b !== undefined && b !== "") {
       const answerText = String(b ?? "").trim();
       const isCorrect = answerText === "صح" || answerText === "true" || answerText === "1";
-      if (answerText !== "صح" && answerText !== "خطأ" && answerText !== "true" && answerText !== "false" && answerText !== "1" && answerText !== "0") {
+      if (
+        answerText !== "صح" &&
+        answerText !== "خطأ" &&
+        answerText !== "true" &&
+        answerText !== "false" &&
+        answerText !== "1" &&
+        answerText !== "0"
+      ) {
         warnings.push(`صف ${i + 2}: إجابة غير مفهومة (${answerText}) — تم تجاهلها.`);
         continue;
       }
@@ -89,9 +93,10 @@ export async function parseQuestionsFromXlsx(file: File): Promise<ParseResult> {
       continue;
     }
     const correctRaw = Number(f);
-    let correctIndex = Number.isFinite(correctRaw) && correctRaw >= 1 && correctRaw <= options.length
-      ? correctRaw - 1
-      : -1;
+    let correctIndex =
+      Number.isFinite(correctRaw) && correctRaw >= 1 && correctRaw <= options.length
+        ? correctRaw - 1
+        : -1;
     if (correctIndex === -1) {
       // محاولة تفسير نص الإجابة
       const ansText = String(f ?? "").trim();

@@ -368,7 +368,7 @@ async function withColumnFallback(
   row: Record<string, unknown>,
   run: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>,
 ) {
-  let current = { ...row };
+  const current = { ...row };
   for (let attempt = 0; attempt < 5; attempt++) {
     const { error } = await run(current);
     if (!error) return;
@@ -501,9 +501,7 @@ export const upsertLessonPlanRow = createServerFn({ method: "POST" })
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
     const row = { ...data.row, center_id: centerId };
-    const { error } = await supabase
-      .from("lesson_plans")
-      .upsert(row, { onConflict: "id" });
+    const { error } = await supabase.from("lesson_plans").upsert(row, { onConflict: "id" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -524,7 +522,10 @@ export const deleteLessonPlanRow = createServerFn({ method: "POST" })
   });
 
 /** جلب رسائل مدير المنصة لمادة معيّنة — **بدون فلتر center_id** (عبر كل المراكز). */
-export const fetchPlatformTeacherNotes = createServerFn({ method: "GET", strict: { output: false } })
+export const fetchPlatformTeacherNotes = createServerFn({
+  method: "GET",
+  strict: { output: false },
+})
   .validator((data: { identifier: string; subjectId: string }) => data)
   .handler(async ({ data }) => {
     const supabase = getSupabaseAdmin();
@@ -567,13 +568,10 @@ export const deletePlatformTeacherNote = createServerFn({ method: "POST" })
   .validator((data: { identifier: string; id: string }) => data)
   .handler(async ({ data }) => {
     const supabase = getSupabaseAdmin();
-  const { error } = await supabase
-    .from("platform_teacher_notes")
-    .delete()
-    .eq("id", data.id);
-  if (error) throw new Error(error.message);
-  return { ok: true };
-});
+    const { error } = await supabase.from("platform_teacher_notes").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 /* ---------------- 0020: groups real source (createGroup / updateGroup / deleteGroup + addStudentToGroup / removeStudentFromGroup) ---------------- */
 
@@ -616,13 +614,7 @@ export const createGroupRow = createServerFn({ method: "POST" })
 
 /** تحديث مجموعة (capacity / notes / scheduling fields). */
 export const updateGroupRow = createServerFn({ method: "POST" })
-  .validator(
-    (data: {
-      identifier: string;
-      id: string;
-      patch: Record<string, unknown>;
-    }) => data,
-  )
+  .validator((data: { identifier: string; id: string; patch: Record<string, unknown> }) => data)
   .handler(async ({ data }) => {
     const centerId = await resolveCenterId(data.identifier);
     const supabase = getSupabaseAdmin();
@@ -655,12 +647,7 @@ export const deleteGroupRow = createServerFn({ method: "POST" })
 /** إضافة طالب إلى مجموعة (يحدّث group_id و group_name). */
 export const addStudentToGroupRow = createServerFn({ method: "POST" })
   .validator(
-    (data: {
-      identifier: string;
-      studentId: string;
-      groupId: string;
-      groupName: string;
-    }) => data,
+    (data: { identifier: string; studentId: string; groupId: string; groupName: string }) => data,
   )
   .handler(async ({ data }) => {
     const centerId = await resolveCenterId(data.identifier);

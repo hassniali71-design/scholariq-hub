@@ -36,15 +36,10 @@ export function DailyStaffEvents() {
   const todayLateAbsent = attendanceRecords
     .filter((r) => (r.status === "late" || r.status === "absent") && isToday(r.checked_in_at))
     .slice(0, 5);
-  const todayTasks: Task[] = tasks
-    .filter((t) => isToday(t.created_at))
-    .slice(0, 10);
+  const todayTasks: Task[] = tasks.filter((t) => isToday(t.created_at)).slice(0, 10);
 
   return (
-    <Panel
-      title="أحداث اليوم"
-      description="ما حدث اليوم في السنتر (للاطلاع فقط — بدون إضافة مهام)"
-    >
+    <Panel title="أحداث اليوم" description="ما حدث اليوم في السنتر (للاطلاع فقط — بدون إضافة مهام)">
       <div className="grid gap-4 md:grid-cols-2">
         <SubSection title="آخر المدفوعات" icon={CircleDollarSign}>
           {todayPayments.length === 0 ? (

@@ -29,7 +29,10 @@ interface Snapshot {
   net: number;
 }
 
-function snapshot(state: ReturnType<typeof useDataStore>, range: { from: number; to: number }): Snapshot {
+function snapshot(
+  state: ReturnType<typeof useDataStore>,
+  range: { from: number; to: number },
+): Snapshot {
   const collected = state.payments
     .filter((p) => inRange(p.created_at, range))
     .reduce((s, p) => s + Number(p.amount), 0);
@@ -98,28 +101,15 @@ export function MonthOverMonthPanel() {
       description="كل الأرقام محسوبة من تواريخ الدفعات والمصروفات الحقيقية"
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label="التحصيل"
-          current={current.collected}
-          previous={previous.collected}
-        />
+        <Metric label="التحصيل" current={current.collected} previous={previous.collected} />
         <Metric
           label="المصروفات"
           current={current.expenses}
           previous={previous.expenses}
           invertTone
         />
-        <Metric
-          label="الرواتب"
-          current={current.payroll}
-          previous={previous.payroll}
-          invertTone
-        />
-        <Metric
-          label="الصافي"
-          current={current.net}
-          previous={previous.net}
-        />
+        <Metric label="الرواتب" current={current.payroll} previous={previous.payroll} invertTone />
+        <Metric label="الصافي" current={current.net} previous={previous.net} />
       </div>
     </Panel>
   );

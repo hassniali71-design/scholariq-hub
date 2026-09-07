@@ -59,17 +59,12 @@ export function OwnerPasswordConfirmModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
-      <div
-        className="card-crisp w-full max-w-md p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="card-crisp w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span
               className={`flex size-10 items-center justify-center rounded-xl ${
-                destructive
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-primary/10 text-primary"
+                destructive ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
               }`}
             >
               <Lock className="size-5" />

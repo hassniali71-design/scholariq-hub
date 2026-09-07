@@ -1,12 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
-  Award,
-  Camera,
-  CalendarCheck,
-  CalendarDays,
-  Heart,
-  Target,
-} from "lucide-react";
+import { Award, Camera, CalendarCheck, CalendarDays, Heart, Target } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,7 +9,11 @@ import {
   OrderingAnswerBody,
   QUESTION_KIND_LABELS,
 } from "@/components/session/SessionSteps";
-import { ScoreTrendChart, SubjectGauge, WeeklyAttendanceChart } from "@/components/dashboard/Charts";
+import {
+  ScoreTrendChart,
+  SubjectGauge,
+  WeeklyAttendanceChart,
+} from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber, formatPercent } from "@/lib/format";
@@ -156,7 +153,13 @@ export const Route = createFileRoute("/student/")({
   component: StudentPortal,
 });
 
-function AvatarUpload({ studentId, avatarData }: { studentId: string; avatarData?: string | null | undefined }) {
+function AvatarUpload({
+  studentId,
+  avatarData,
+}: {
+  studentId: string;
+  avatarData?: string | null | undefined;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {
@@ -237,7 +240,11 @@ function StudentPortal() {
   // من كل حصة فعلية، مش الاختبارات بس — مرتّب زمنياً ومحدَّث لحظياً.
   const quizTrend = state.quizResults
     .filter((q) => q.student_id === me.id)
-    .map((q) => ({ label: q.date, at: Date.parse(q.date) || 0, score: Math.round((q.score / q.max_score) * 100) }));
+    .map((q) => ({
+      label: q.date,
+      at: Date.parse(q.date) || 0,
+      score: Math.round((q.score / q.max_score) * 100),
+    }));
   const assessmentTrend = state.assessmentScores
     .filter((a) => a.student_id === me.id && a.max_value > 0)
     .map((a) => ({
@@ -267,9 +274,19 @@ function StudentPortal() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(attendanceRate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(attendanceRate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(me.avg_score)} icon={Target} />
-        <StatCard label="نقاط التحفيز" value={formatNumber(me.points)} icon={Award} tone="warning" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(me.points)}
+          icon={Award}
+          tone="warning"
+        />
         <StatCard
           label="درجة السلوك"
           value={behaviorScore === null ? "—" : `${Math.round(behaviorScore * 10)}/10`}
@@ -288,11 +305,7 @@ function StudentPortal() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <Panel
-          title="حصة اليوم"
-          description={today ?? ""}
-          className="xl:col-span-1"
-        >
+        <Panel title="حصة اليوم" description={today ?? ""} className="xl:col-span-1">
           {todaysGroups.length === 0 ? (
             <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
               لا يوجد حصص مجدولة اليوم.
@@ -319,7 +332,11 @@ function StudentPortal() {
           ) : (
             <div className="space-y-2">
               {[...myGroups]
-                .sort((a, b) => WEEKDAYS.indexOf(a.weekday as (typeof WEEKDAYS)[number]) - WEEKDAYS.indexOf(b.weekday as (typeof WEEKDAYS)[number]))
+                .sort(
+                  (a, b) =>
+                    WEEKDAYS.indexOf(a.weekday as (typeof WEEKDAYS)[number]) -
+                    WEEKDAYS.indexOf(b.weekday as (typeof WEEKDAYS)[number]),
+                )
                 .map((g) => (
                   <div
                     key={g.id}

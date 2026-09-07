@@ -86,17 +86,15 @@ function PlatformTeacherNotesPage() {
             مقاولات المدرسين
           </h1>
           <p className="mt-2 text-sm font-bold text-muted-foreground">
-            رسالة من إدارة المنصة لمدرسو مادة معيّنة — تظهر تلقائياً لكل مدرس في هذه المادة عبر كل المراكز.
-            يُسجَّل اسمك تلقائياً كتوقيع أسفل كل مقاولة.
+            رسالة من إدارة المنصة لمدرسو مادة معيّنة — تظهر تلقائياً لكل مدرس في هذه المادة عبر كل
+            المراكز. يُسجَّل اسمك تلقائياً كتوقيع أسفل كل مقاولة.
           </p>
         </header>
 
         <Panel title="مقاولة جديدة" description="اختر المادة واكتب النص">
           <div className="space-y-4">
             <div>
-              <label className="mb-2 block text-xs font-black text-muted-foreground">
-                المادة
-              </label>
+              <label className="mb-2 block text-xs font-black text-muted-foreground">المادة</label>
               <div className="flex flex-wrap gap-2">
                 {subjects.length === 0 ? (
                   <p className="rounded-xl border-2 border-dashed border-border p-4 text-sm font-bold text-muted-foreground">
@@ -137,7 +135,8 @@ function PlatformTeacherNotesPage() {
 
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-muted-foreground">
-                التوقيع: <span className="font-black text-foreground">{session?.full_name ?? "—"}</span>
+                التوقيع:{" "}
+                <span className="font-black text-foreground">{session?.full_name ?? "—"}</span>
               </p>
               <button
                 type="button"
@@ -165,10 +164,7 @@ function PlatformTeacherNotesPage() {
           ) : (
             <div className="space-y-3">
               {notes.map((n) => (
-                <div
-                  key={n.id}
-                  className="rounded-2xl border-2 border-border bg-background p-4"
-                >
+                <div key={n.id} className="rounded-2xl border-2 border-border bg-background p-4">
                   <p className="whitespace-pre-wrap text-sm font-bold leading-7 text-foreground">
                     {n.body}
                   </p>

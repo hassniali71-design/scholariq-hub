@@ -52,15 +52,18 @@ export function ExamsCard({
   const [title, setTitle] = useState("");
   const [minutes, setMinutes] = useState(30);
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{ title: string; url: string; mime: string | null } | null>(
-    null,
-  );
+  const [preview, setPreview] = useState<{
+    title: string;
+    url: string;
+    mime: string | null;
+  } | null>(null);
   const [running, setRunning] = useState<{ id: string; endsAt: number } | null>(null);
   const [now, setNow] = useState(Date.now());
   const [gradingId, setGradingId] = useState<string | null>(null);
 
   const exams = useMemo(
-    () => getTeacherLaunchesForGroup(state, group.id).filter((l) => l.launch_type === "online_quiz"),
+    () =>
+      getTeacherLaunchesForGroup(state, group.id).filter((l) => l.launch_type === "online_quiz"),
     [state.teacherLaunches, group.id],
   );
 
@@ -108,7 +111,10 @@ export function ExamsCard({
   };
 
   return (
-    <Panel title="الامتحانات" description="اسم الامتحان + المدة + ورقة الأسئلة، ثم التشغيل ورصد الدرجات.">
+    <Panel
+      title="الامتحانات"
+      description="اسم الامتحان + المدة + ورقة الأسئلة، ثم التشغيل ورصد الدرجات."
+    >
       <div className="space-y-3">
         <div className="space-y-2 rounded-xl border-2 border-dashed border-border bg-canvas/30 p-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +212,10 @@ export function ExamsCard({
                     <button
                       type="button"
                       onClick={() => {
-                        setRunning({ id: ex.id, endsAt: Date.now() + (ex.duration_min ?? 30) * 60000 });
+                        setRunning({
+                          id: ex.id,
+                          endsAt: Date.now() + (ex.duration_min ?? 30) * 60000,
+                        });
                         setNow(Date.now());
                         toast.success(`بدأ امتحان "${ex.title}"`);
                       }}

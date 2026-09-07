@@ -357,7 +357,12 @@ export const updateAccountRow = createServerFn({ method: "POST" })
     (data: {
       identifier: string;
       accountId: string;
-      patch: { full_name?: string; identifier?: string; password?: string | null; phone?: string | null };
+      patch: {
+        full_name?: string;
+        identifier?: string;
+        password?: string | null;
+        phone?: string | null;
+      };
     }) => data,
   )
   .handler(async ({ data }) => {

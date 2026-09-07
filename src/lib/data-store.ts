@@ -612,7 +612,10 @@ export function findStudentById(state: DataState, id: string): Student | undefin
  * for `null` and redirect to `/login` (same pattern as `useCurrentTeacher`
  * callers).
  */
-export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student | null {
+export function resolveCurrentStudent(
+  state: DataState,
+  identifier?: string | null,
+): Student | null {
   if (!identifier) return null;
   return findStudentByCode(state, identifier) ?? null;
 }
@@ -839,8 +842,7 @@ export function getGroupsForTeacher(state: DataState, teacherId: string): Group[
   const teacherUserId = teacher?.user_id ?? null;
   return state.groups.filter(
     (g) =>
-      g.teacher_id === teacherId ||
-      (teacherUserId !== null && g.teacher_user_id === teacherUserId),
+      g.teacher_id === teacherId || (teacherUserId !== null && g.teacher_user_id === teacherUserId),
   );
 }
 
@@ -854,13 +856,8 @@ export function getStudentsForGroup(state: DataState, groupId: string): Student[
 }
 
 /** كل التقييمات المسجَّلة لكل طلاب مجموعة معيّنة (يُستخدم في GroupMetricsPanel). */
-export function getAssessmentScoresForGroup(
-  state: DataState,
-  groupId: string,
-): AssessmentScore[] {
-  const studentIds = new Set(
-    state.students.filter((s) => s.group_id === groupId).map((s) => s.id),
-  );
+export function getAssessmentScoresForGroup(state: DataState, groupId: string): AssessmentScore[] {
+  const studentIds = new Set(state.students.filter((s) => s.group_id === groupId).map((s) => s.id));
   return state.assessmentScores.filter((a) => studentIds.has(a.student_id));
 }
 
@@ -1004,7 +1001,11 @@ export function getFourTierLabel(pct: number): {
   tone: "destructive" | "warning" | "primary" | "success";
 } {
   if (pct <= 40) {
-    return { tier: 1, text: "يحتاج انتباه فوري — راجع واجباتك ومهامك في هذه المادة", tone: "destructive" };
+    return {
+      tier: 1,
+      text: "يحتاج انتباه فوري — راجع واجباتك ومهامك في هذه المادة",
+      tone: "destructive",
+    };
   }
   if (pct <= 60) {
     return { tier: 2, text: "مستوى متوسط — حاول تخصص وقت مذاكرة إضافي", tone: "warning" };
@@ -1396,7 +1397,8 @@ export function getUpcomingGroupsForToday(
   state: DataState,
   now: Date = new Date(),
 ): UpcomingGroup[] {
-  const weekday = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][now.getDay()] ?? "";
+  const weekday =
+    ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][now.getDay()] ?? "";
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const result: UpcomingGroup[] = [];
   for (const slot of state.scheduleSlots) {
@@ -1429,7 +1431,6 @@ export function getUpcomingGroupsForToday(
   });
   return result;
 }
-
 
 /** The recorded status for a student in one specific past session — a grid cell (§18-3). */
 export function getAttendanceForSession(
@@ -1634,9 +1635,7 @@ export function markAttendanceForGroup(
 
     const existing = state.attendanceRecords.find(
       (a) =>
-        a.student_id === studentId &&
-        a.group_name === group.name &&
-        sameDay(a.checked_in_at, now),
+        a.student_id === studentId && a.group_name === group.name && sameDay(a.checked_in_at, now),
     );
 
     if (existing?.locked) {
@@ -1795,14 +1794,22 @@ export function sellBookletToStudent(input: {
   let sale: BookletSale | null = null;
   let updatedBooklet: { id: string; in_stock: number; delivered: number } | null = null;
   let paperTx: PaperTransaction | null = null;
-  let studentPatch: { id: string; balance_due: number; payment_status: Student["payment_status"] } | null = null;
+  let studentPatch: {
+    id: string;
+    balance_due: number;
+    payment_status: Student["payment_status"];
+  } | null = null;
   let paymentRow: PaymentRecord | null = null;
   const finalize = (state: DataState) => {
     if (!sale || !updatedBooklet || !studentPatch || !paymentRow) return state;
     return {
       ...state,
-      booklets: state.booklets.map((b) => (b.id === updatedBooklet!.id ? { ...b, ...updatedBooklet! } : b)),
-      students: state.students.map((s) => (s.id === studentPatch!.id ? { ...s, ...studentPatch! } : s)),
+      booklets: state.booklets.map((b) =>
+        b.id === updatedBooklet!.id ? { ...b, ...updatedBooklet! } : b,
+      ),
+      students: state.students.map((s) =>
+        s.id === studentPatch!.id ? { ...s, ...studentPatch! } : s,
+      ),
       bookletSales: [sale, ...state.bookletSales],
       paperTransactions: paperTx ? [paperTx, ...state.paperTransactions] : state.paperTransactions,
       payments: [paymentRow, ...state.payments],
@@ -1879,7 +1886,8 @@ export function sellBookletToStudent(input: {
   }
   if (paperTx) syncInsert("paper_transactions", paperTx);
   if (studentPatch !== null) {
-    const sp: { id: string; balance_due: number; payment_status: Student["payment_status"] } = studentPatch;
+    const sp: { id: string; balance_due: number; payment_status: Student["payment_status"] } =
+      studentPatch;
     syncUpdate("students", sp.id, {
       balance_due: sp.balance_due,
       payment_status: sp.payment_status,
@@ -1889,17 +1897,16 @@ export function sellBookletToStudent(input: {
   return sale;
 }
 
-export function preorderBooklet(input: {
-  bookletId: string;
-  quantity: number;
-}): boolean {
+export function preorderBooklet(input: { bookletId: string; quantity: number }): boolean {
   let updated: { id: string; printed: number } | null = null;
   let paperTx: PaperTransaction | null = null;
   const finalize = (state: DataState) => {
     if (!updated || !paperTx) return state;
     return {
       ...state,
-      booklets: state.booklets.map((b) => (b.id === updated!.id ? { ...b, printed: updated!.printed } : b)),
+      booklets: state.booklets.map((b) =>
+        b.id === updated!.id ? { ...b, printed: updated!.printed } : b,
+      ),
       paperTransactions: [paperTx!, ...state.paperTransactions],
     };
   };
@@ -1943,7 +1950,9 @@ export function adminPrintBooklet(input: {
     if (!printedRow || !paperTx || !expense) return state;
     return {
       ...state,
-      booklets: state.booklets.map((b) => (b.id === printedRow!.id ? { ...b, printed: printedRow!.printed } : b)),
+      booklets: state.booklets.map((b) =>
+        b.id === printedRow!.id ? { ...b, printed: printedRow!.printed } : b,
+      ),
       paperTransactions: [paperTx!, ...state.paperTransactions],
       expenses: [expense, ...state.expenses],
     };
@@ -3554,11 +3563,22 @@ export function deleteAccountCascade(
 
       // مزامنة Supabase
       syncDeleteIds("groups", [...teacherGroupIds]);
-      syncDeleteIds("schedule_slots", state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).map((s) => s.id));
+      syncDeleteIds(
+        "schedule_slots",
+        state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).map((s) => s.id),
+      );
       syncDeleteIds("payroll_records", payrollIds);
       syncDeleteIds("session_records", sessionIds);
-      syncDeleteIds("session_events", state.sessionEvents.filter((ev) => sessionIds.includes(ev.session_id)).map((ev) => ev.id));
-      syncDeleteIds("assessment_scores", state.assessmentScores.filter((a) => a.recorded_by_teacher_id === teacher.id).map((a) => a.id));
+      syncDeleteIds(
+        "session_events",
+        state.sessionEvents.filter((ev) => sessionIds.includes(ev.session_id)).map((ev) => ev.id),
+      );
+      syncDeleteIds(
+        "assessment_scores",
+        state.assessmentScores
+          .filter((a) => a.recorded_by_teacher_id === teacher.id)
+          .map((a) => a.id),
+      );
       orphanIds.forEach((sid) =>
         syncUpdate("students", sid, { group_id: null, group_name: "بدون مجموعة" }),
       );
@@ -3722,7 +3742,9 @@ export function getTeacherLaunchesForTeacher(state: DataState, teacherId: string
 }
 
 export function deleteTeacherLaunch(launchId: string): void {
-  const attemptIds = readState().homeworkAttempts.filter((a) => a.launch_id === launchId).map((a) => a.id);
+  const attemptIds = readState()
+    .homeworkAttempts.filter((a) => a.launch_id === launchId)
+    .map((a) => a.id);
   update((state) => ({
     ...state,
     teacherLaunches: state.teacherLaunches.filter((l) => l.id !== launchId),
@@ -3779,13 +3801,19 @@ export function scoreHomeworkAttempt(attemptId: string, score: number, maxScore:
   syncUpdate("homework_attempts", attemptId, { score, max_score: maxScore });
 }
 
-export function getHomeworkAttemptsForLaunch(state: DataState, launchId: string): HomeworkAttempt[] {
+export function getHomeworkAttemptsForLaunch(
+  state: DataState,
+  launchId: string,
+): HomeworkAttempt[] {
   return state.homeworkAttempts
     .filter((a) => a.launch_id === launchId)
     .sort((a, b) => (a.submitted_at < b.submitted_at ? 1 : -1));
 }
 
-export function getHomeworkAttemptsForStudent(state: DataState, studentId: string): HomeworkAttempt[] {
+export function getHomeworkAttemptsForStudent(
+  state: DataState,
+  studentId: string,
+): HomeworkAttempt[] {
   return state.homeworkAttempts
     .filter((a) => a.student_id === studentId)
     .sort((a, b) => (a.submitted_at < b.submitted_at ? 1 : -1));
@@ -3839,18 +3867,12 @@ export function getPendingCorrectionsForTeacher(
 }
 
 /** عدد المحاولات المعلّقة لمدرس معيّن — يُستخدم في كروت المالك (B8). */
-export function getPendingCorrectionsCountForTeacher(
-  state: DataState,
-  teacherId: string,
-): number {
+export function getPendingCorrectionsCountForTeacher(state: DataState, teacherId: string): number {
   return getPendingCorrectionsForTeacher(state, teacherId).length;
 }
 
 /** متوسط درجة السلوك لكل طلاب مدرس معيّن (0..1) — يُستخدم في owner.compliance (B8). */
-export function getTeacherBehaviorAverage(
-  state: DataState,
-  teacherId: string,
-): number | null {
+export function getTeacherBehaviorAverage(state: DataState, teacherId: string): number | null {
   const students = getStudentsForTeacher(state, teacherId);
   if (students.length === 0) return null;
   let total = 0;
@@ -3978,12 +4000,18 @@ const TYPE_LABEL_AR: Record<TeacherLaunch["launch_type"], string> = {
 
 function categoryLabelAr(c: AssessmentScore["category"]): string {
   switch (c) {
-    case "homework": return "واجب";
-    case "activity": return "نشاط";
-    case "behavior": return "سلوك";
-    case "question": return "سؤال";
-    case "e_homework": return "واجب إلكتروني";
-    default: return c;
+    case "homework":
+      return "واجب";
+    case "activity":
+      return "نشاط";
+    case "behavior":
+      return "سلوك";
+    case "question":
+      return "سؤال";
+    case "e_homework":
+      return "واجب إلكتروني";
+    default:
+      return c;
   }
 }
 
@@ -4000,8 +4028,6 @@ function hoursAgo(iso: string): string {
   const days = Math.floor(hours / 24);
   return `منذ ${days} يوم`;
 }
-
-
 
 /** متوسط درجة السلوك لكل طالب (يستخدمه owner.compliance). */
 export interface EarnedBadge {
@@ -4080,14 +4106,16 @@ export function getAverageBehaviorScore(state: DataState, studentId: string): nu
     (s) => s.student_id === studentId && s.category === "behavior",
   );
   if (scores.length === 0) return null;
-  const sum = scores.reduce(
-    (acc, s) => acc + (s.max_value > 0 ? s.value / s.max_value : 0),
-    0,
-  );
+  const sum = scores.reduce((acc, s) => acc + (s.max_value > 0 ? s.value / s.max_value : 0), 0);
   return sum / scores.length;
 }
 
-export function recordBehaviorScore(studentId: string, teacherId: string, value: number, maxValue = 10) {
+export function recordBehaviorScore(
+  studentId: string,
+  teacherId: string,
+  value: number,
+  maxValue = 10,
+) {
   recordAssessmentScore({
     studentId,
     teacherId,
@@ -4097,7 +4125,6 @@ export function recordBehaviorScore(studentId: string, teacherId: string, value:
     maxValue,
   });
 }
-
 
 export function deleteAllActivityLog(): void {
   const ids = getData().activityLog.map((a) => a.id);
@@ -4235,9 +4262,7 @@ export function deleteGroup(groupId: string): void {
     }
     return s;
   });
-  const slotIds = state.scheduleSlots
-    .filter((sl) => sl.group_id === groupId)
-    .map((sl) => sl.id);
+  const slotIds = state.scheduleSlots.filter((sl) => sl.group_id === groupId).map((sl) => sl.id);
 
   update((s) => ({
     ...s,
@@ -4308,9 +4333,7 @@ export function removeStudentFromGroup(studentId: string): void {
       g.id === groupId ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
     ),
     students: s.students.map((st) =>
-      st.id === studentId
-        ? { ...st, group_id: null, group_name: "بدون مجموعة" }
-        : st,
+      st.id === studentId ? { ...st, group_id: null, group_name: "بدون مجموعة" } : st,
     ),
   }));
   syncUpdate("students", studentId, { group_id: null, group_name: "بدون مجموعة" });
@@ -4347,7 +4370,8 @@ export function enrollStudentInAdditionalGroup(
   const student = state.students.find((s) => s.id === studentId);
   const group = state.groups.find((g) => g.id === groupId);
   if (!student || !group) return { ok: false, reason: "بيانات غير مكتملة" };
-  if (student.group_id === groupId) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
+  if (student.group_id === groupId)
+    return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
   const already = state.studentGroupEnrollments.some(
     (e) => e.student_id === studentId && e.group_id === groupId,
   );

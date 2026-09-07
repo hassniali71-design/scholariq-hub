@@ -93,9 +93,7 @@ export function SessionFreeTimer() {
         <div
           className={cn(
             "rounded-xl border-2 p-6 text-center",
-            overtime
-              ? "border-warning/50 bg-warning/10"
-              : "border-border bg-canvas/40",
+            overtime ? "border-warning/50 bg-warning/10" : "border-border bg-canvas/40",
           )}
         >
           <p
@@ -108,13 +106,9 @@ export function SessionFreeTimer() {
             {overtime ? `+${timeLabel}` : timeLabel}
           </p>
           {overtime ? (
-            <p className="mt-2 text-xs font-black text-warning">
-              ⏰ تجاوز الوقت — أكمل على راحتك
-            </p>
+            <p className="mt-2 text-xs font-black text-warning">⏰ تجاوز الوقت — أكمل على راحتك</p>
           ) : (
-            <p className="mt-2 text-xs font-bold text-muted-foreground">
-              متبقي من {minutes} دقيقة
-            </p>
+            <p className="mt-2 text-xs font-bold text-muted-foreground">متبقي من {minutes} دقيقة</p>
           )}
         </div>
       </div>

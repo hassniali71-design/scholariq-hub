@@ -92,7 +92,8 @@ export function TodayOverviewPanels() {
 
   // الطلاب المسجَّلون جدداً اليوم
   const newStudentsToday = useMemo(
-    () => state.students.filter((s) => isToday(s.id ? new Date().toISOString() : null) || false).length,
+    () =>
+      state.students.filter((s) => isToday(s.id ? new Date().toISOString() : null) || false).length,
     // ملاحظة: لا يوجد created_at للطلاب — نعتمد على فصل "نشط" جديد من المجموعة
     [state.students],
   );
@@ -101,10 +102,7 @@ export function TodayOverviewPanels() {
   void todayKeyStr; // نُبقي المفتاح للاستخدام إن لزم
   void newStudentsToday;
 
-  const expectedStudentsToday = todayGroups.reduce(
-    (s, g) => s + g.enrolled,
-    0,
-  );
+  const expectedStudentsToday = todayGroups.reduce((s, g) => s + g.enrolled, 0);
 
   return (
     <div className="card-crisp p-5">
@@ -149,12 +147,16 @@ export function TodayOverviewPanels() {
             <>
               <p className="kpi-number text-3xl">
                 {formatPercent(
-                  Math.round(((todayAttendance.present + todayAttendance.late) / todayAttendance.count) * 100),
+                  Math.round(
+                    ((todayAttendance.present + todayAttendance.late) / todayAttendance.count) *
+                      100,
+                  ),
                 )}
               </p>
               <p className="mt-1 text-sm font-bold text-muted-foreground">
                 {formatNumber(todayAttendance.present + todayAttendance.late)} حاضر ·{" "}
-                {formatNumber(todayAttendance.absent)} غائب · {formatNumber(todayAttendance.count)} سجل
+                {formatNumber(todayAttendance.absent)} غائب · {formatNumber(todayAttendance.count)}{" "}
+                سجل
               </p>
             </>
           ) : (

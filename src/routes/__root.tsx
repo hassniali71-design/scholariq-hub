@@ -80,7 +80,8 @@ export const Route = createRootRoute({
       { title: "منصة إدارة السناتر التعليمية" },
       {
         name: "description",
-        content: "نظام ERP و LMS متكامل لإدارة السناتر التعليمية بتايمرات الحصص ومتابعة أولياء الأمور.",
+        content:
+          "نظام ERP و LMS متكامل لإدارة السناتر التعليمية بتايمرات الحصص ومتابعة أولياء الأمور.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -114,7 +115,6 @@ function RootShell({ children }: { children: ReactNode }) {
         <Scripts />
       </body>
     </html>
-
   );
 }
 
@@ -127,4 +127,3 @@ function RootComponent() {
     </>
   );
 }
-

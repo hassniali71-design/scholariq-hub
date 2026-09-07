@@ -50,9 +50,7 @@ export function GroupMetricsPanel({ group }: { group: Group }) {
     : 0;
 
   // آخر حصة مسجّلة
-  const lastSession = sessions
-    .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  const lastSession = sessions.slice().sort((a, b) => (a.date < b.date ? 1 : -1))[0];
   const lastAbsent = lastSession
     ? state.attendanceRecords.filter(
         (a) => a.session_id === lastSession.id && a.status === "absent",

@@ -14,17 +14,25 @@ import { TENANT_ACCENT_COLORS } from "../src/lib/tenant-colors";
 
 const url = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceRoleKey) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — check .env");
+if (!url || !serviceRoleKey)
+  throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — check .env");
 const supabase = createClient(url, serviceRoleKey);
 
 async function backfillCenterIdentity() {
   const updates = [
     { id: "ctr-0001", accent_color: TENANT_ACCENT_COLORS[0].hex, slug: "elite-center" },
-    { id: "ctr-isolation-test", accent_color: TENANT_ACCENT_COLORS[1].hex, slug: "isolation-test-center" },
+    {
+      id: "ctr-isolation-test",
+      accent_color: TENANT_ACCENT_COLORS[1].hex,
+      slug: "isolation-test-center",
+    },
     { id: "platform", accent_color: TENANT_ACCENT_COLORS[6].hex, slug: null },
   ];
   for (const u of updates) {
-    const { error } = await supabase.from("centers").update({ accent_color: u.accent_color, slug: u.slug }).eq("id", u.id);
+    const { error } = await supabase
+      .from("centers")
+      .update({ accent_color: u.accent_color, slug: u.slug })
+      .eq("id", u.id);
     if (error) throw new Error(`centers/${u.id}: ${error.message}`);
     console.log(`  ✓ centers/${u.id} -> accent_color=${u.accent_color} slug=${u.slug}`);
   }

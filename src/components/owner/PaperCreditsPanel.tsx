@@ -24,7 +24,7 @@ export function PaperCreditsPanel() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const cancelled = false;
     const refresh = () => {
       void getAccounts().then((rows) => {
         if (!cancelled) setStaff(rows.filter((a) => a.role === "staff"));
@@ -42,7 +42,8 @@ export function PaperCreditsPanel() {
     return Array.from(ids)
       .map((id) => {
         const acct = staff.find((a) => a.id === id);
-        const name = acct?.full_name ?? paperTransactions.find((t) => t.staff_id === id)?.staff_name ?? id;
+        const name =
+          acct?.full_name ?? paperTransactions.find((t) => t.staff_id === id)?.staff_name ?? id;
         return { id, name, balance: getPaperCreditBalance(state, id) };
       })
       .sort((a, b) => b.balance - a.balance);
@@ -80,10 +81,7 @@ export function PaperCreditsPanel() {
   }
 
   return (
-    <Panel
-      title="إصدار ورق للموظف"
-      description="رصيد ورق للموظف يستهلكه على المبيعات والطباعة"
-    >
+    <Panel title="إصدار ورق للموظف" description="رصيد ورق للموظف يستهلكه على المبيعات والطباعة">
       <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
         <form onSubmit={submit} className="space-y-2 rounded-xl border-2 border-border p-4">
           <p className="text-sm font-black">إصدار جديد</p>
@@ -154,10 +152,13 @@ export function PaperCreditsPanel() {
               <div className="min-w-0">
                 <p className="truncate font-black">{c.staff_name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatNumber(c.total_sheets)} ورقة × {formatCurrency(c.unit_price)} · {formatDateTime(c.issued_at)}
+                  {formatNumber(c.total_sheets)} ورقة × {formatCurrency(c.unit_price)} ·{" "}
+                  {formatDateTime(c.issued_at)}
                 </p>
               </div>
-              <span className="kpi-number text-base">{formatCurrency(c.total_sheets * c.unit_price)}</span>
+              <span className="kpi-number text-base">
+                {formatCurrency(c.total_sheets * c.unit_price)}
+              </span>
             </div>
           ))}
           {paperCredits.length === 0 ? (

@@ -88,11 +88,51 @@ const PLANS: CenterPlan[] = [
     studentBase: 1001,
     teacherBase: 101,
     firstNames: [
-      "أحمد", "محمود", "يوسف", "عمر", "كريم", "مصطفى", "زياد", "آدم", "حمزة", "سيف",
-      "ملك", "جنى", "حبيبة", "نور", "سلمى", "مريم", "لمار", "رودينا", "تالية", "فريدة",
+      "أحمد",
+      "محمود",
+      "يوسف",
+      "عمر",
+      "كريم",
+      "مصطفى",
+      "زياد",
+      "آدم",
+      "حمزة",
+      "سيف",
+      "ملك",
+      "جنى",
+      "حبيبة",
+      "نور",
+      "سلمى",
+      "مريم",
+      "لمار",
+      "رودينا",
+      "تالية",
+      "فريدة",
     ],
-    fatherNames: ["محمد", "علي", "إبراهيم", "سعيد", "طارق", "هشام", "أشرف", "ماهر", "رمضان", "صلاح"],
-    familyNames: ["السيد", "عبد الرحمن", "الشناوي", "زكي", "الجندي", "فتحي", "عبد اللطيف", "الحسيني", "شاهين", "منصور"],
+    fatherNames: [
+      "محمد",
+      "علي",
+      "إبراهيم",
+      "سعيد",
+      "طارق",
+      "هشام",
+      "أشرف",
+      "ماهر",
+      "رمضان",
+      "صلاح",
+    ],
+    familyNames: [
+      "السيد",
+      "عبد الرحمن",
+      "الشناوي",
+      "زكي",
+      "الجندي",
+      "فتحي",
+      "عبد اللطيف",
+      "الحسيني",
+      "شاهين",
+      "منصور",
+    ],
     teacherNames: {
       arabic: "أ. سامح عبد الحميد",
       english: "أ. داليا مجدي",
@@ -108,11 +148,40 @@ const PLANS: CenterPlan[] = [
     studentBase: 5001,
     teacherBase: 501,
     firstNames: [
-      "طه", "بلال", "أنس", "خالد", "مازن", "جاد", "رضوى", "هنا", "لينا", "بسملة",
-      "علياء", "شهد", "ريم", "دنيا", "آية", "منة الله", "عبد الله", "إياد", "فارس", "مالك",
+      "طه",
+      "بلال",
+      "أنس",
+      "خالد",
+      "مازن",
+      "جاد",
+      "رضوى",
+      "هنا",
+      "لينا",
+      "بسملة",
+      "علياء",
+      "شهد",
+      "ريم",
+      "دنيا",
+      "آية",
+      "منة الله",
+      "عبد الله",
+      "إياد",
+      "فارس",
+      "مالك",
     ],
     fatherNames: ["عادل", "ياسر", "جمال", "نبيل", "عصام", "شريف", "مدحت", "رضا", "سمير", "حسام"],
-    familyNames: ["البدري", "قنديل", "عثمان", "الديب", "سليمان", "الغريب", "بدوي", "خليفة", "الطوخي", "صادق"],
+    familyNames: [
+      "البدري",
+      "قنديل",
+      "عثمان",
+      "الديب",
+      "سليمان",
+      "الغريب",
+      "بدوي",
+      "خليفة",
+      "الطوخي",
+      "صادق",
+    ],
     teacherNames: {
       arabic: "أ. نجلاء فوزي",
       english: "أ. مينا رفعت",
@@ -129,7 +198,11 @@ async function wipe(centerId: string) {
     const { error } = await db.from(table).delete().eq("center_id", centerId);
     if (error) console.warn(`  ! ${table}: ${error.message}`);
   }
-  const { error } = await db.from("accounts").delete().eq("center_id", centerId).neq("role", "owner");
+  const { error } = await db
+    .from("accounts")
+    .delete()
+    .eq("center_id", centerId)
+    .neq("role", "owner");
   if (error) console.warn(`  ! accounts: ${error.message}`);
   console.log(`  ✓ wiped ${centerId}`);
 }
@@ -241,9 +314,7 @@ async function seedCenter(plan: CenterPlan) {
       const primary = picked[0]!;
       const groupId = `${plan.prefix}-gr-${gi + 1}-${primary.key}`;
       enrolledCount.set(groupId, (enrolledCount.get(groupId) ?? 0) + 1);
-      picked.forEach((s) =>
-        subjectStudents.set(s.key, (subjectStudents.get(s.key) ?? 0) + 1),
-      );
+      picked.forEach((s) => subjectStudents.set(s.key, (subjectStudents.get(s.key) ?? 0) + 1));
 
       students.push({
         id: `${plan.prefix}-st-${plan.studentBase + n}`,

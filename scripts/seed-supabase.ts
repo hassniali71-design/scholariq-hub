@@ -96,7 +96,9 @@ const PLATFORM_CENTER_ID = "platform";
 
 async function seedPlatformAdmin() {
   console.log("Seeding platform-admin (system operator, not a real client)");
-  await insertAll("centers", [{ id: PLATFORM_CENTER_ID, name: "System Platform Admin", branch: "-" }]);
+  await insertAll("centers", [
+    { id: PLATFORM_CENTER_ID, name: "System Platform Admin", branch: "-" },
+  ]);
   await insertAll("accounts", [
     {
       id: "acc-platform-owner",
@@ -109,16 +111,24 @@ async function seedPlatformAdmin() {
       created_at: new Date().toISOString(),
     },
   ]);
-  console.log("  Platform admin login: PLATFORM-ADMIN / Pl@tform-2026!  — CHANGE THIS PASSWORD after first login.");
+  console.log(
+    "  Platform admin login: PLATFORM-ADMIN / Pl@tform-2026!  — CHANGE THIS PASSWORD after first login.",
+  );
 }
 
 /** §9 — a second, independent, minimal tenant with one distinctly-named student. */
 async function seedIsolationTestCenter() {
   const centerId = "ctr-isolation-test";
   console.log(`Seeding §9 isolation-test center: ${centerId}`);
-  await insertAll("centers", [{ id: centerId, name: "مركز الاختبار الثاني (عزل البيانات)", branch: "فرع تجريبي" }]);
-  await insertAll("subjects", [{ id: "isotest-subj-1", center_id: centerId, name: "مادة اختبار", theme_key: "math" }]);
-  await insertAll("grades", [{ id: "isotest-grade-1", center_id: centerId, name: "صف اختبار", order: 1 }]);
+  await insertAll("centers", [
+    { id: centerId, name: "مركز الاختبار الثاني (عزل البيانات)", branch: "فرع تجريبي" },
+  ]);
+  await insertAll("subjects", [
+    { id: "isotest-subj-1", center_id: centerId, name: "مادة اختبار", theme_key: "math" },
+  ]);
+  await insertAll("grades", [
+    { id: "isotest-grade-1", center_id: centerId, name: "صف اختبار", order: 1 },
+  ]);
   await insertAll("teachers", [
     {
       id: "isotest-tch-1",

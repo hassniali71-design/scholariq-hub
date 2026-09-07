@@ -1,4 +1,12 @@
-import { BookCheck, CheckCircle2, ClipboardCheck, MessageCircle, Timer, UserCheck, Users } from "lucide-react";
+import {
+  BookCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  MessageCircle,
+  Timer,
+  UserCheck,
+  Users,
+} from "lucide-react";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import { formatNumber, formatPercent } from "@/lib/format";
@@ -75,14 +83,8 @@ export function TeacherComplianceCard({
 
       {/* 3 تراكميون */}
       <div className="space-y-2">
-        <p className="text-xs font-black tracking-wide text-muted-foreground">
-          طوال الموسم
-        </p>
-        <SeasonMetric
-          icon={Users}
-          label="عدد الطلاب"
-          value={formatNumber(teacher.students)}
-        />
+        <p className="text-xs font-black tracking-wide text-muted-foreground">طوال الموسم</p>
+        <SeasonMetric icon={Users} label="عدد الطلاب" value={formatNumber(teacher.students)} />
         <SeasonMetric
           icon={CheckCircle2}
           label="متوسط درجات الطلاب"
@@ -104,9 +106,7 @@ export function TeacherComplianceCard({
 
       {/* 3 أسبوعيون */}
       <div className="space-y-2">
-        <p className="text-xs font-black tracking-wide text-muted-foreground">
-          هذا الأسبوع
-        </p>
+        <p className="text-xs font-black tracking-wide text-muted-foreground">هذا الأسبوع</p>
         <WeekMetric
           icon={ClipboardCheck}
           label="إطلاق واجبات"

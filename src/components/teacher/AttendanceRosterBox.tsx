@@ -23,10 +23,7 @@ export function AttendanceRosterBox({
   sessionId?: string;
 }) {
   const state = useDataStore();
-  const students = useMemo(
-    () => getStudentsForGroup(state, groupId),
-    [state.students, groupId],
-  );
+  const students = useMemo(() => getStudentsForGroup(state, groupId), [state.students, groupId]);
 
   const recordsByStudent = useMemo(() => {
     const map = new Map<string, { status: AttendanceStatus; late_minutes: number }>();

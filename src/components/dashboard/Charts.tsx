@@ -224,7 +224,13 @@ export function SubjectGauge({ label, value }: { label: string; value: number })
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative" style={{ width: 108, height: 108 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart innerRadius="72%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
+          <RadialBarChart
+            innerRadius="72%"
+            outerRadius="100%"
+            data={data}
+            startAngle={90}
+            endAngle={-270}
+          >
             <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
             <RadialBar background dataKey="value" cornerRadius={20} />
           </RadialBarChart>

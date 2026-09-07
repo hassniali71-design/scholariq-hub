@@ -93,11 +93,7 @@ const PREP_SUBJECT_IDS = UPPER_PRIMARY_SUBJECT_IDS;
 
 export const gradeSubjects: GradeSubject[] = grades.flatMap((g) => {
   const subjectIds =
-    g.order <= 3
-      ? CORE_SUBJECT_IDS
-      : g.order <= 9
-        ? UPPER_PRIMARY_SUBJECT_IDS
-        : PREP_SUBJECT_IDS;
+    g.order <= 3 ? CORE_SUBJECT_IDS : g.order <= 9 ? UPPER_PRIMARY_SUBJECT_IDS : PREP_SUBJECT_IDS;
   return subjectIds.map((subjectId) => ({
     id: `gs-${g.id}-${subjectId}`,
     grade_id: g.id,
@@ -398,7 +394,11 @@ export const sessionQuestions: QuizQuestion[] = [
     text: "صل كل مصدر مجال مغناطيسي بشكل خطوط المجال الناتجة عنه.",
     options: ["سلك مستقيم", "ملف لولبي", "مغناطيس قضيبي"],
     correct_index: 0,
-    match_targets: ["دوائر متحدة المركز", "خطوط متوازية داخل الملف", "خطوط من القطب الشمالي للجنوبي"],
+    match_targets: [
+      "دوائر متحدة المركز",
+      "خطوط متوازية داخل الملف",
+      "خطوط من القطب الشمالي للجنوبي",
+    ],
   },
 ];
 

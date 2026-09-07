@@ -103,7 +103,7 @@ export interface Teacher {
   /** المراحل التي يدرّسها المدرس (ابتدائي / إعدادي / ثانوي) — مصفوفة للسماح بأكثر من مرحلة. */
   stages?: ("primary" | "prep" | "secondary")[];
   /** أول مرحلة رئيسية يستعملها في الـ UI عند عدم تحديد المراحل. */
-  primary_stage?: ("primary" | "prep" | "secondary");
+  primary_stage?: "primary" | "prep" | "secondary";
   /**
    * الراتب المتوقع (المتفق عليه مع المدرس) — **ليس راتباً مدفوعاً**.
    * لا يُخصم من الخزنة ولا يظهر في صافي الربح.
@@ -560,14 +560,7 @@ export interface WhatsAppLog {
   center_id: UUID;
   student_id: UUID;
   sent_at: string;
-  template:
-    | "attendance"
-    | "payment"
-    | "grade"
-    | "homework"
-    | "absence"
-    | "award"
-    | "alert";
+  template: "attendance" | "payment" | "grade" | "homework" | "absence" | "award" | "alert";
   message: string;
   delivered: boolean;
 }
@@ -672,12 +665,7 @@ export interface CenterNotification {
 /* ---------------- نظام المهام (Tasks) ---------------- */
 
 export type TaskType =
-  | "general"
-  | "follow_up"
-  | "collection"
-  | "curriculum"
-  | "admin"
-  | "communication";
+  "general" | "follow_up" | "collection" | "curriculum" | "admin" | "communication";
 
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskStatus = "pending" | "in_progress" | "done" | "cancelled";
@@ -744,14 +732,7 @@ export interface StaffPermissionRecord {
 /* ---------------- محرك الماليات والجدولة (db/0010) ---------------- */
 
 export type ExpenseCategory =
-  | "maintenance"
-  | "bills"
-  | "rent"
-  | "supplies"
-  | "marketing"
-  | "printing"
-  | "admin"
-  | "other";
+  "maintenance" | "bills" | "rent" | "supplies" | "marketing" | "printing" | "admin" | "other";
 
 /** مصروف عام خارجي (صيانة، فواتير، إيجار...) — يُخصم من صافي الربح مباشرة. */
 export interface Expense {

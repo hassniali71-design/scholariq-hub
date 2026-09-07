@@ -70,9 +70,7 @@ function TeacherHome() {
   const timerCompliance = getTimerCompliance(state, teacher.id);
 
   const myGroupNames = new Set(myGroups.map((g) => g.name));
-  const sessionsThisWeek = state.scheduleSlots.filter(
-    (s) => s.teacher_id === teacher.id,
-  ).length;
+  const sessionsThisWeek = state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).length;
   const absentLastSession = attendanceRecords.filter(
     (a) => myGroupNames.has(a.group_name) && a.status === "absent",
   ).length;
@@ -87,11 +85,7 @@ function TeacherHome() {
   };
 
   return (
-    <AppShell
-      role="teacher"
-      title={teacherDisplayName(teacher)}
-      description={subjectName}
-    >
+    <AppShell role="teacher" title={teacherDisplayName(teacher)} description={subjectName}>
       <SubjectRoomHeader
         teacher={teacher}
         subjectName={subjectName}
@@ -147,10 +141,7 @@ function TeacherHome() {
         Migration 0023 / خطة C (C12): أحداث اليوم — المواعيد + المحاولات المعلّقة +
         الإطلاقات الجديدة + تقييمات السلوك. كل ما يخص المدرس فقط.
       */}
-      <Panel
-        title="أحداث اليوم"
-        description="مواعيدك + محاولات تنتظر تصحيح + ما أطلقته اليوم"
-      >
+      <Panel title="أحداث اليوم" description="مواعيدك + محاولات تنتظر تصحيح + ما أطلقته اليوم">
         {todayEvents.length === 0 ? (
           <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
             لا توجد أحداث اليوم — ابدأ حصة لتظهر هنا.
@@ -253,7 +244,11 @@ function TeacherHome() {
               .slice()
               .sort((a, b) => b.avg_score - a.avg_score)
               .map((s) => (
-                <StudentClassificationCard key={s.id} student={s} classification={classifyStudent(s)} />
+                <StudentClassificationCard
+                  key={s.id}
+                  student={s}
+                  classification={classifyStudent(s)}
+                />
               ))}
             {myStudents.length === 0 ? (
               <p className="py-6 text-center font-black text-muted-foreground">

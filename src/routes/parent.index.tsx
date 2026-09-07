@@ -31,8 +31,15 @@ export const Route = createFileRoute("/parent/")({
 
 function ParentPortal() {
   const state = useDataStore();
-  const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores, attendanceRecords, students } =
-    state;
+  const {
+    quizResults,
+    homeworkTasks,
+    teacherNotes,
+    whatsappLogs,
+    liveScores,
+    attendanceRecords,
+    students,
+  } = state;
   const child = useCurrentStudent();
   useEffect(() => {
     if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
@@ -154,7 +161,9 @@ function ParentPortal() {
               {live?.question_score != null ? formatNumber(live.question_score) : "—"} / ١٠
             </p>
             <StatusBadge tone={live?.question_score ? "success" : "neutral"} className="mt-3">
-              {live?.question_score != null ? "تم الرد على سؤال الحصة" : "لسه ما جاوبش على سؤال في الحصة"}
+              {live?.question_score != null
+                ? "تم الرد على سؤال الحصة"
+                : "لسه ما جاوبش على سؤال في الحصة"}
             </StatusBadge>
           </div>
         </div>

@@ -17,11 +17,7 @@ import type { CenterNotification } from "@/types";
  * §0.3 — كرت الإشعارات scrollable + بحث بالاسم والنص + حذف فرد/كل
  * مع تأكيد كلمة سر المالك.
  */
-export function NotificationsPanel({
-  notifications,
-}: {
-  notifications: CenterNotification[];
-}) {
+export function NotificationsPanel({ notifications }: { notifications: CenterNotification[] }) {
   const [query, setQuery] = useState("");
   const [confirmingClearAll, setConfirmingClearAll] = useState(false);
 

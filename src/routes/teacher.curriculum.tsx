@@ -1,5 +1,15 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { BookOpen, Check, ClipboardList, Clock, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ClipboardList,
+  Clock,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,21 +51,17 @@ function CurriculumPage() {
   const state = useDataStore();
   const teacher = useCurrentTeacher();
   const session = useSession();
-  useEffect(() => {
-    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [teacher]);
-  if (!teacher) return <Navigate to="/login" />;
-  const teacherIdentifier = session?.identifier ?? teacher.user_id ?? teacher.id;
-  const myGroups = getGroupsForTeacher(state, teacher.id);
-  const myPlans = getLessonPlansForTeacher(state, teacher.id);
-
   const [groupFilter, setGroupFilter] = useState<string | typeof ALL_GROUPS>(ALL_GROUPS);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddFor, setShowAddFor] = useState<string | null>(null);
 
-  const filteredGroups =
-    groupFilter === ALL_GROUPS ? myGroups : myGroups.filter((g) => g.id === groupFilter);
+  useEffect(() => {
+    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [teacher]);
+
+  const myGroups = teacher ? getGroupsForTeacher(state, teacher.id) : [];
+  const myPlans = teacher ? getLessonPlansForTeacher(state, teacher.id) : [];
 
   const plansByGroup = useMemo(() => {
     const map = new Map<string, LessonPlan[]>();
@@ -66,6 +72,12 @@ function CurriculumPage() {
     }
     return map;
   }, [myPlans]);
+
+  if (!teacher) return <Navigate to="/login" />;
+  const teacherIdentifier = session?.identifier ?? teacher.user_id ?? teacher.id;
+
+  const filteredGroups =
+    groupFilter === ALL_GROUPS ? myGroups : myGroups.filter((g) => g.id === groupFilter);
 
   const totalPrepared = myPlans.filter((p) => p.prepared_done).length;
   const totalTaught = myPlans.filter((p) => p.taught_done).length;
@@ -89,8 +101,18 @@ function CurriculumPage() {
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="إجمالي الخطط" value={formatNumber(myPlans.length)} icon={ClipboardList} />
-        <StatCard label="تم الإعداد" value={formatNumber(totalPrepared)} icon={Check} tone="primary" />
-        <StatCard label="تم التدريس" value={formatNumber(totalTaught)} icon={BookOpen} tone="success" />
+        <StatCard
+          label="تم الإعداد"
+          value={formatNumber(totalPrepared)}
+          icon={Check}
+          tone="primary"
+        />
+        <StatCard
+          label="تم التدريس"
+          value={formatNumber(totalTaught)}
+          icon={BookOpen}
+          tone="success"
+        />
         <StatCard
           label="معلّق (لم يُدرَّس)"
           value={formatNumber(totalPending)}
@@ -122,7 +144,8 @@ function CurriculumPage() {
           <span className="font-black text-foreground">{formatPercent(aheadRate)}</span>
         </div>
         <p className="mt-2 text-xs font-bold text-muted-foreground">
-          {formatNumber(preparedAhead)} من {formatNumber(myPlans.length)} خطة تم إعدادها قبل الموعد المخطط.
+          {formatNumber(preparedAhead)} من {formatNumber(myPlans.length)} خطة تم إعدادها قبل الموعد
+          المخطط.
         </p>
         {prepRate < 50 && myPlans.length > 0 ? (
           <p className="mt-3 rounded-xl border-2 border-warning/40 bg-warning/10 p-3 text-xs font-black text-warning">
@@ -131,10 +154,7 @@ function CurriculumPage() {
         ) : null}
       </Panel>
 
-      <Panel
-        title="الفلتر والبحث"
-        description="اختر مجموعة، أو ابحث بكلمة داخل محتوى الخطة"
-      >
+      <Panel title="الفلتر والبحث" description="اختر مجموعة، أو ابحث بكلمة داخل محتوى الخطة">
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <FilterPill
@@ -436,9 +456,7 @@ function AddPlanModal({
             placeholder="مثال: المعادلات من الدرجة الثانية"
             className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary"
           />
-          <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-            {lessonName.length}/60
-          </p>
+          <p className="mt-1 text-[11px] font-bold text-muted-foreground">{lessonName.length}/60</p>
         </Field>
         <Field label="الوحدة">
           <input
@@ -513,7 +531,11 @@ function EditPlanModal({
           />
         </Field>
         <Field label="الوحدة">
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary" />
+          <input
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary"
+          />
         </Field>
         <Field label="ملاحظات">
           <textarea

@@ -34,11 +34,7 @@ const TIMES_12 = [
 ];
 
 function format12hArabic(t: string): string {
-  return t
-    .replace(" AM", " ص")
-    .replace(" PM", " م")
-    .replace("AM", "ص")
-    .replace("PM", "م");
+  return t.replace(" AM", " ص").replace(" PM", " م").replace("AM", "ص").replace("PM", "م");
 }
 
 export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
@@ -54,9 +50,7 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
 
   const pendingGroups = useMemo(() => {
     if (!gradeId) return [];
-    return getGroupsForGrade(state, gradeId).filter(
-      (g) => g.scheduling_status === "pending",
-    );
+    return getGroupsForGrade(state, gradeId).filter((g) => g.scheduling_status === "pending");
   }, [state, gradeId]);
 
   const selectedGroup = useMemo(

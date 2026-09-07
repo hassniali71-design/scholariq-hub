@@ -11,7 +11,13 @@ interface PdfUploadBoxProps {
 }
 
 /** Upload box for §7-د's PDF → AI pipeline. Drag-drop or click-to-pick, PDF only. */
-export function PdfUploadBox({ busy, failed, onFile, onRetry, compact = false }: PdfUploadBoxProps) {
+export function PdfUploadBox({
+  busy,
+  failed,
+  onFile,
+  onRetry,
+  compact = false,
+}: PdfUploadBoxProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (busy) {

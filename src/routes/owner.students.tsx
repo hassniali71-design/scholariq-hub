@@ -21,12 +21,7 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { AddStudentToGroupModal } from "@/components/owner/AddStudentToGroupModal";
 import { GroupCreateModal } from "@/components/owner/GroupCreateModal";
-import {
-  addTeacherNote,
-  classifyStudent,
-  deleteGroup,
-  useDataStore,
-} from "@/lib/data-store";
+import { addTeacherNote, classifyStudent, deleteGroup, useDataStore } from "@/lib/data-store";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Group, Student } from "@/types";
@@ -89,14 +84,7 @@ const paymentLabel: Record<
 function StudentsPage() {
   const state = useDataStore();
   const navigate = useNavigate();
-  const {
-    students,
-    groups,
-    payments,
-    attendanceRecords,
-    homeworkTasks,
-    teacherNotes,
-  } = state;
+  const { students, groups, payments, attendanceRecords, homeworkTasks, teacherNotes } = state;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | Student["payment_status"]>("all");
   const [noteDraft, setNoteDraft] = useState("");
@@ -105,7 +93,9 @@ function StudentsPage() {
   const [addStudentGroup, setAddStudentGroup] = useState<Group | null>(null);
 
   const primaryCount = groups.filter((g) => g.grade.includes("الابتدائي")).length;
-  const prepCount = groups.filter((g) => g.grade.includes("الإعدادي") || g.grade.includes("الاعدادي")).length;
+  const prepCount = groups.filter(
+    (g) => g.grade.includes("الإعدادي") || g.grade.includes("الاعدادي"),
+  ).length;
   const secondaryCount = groups.length - primaryCount - prepCount;
 
   const filtered = useMemo(
@@ -124,21 +114,17 @@ function StudentsPage() {
       ? 0
       : Math.round(students.reduce((s, st) => s + st.attendance_rate, 0) / students.length);
   const avgScore =
-    students.length === 0 ? 0 : Math.round(students.reduce((s, st) => s + st.avg_score, 0) / students.length);
+    students.length === 0
+      ? 0
+      : Math.round(students.reduce((s, st) => s + st.avg_score, 0) / students.length);
 
-  const selected = selectedId ? students.find((s) => s.id === selectedId) ?? null : null;
-  const studentPayments = selected
-    ? payments.filter((p) => p.student_code === selected.code)
-    : [];
+  const selected = selectedId ? (students.find((s) => s.id === selectedId) ?? null) : null;
+  const studentPayments = selected ? payments.filter((p) => p.student_code === selected.code) : [];
   const studentAttendance = selected
     ? attendanceRecords.filter((a) => a.student_id === selected.id)
     : [];
-  const studentHomework = selected
-    ? homeworkTasks.filter((h) => h.student_id === selected.id)
-    : [];
-  const studentNotes = selected
-    ? teacherNotes.filter((n) => n.student_id === selected.id)
-    : [];
+  const studentHomework = selected ? homeworkTasks.filter((h) => h.student_id === selected.id) : [];
+  const studentNotes = selected ? teacherNotes.filter((n) => n.student_id === selected.id) : [];
 
   return (
     <AppShell
@@ -172,11 +158,7 @@ function StudentsPage() {
           icon={User}
           tone={avgAttendance >= 85 ? "success" : "warning"}
         />
-        <StatCard
-          label="متوسط الدرجات"
-          value={formatNumber(avgScore)}
-          icon={Target}
-        />
+        <StatCard label="متوسط الدرجات" value={formatNumber(avgScore)} icon={Target} />
         <StatCard
           label="إجمالي المستحقات"
           value={formatCurrency(due)}
@@ -208,9 +190,7 @@ function StudentsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StatusBadge
-                    tone={g.scheduling_status === "scheduled" ? "success" : "warning"}
-                  >
+                  <StatusBadge tone={g.scheduling_status === "scheduled" ? "success" : "warning"}>
                     {g.scheduling_status === "scheduled"
                       ? `مُجدوَلة · ${g.weekday} ${g.time}`
                       : "بانتظار الجدولة"}
@@ -436,11 +416,7 @@ function StudentsPage() {
                               : "destructive"
                         }
                       >
-                        {a.status === "present"
-                          ? "حاضر"
-                          : a.status === "late"
-                            ? "متأخر"
-                            : "غائب"}
+                        {a.status === "present" ? "حاضر" : a.status === "late" ? "متأخر" : "غائب"}
                       </StatusBadge>
                     </li>
                   ))}
