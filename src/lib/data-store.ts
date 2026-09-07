@@ -2347,63 +2347,6 @@ function ensureLiveScore(state: DataState, student: Student): LiveScore {
   );
 }
 
-/** Homework evaluation inside session mode — persists to the student record. */
-export function scoreHomework(studentId: string, value: number, sessionId?: string) {
-  let nextLiveScore: LiveScore | null = null;
-  let nextPoints: number | null = null;
-  let gradedTask: HomeworkTask | null = null;
-  let event: SessionEvent | null = null;
-  update((state) => {
-    const student = findStudentById(state, studentId);
-    if (!student) return state;
-    const current = ensureLiveScore(state, student);
-    const delta = (value - (current.homework_score ?? 0)) * 5;
-    nextLiveScore = {
-      ...current,
-      homework_score: value,
-      points: current.points + delta,
-    };
-    const students = state.students.map((s) => {
-      if (s.id !== student.id) return s;
-      nextPoints = s.points + delta;
-      return { ...s, points: nextPoints };
-    });
-
-    const taskId = `hw-live-${student.id}`;
-    gradedTask = {
-      id: taskId,
-      center_id: student.center_id,
-      student_id: student.id,
-      subject: student.group_name.split(" - ")[0] ?? "الحصة",
-      title: "تقييم واجب الحصة",
-      due_date: "اليوم",
-      status: "graded",
-      grade: value,
-    };
-    const exists = state.homeworkTasks.some((h) => h.id === taskId);
-    let sessionEvents = state.sessionEvents;
-    if (sessionId) {
-      event = buildSessionEvent(sessionId, student.id, "homework_score", { value });
-      sessionEvents = [event, ...state.sessionEvents];
-    }
-
-    return {
-      ...state,
-      students,
-      leaderboard: buildLeaderboard(students),
-      liveScores: [...state.liveScores.filter((s) => s.student_id !== student.id), nextLiveScore],
-      homeworkTasks: exists
-        ? state.homeworkTasks.map((h) => (h.id === taskId ? gradedTask! : h))
-        : [gradedTask, ...state.homeworkTasks],
-      sessionEvents,
-    };
-  });
-  if (nextLiveScore) syncUpsert("live_scores", nextLiveScore, "student_id");
-  if (nextPoints !== null) syncUpdate("students", studentId, { points: nextPoints });
-  if (gradedTask) syncUpsert("homework_tasks", gradedTask);
-  if (event) syncInsert("session_events", event);
-}
-
 /** Random-question answer inside session mode — updates points + leaderboard. */
 export function recordQuestionAnswer(studentId: string, correct: boolean, sessionId?: string) {
   let nextLiveScore: LiveScore | null = null;
@@ -2923,7 +2866,7 @@ export interface AssessmentScoreInput {
  * event log. Upserts by (student, category, session): calling it again for the
  * same combination *updates the existing record in place*, which is what makes
  * "تعديل درجة قديمة بأثر رجعي" (Phase 4's testable criterion) actually work.
- * Deliberately separate from `scoreHomework`'s live in-session points/HomeworkTask
+ * Deliberately separate from `recordQuestionAnswer`'s live in-session points
  * update (§7-أ: session mode vs. this independent management section).
  */
 export function recordAssessmentScore(input: AssessmentScoreInput) {
