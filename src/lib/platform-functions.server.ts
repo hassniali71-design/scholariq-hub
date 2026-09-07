@@ -91,6 +91,28 @@ export const setClientStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
   });
 
+/**
+ * بيانات دخول المالك محفوظة أصلاً وباستمرار في `accounts` منذ لحظة `createCenter`
+ * (صفحة /platform/new-center كانت تعرضها مرة واحدة بس عند الإنشاء ثم تضيع بعد أي
+ * refresh). هذه الدالة تسمح لصاحب المنصة بمراجعتها في أي وقت لاحق من /platform/clients
+ * بدل الاعتماد على نسخها فوراً وقت الإنشاء.
+ */
+export const fetchClientOwnerCredentials = createServerFn({ method: "POST" })
+  .validator((data: { identifier: string; centerId: string }) => data)
+  .handler(async ({ data }) => {
+    await assertPlatformCaller(data.identifier);
+    const supabase = getSupabaseAdmin();
+    const { data: account, error } = await supabase
+      .from("accounts")
+      .select("identifier, password")
+      .eq("center_id", data.centerId)
+      .eq("role", "owner")
+      .maybeSingle<{ identifier: string; password: string | null }>();
+    if (error) throw new Error(error.message);
+    if (!account) throw new Error("لا يوجد حساب مالك لهذا العميل");
+    return account;
+  });
+
 /** §3-2 — adds a month/year on top of the center's *current* `expires_at`, not from `now()`. */
 export const extendClientSubscription = createServerFn({ method: "POST" })
   .validator((data: { identifier: string; centerId: string; unit: "month" | "year" }) => data)

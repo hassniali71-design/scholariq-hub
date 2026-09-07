@@ -1,5 +1,16 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Ban, CalendarClock, Copy, Download, Play, Search, Sparkles, Users } from "lucide-react";
+import {
+  Ban,
+  CalendarClock,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  Play,
+  Search,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +23,7 @@ import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import {
   extendClientSubscription,
+  fetchClientOwnerCredentials,
   fetchClients,
   setClientStatus,
   type ClientListItem,
@@ -69,6 +81,11 @@ function ClientCard({ client, onChanged }: { client: ClientListItem; onChanged: 
   const [busy, setBusy] = useState<"toggle" | "extend-month" | "extend-year" | "export" | null>(
     null,
   );
+  const [credentials, setCredentials] = useState<{
+    identifier: string;
+    password: string | null;
+  } | null>(null);
+  const [loadingCreds, setLoadingCreds] = useState(false);
   const progress = subscriptionProgress(client.joined_at, client.expires_at);
   const loginLink =
     (typeof window !== "undefined" ? window.location.origin : "") +
@@ -111,6 +128,26 @@ function ClientCard({ client, onChanged }: { client: ClientListItem; onChanged: 
       toast.error(err instanceof Error ? err.message : "حدث خطأ أثناء التمديد");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function toggleCredentials() {
+    if (credentials) {
+      setCredentials(null);
+      return;
+    }
+    setLoadingCreds(true);
+    try {
+      await withIdentifier(async (identifier) => {
+        const result = await fetchClientOwnerCredentials({
+          data: { identifier, centerId: client.id },
+        });
+        setCredentials(result);
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "تعذّر جلب بيانات الدخول");
+    } finally {
+      setLoadingCreds(false);
     }
   }
 
@@ -203,7 +240,43 @@ function ClientCard({ client, onChanged }: { client: ClientListItem; onChanged: 
       <div className="flex flex-wrap items-center gap-2 text-xs font-black text-muted-foreground">
         <span>البريد/معرّف المالك:</span>
         <span className="font-mono text-foreground">{client.ownerIdentifier ?? "—"}</span>
+        <button
+          type="button"
+          onClick={() => void toggleCredentials()}
+          disabled={loadingCreds}
+          className="mr-auto flex items-center gap-1.5 rounded-lg border-2 border-border px-2.5 py-1 text-[11px] font-black text-foreground transition-colors hover:border-primary disabled:opacity-60"
+        >
+          {credentials ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+          {loadingCreds
+            ? "جارٍ الجلب…"
+            : credentials
+              ? "إخفاء بيانات الدخول"
+              : "إظهار بيانات الدخول"}
+        </button>
       </div>
+
+      {credentials ? (
+        <div className="space-y-1.5 rounded-xl border-2 border-dashed border-primary bg-primary/5 p-3">
+          <button
+            type="button"
+            onClick={() => copy(credentials.identifier)}
+            className="flex w-full items-center justify-between rounded-lg bg-background px-3 py-2 text-sm font-extrabold hover:bg-muted"
+          >
+            <span className="text-muted-foreground">الكود</span>
+            <span className="font-mono text-foreground">{credentials.identifier}</span>
+          </button>
+          {credentials.password ? (
+            <button
+              type="button"
+              onClick={() => credentials.password && copy(credentials.password)}
+              className="flex w-full items-center justify-between rounded-lg bg-background px-3 py-2 text-sm font-extrabold hover:bg-muted"
+            >
+              <span className="text-muted-foreground">كلمة السر</span>
+              <span className="font-mono text-foreground">{credentials.password}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2 text-xs font-black text-muted-foreground">
         <span>آخر نشاط:</span>
