@@ -2755,7 +2755,46 @@ export interface SessionSummaryInput {
   generalNotes: string | null;
 }
 
-/** §7-ط — persisted once, when the teacher actually ends the session (not on every step change). */
+/**
+ * يُستدعى فوراً لحظة فتح "وضع الحصة" (قبل أي تسجيل حضور/تقييم) — يخلق صف
+ * `session_records` بقيم افتراضية/صفرية على طول. بدون هذا، كل الصفوف اللي بتتسجل
+ * أثناء الحصة (attendance_records/session_events/assessment_scores) وبتشاور على
+ * نفس session_id عن طريق foreign key كانت بتفشل حفظها فعلياً على Supabase، لأن
+ * صف session_records نفسه ماكانش لسه موجود (كان بيتعمل بس عند "إنهاء الحصة" عبر
+ * recordSessionSummary تحت) — اكتُشف من أخطاء foreign key حقيقية في الإنتاج.
+ * Idempotent: نداء تاني بنفس sessionId (مثلاً من React Strict Mode) ملوش أثر.
+ */
+export function startSessionRecord(sessionId: string, groupId: string, teacherId: string) {
+  if (readState().sessionRecords.some((r) => r.id === sessionId)) return;
+  const record: SessionRecord = {
+    id: sessionId,
+    center_id: readState().center.id,
+    group_id: groupId,
+    lesson_id: null,
+    teacher_id: teacherId,
+    date: todayLabel(),
+    attendees_count: 0,
+    absentees_count: 0,
+    questions_asked_count: 0,
+    participants_count: 0,
+    homework_launch_status: "not_sent",
+    e_homework_launch_status: "not_sent",
+    activity_completed_in_session: false,
+    duration_seconds: 0,
+    explanation_duration_seconds: 0,
+    extension_seconds: 0,
+    general_notes: null,
+  };
+  update((state) => ({ ...state, sessionRecords: [record, ...state.sessionRecords] }));
+  syncUpsert("session_records", record, "id");
+}
+
+/**
+ * §7-ط — يُحدَّث عند إنهاء الحصة بالأرقام النهائية. `startSessionRecord` فوق
+ * غالباً سبق وأنشأ نفس الصف (id) بقيم صفرية، فهنا نستبدله بدل ما نضيف نسخة تانية،
+ * ونستخدم upsert بدل insert عشان الحفظ الفعلي على Supabase ينجح حتى لو الصف
+ * كان موجود بالفعل.
+ */
 export function recordSessionSummary(input: SessionSummaryInput) {
   let record: SessionRecord | null = null;
   let doneCurriculumLessonId: string | null = null;
@@ -2789,13 +2828,16 @@ export function recordSessionSummary(input: SessionSummaryInput) {
         })
       : state.curriculumLessons;
 
+    const exists = state.sessionRecords.some((r) => r.id === record!.id);
     return {
       ...state,
-      sessionRecords: [record, ...state.sessionRecords],
+      sessionRecords: exists
+        ? state.sessionRecords.map((r) => (r.id === record!.id ? record! : r))
+        : [record, ...state.sessionRecords],
       curriculumLessons,
     };
   });
-  if (record) syncInsert("session_records", record);
+  if (record) syncUpsert("session_records", record, "id");
   if (doneCurriculumLessonId)
     syncUpdate("curriculum_lessons", doneCurriculumLessonId, { status: "done" });
 }

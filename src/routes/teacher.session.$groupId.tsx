@@ -58,6 +58,7 @@ import {
   recordSessionSummary,
   releaseSessionTasks,
   resolveCurrentTeacher,
+  startSessionRecord,
   updateLessonSlide,
   updateQuizQuestion,
   useDataStore,
@@ -223,6 +224,14 @@ function SessionMode() {
   const [released, setReleased] = useState(false);
   const [eHomeworkReleased, setEHomeworkReleased] = useState(false);
   const sessionIdRef = useRef(`sess-${Date.now()}`);
+
+  // لازم يتعمل فوراً هنا مش عند "إنهاء الحصة" — بدونه كل تسجيل حضور/تقييم أثناء
+  // الحصة كان بيفشل حفظه فعلياً على Supabase (foreign key على session_id لصف
+  // session_records لسه مش موجود). انظر تعليق startSessionRecord في data-store.ts.
+  useEffect(() => {
+    startSessionRecord(sessionIdRef.current, group.id, group.teacher_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scores: LiveScore[] = useMemo(
     () =>
