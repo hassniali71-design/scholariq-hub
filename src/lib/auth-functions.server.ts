@@ -205,25 +205,10 @@ export const createAccount = createServerFn({ method: "POST" })
     const { error } = await supabase.from("accounts").insert(row);
     if (error) throw new Error(error.message);
 
-    // 0019: لو role = teacher، أنشئ سجل teachers مربوط (user_id = login code).
-    if (data.role === "teacher") {
-      const { error: tErr } = await supabase.from("teachers").insert({
-        id: `tc-${Date.now()}`,
-        center_id: centerId,
-        user_id: newIdentifier,
-        full_name: data.full_name,
-        subject: "",
-        subject_id: data.subject_id ?? null,
-        groups: 0,
-        students: 0,
-        timer_compliance: 0,
-        sla_breaches: 0,
-        monthly_revenue: 0,
-        honorific: data.honorific ?? "mr",
-        cover_image_key: data.cover_image_key ?? null,
-      });
-      if (tErr) throw new Error(tErr.message);
-    }
+    // ملحوظة: صف `teachers` الفعلي (المادة، الأغلفة، المراحل...) بيتعمل من
+    // createTeacherRecord (data-store.ts) اللي بينده owner.access.tsx دايماً
+    // فوراً بعد النداء ده — إنشاء صف teachers تاني هنا كان بيسبب صف مكرر
+    // يتيم في القاعدة الحقيقية (id مختلف، بيانات فاضية) لكل مدرس جديد.
 
     return { role: data.role, full_name: data.full_name, identifier: newIdentifier, password };
   });
