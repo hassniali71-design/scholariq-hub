@@ -19,6 +19,29 @@
 @import "@fontsource/tajawal/800.css";
 @import "@fontsource/tajawal/900.css";
 
+/*
+ * الهوية البصرية الجديدة — 3 خطوط بأدوار منفصلة (بدل Tajawal وحده لكل حاجة):
+ *  - Quest: النصوص العادية والواجهة (--font-sans) — Tajawal يفضل fallback
+ *    لتغطية أي حرف عربي ناقص في Quest.
+ *  - GE Jarida Heavy: عناوين الأقسام h2..h6 (--font-display).
+ *  - Cairo (900، مستورد عبر @fontsource): عناوين الصفحة الرئيسية h1 وأرقام
+ *    KPI الكبيرة تحديداً (--font-title) — أبرز خط في الهوية، للفت الانتباه بس.
+ */
+@font-face {
+  font-family: "Quest";
+  src: url("/fonts/Quest-Regular.otf") format("opentype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "GE Jarida Heavy";
+  src: url("/fonts/GEJarida-Heavy.otf") format("opentype");
+  font-weight: 700 900;
+  font-display: swap;
+}
+@import "@fontsource/cairo/800.css";
+@import "@fontsource/cairo/900.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -29,8 +52,9 @@
  */
 
 @theme inline {
-  --font-sans: "Tajawal", system-ui, sans-serif;
-  --font-display: "Tajawal", system-ui, sans-serif;
+  --font-sans: "Quest", "Tajawal", system-ui, sans-serif;
+  --font-display: "GE Jarida Heavy", "Tajawal", system-ui, sans-serif;
+  --font-title: "Cairo", "Tajawal", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -197,6 +221,18 @@
   button {
     font-weight: 800;
   }
+
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+
+  h1 {
+    font-family: var(--font-title);
+  }
 }
 
 /* أي نافذة منبثقة: ارتفاع محدود بالشاشة + Scroll داخلي واضح بدل ما المستخدم يعمل Zoom Out. */
@@ -216,6 +252,7 @@
 
 @utility kpi-number {
   color: var(--color-primary);
+  font-family: var(--font-title);
   font-weight: 900;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;

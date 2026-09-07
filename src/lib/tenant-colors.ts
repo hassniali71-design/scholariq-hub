@@ -17,3 +17,42 @@ export const TENANT_ACCENT_COLORS = [
 ] as const;
 
 export const DEFAULT_TENANT_ACCENT = TENANT_ACCENT_COLORS[0].hex;
+
+/**
+ * هوية بصرية ديناميكية: بدل ما لون العميل يلوّن القائمة الجانبية بس، هنا بنشتق منه
+ * مجموعة متناسقة من درجات فاتحة/متوسطة (خلفية، كروت، حدود، ظلال) باستخدام
+ * `color-mix()` — نفس الأداة المستخدمة بالفعل في SubjectRoomHeader.tsx لدرجات
+ * ألوان المواد. القيم دي بتحل محل متغيرات Tailwind الأساسية في styles.css
+ * (--card, --canvas, --border, --primary, ...) عبر `@theme inline` هناك، فأي
+ * مكوّن موجود بالفعل بيستخدم bg-card/bg-canvas/border-border/shadow-card
+ * هياخد الهوية الجديدة تلقائياً من غير أي تعديل فيه.
+ *
+ * الدرجات محسوبة لتفضل فاتحة جداً (3-22%) عشان القراءة والتباين يفضلوا سليمين
+ * أياً كان اللون المختار، من نفس الـ 8 ألوان المعتمدة (كلها غامقة بما يكفي).
+ */
+export function getTenantPaletteVars(accentColor?: string | null): Record<string, string> {
+  const hex = accentColor?.trim() || DEFAULT_TENANT_ACCENT;
+  const mix = (pct: number) => `color-mix(in srgb, ${hex} ${pct}%, white)`;
+  return {
+    "--primary": hex,
+    "--primary-foreground": "#ffffff",
+    "--ring": hex,
+    "--sidebar": hex,
+    "--sidebar-primary": "#ffffff",
+    "--sidebar-primary-foreground": hex,
+    "--sidebar-accent": mix(70),
+    "--sidebar-border": mix(65),
+    "--sidebar-ring": mix(55),
+    "--card": mix(3),
+    "--canvas": mix(6),
+    "--accent": mix(12),
+    "--accent-foreground": hex,
+    "--secondary": mix(8),
+    "--secondary-foreground": hex,
+    "--muted": mix(8),
+    "--border": mix(22),
+    "--border-strong": mix(34),
+    "--shadow-card": `0 1px 2px color-mix(in srgb, ${hex} 18%, transparent), 0 8px 24px color-mix(in srgb, ${hex} 12%, transparent)`,
+    "--shadow-lift": `0 12px 40px color-mix(in srgb, ${hex} 22%, transparent)`,
+  };
+}

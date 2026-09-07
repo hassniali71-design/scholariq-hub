@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { ROLES, ROLE_ORDER } from "@/config/roles";
 import { signIn } from "@/lib/auth";
-import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
+import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import type { UserRole } from "@/types";
 
 const identifierLabel: Record<UserRole, string> = {
@@ -64,22 +64,44 @@ export function LoginCard({
   }
 
   return (
-    <div dir="rtl" className="flex min-h-screen flex-col items-center justify-center gap-6 bg-canvas px-4 py-10">
+    <div
+      dir="rtl"
+      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-canvas px-4 py-10"
+      style={getTenantPaletteVars(branding?.accentColor) as React.CSSProperties}
+    >
       <div className="w-full max-w-md">
+        {/* رسالة ترحيب عامة على مستوى الشركة/النظام — ثابتة، مش مرتبطة بلون أي سنتر. */}
+        <div className="mb-4 flex flex-col items-center gap-3 text-center">
+          <p className="text-sm font-black text-foreground">
+            مرحباً بكم في نظام سبّورة لإدارة السناتر التعليمية
+          </p>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 rounded-xl border-2 border-border bg-card px-3 py-1.5">
+              <GraduationCap className="size-4 text-primary" />
+              <span className="text-sm font-black text-foreground">سبّورة</span>
+            </span>
+            <span className="text-muted-foreground">×</span>
+            <span className="rounded-xl border-2 border-border bg-card px-3 py-1.5 text-sm font-black text-primary">
+              حلول
+            </span>
+          </div>
+        </div>
+
         <div className="card-crisp overflow-hidden">
           <div
             className="flex flex-col items-center gap-3 px-6 py-8 text-navy-foreground"
             style={{ backgroundColor: branding?.accentColor ?? DEFAULT_TENANT_ACCENT }}
           >
-            <p className="text-sm font-black text-white/90">مرحبا بكم في نظام سبّورة لإدارة السناتر التعليمية</p>
             <span className="flex size-16 items-center justify-center rounded-2xl bg-white/15">
               <GraduationCap className="size-9" />
             </span>
             <div className="text-center">
-              {/* Generic `/` is shared by every client (§8 — one URL for all centers), so it
-                  can't show a specific tenant's name before auth resolves which one. `/login/$slug`
-                  knows exactly which center this is, so it shows the real name here instead. */}
-              <p className="text-xl font-black">{branding?.name ?? "منصة إدارة السناتر التعليمية"}</p>
+              {/* رسالة ترحيب منفصلة عن ترحيب الشركة فوق — دي خاصة بالسنتر نفسه.
+                  Generic `/` is shared by every client (§8), فبتفضل عامة؛ `/login/$slug`
+                  بيعرف السنتر بالظبط فيعرض اسمه الحقيقي هنا. */}
+              <p className="text-xl font-black">
+                {branding?.name ? `أهلاً بك في ${branding.name}` : "منصة إدارة السناتر التعليمية"}
+              </p>
             </div>
             <p className="rounded-xl bg-white/10 px-3 py-1.5 text-[11px] font-black text-white/80">
               نظام ERP و LMS متكامل — دخول آمن بدون تسجيل ذاتي
@@ -164,12 +186,6 @@ export function LoginCard({
             </p>
           </form>
         </div>
-        <p className="mt-4 flex items-center justify-center gap-2 text-xs font-black text-muted-foreground">
-          <span>مقدمة من شركة</span>
-          <span className="rounded-md border-2 border-primary/40 bg-primary/5 px-2 py-0.5 text-sm font-black text-primary">
-            حلول
-          </span>
-        </p>
       </div>
     </div>
   );

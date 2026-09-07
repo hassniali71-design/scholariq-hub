@@ -8,7 +8,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useDataStore } from "@/lib/data-store";
-import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
+import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
@@ -66,10 +66,11 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   }, [role, navigate]);
 
   const handleSignOut = () => {
-    // نلتقط الـ slug قبل تسجيل الخروج لأن الستور بيتصفّر بعده.
-    const slug = center.slug;
+    // signOut() نفسه بيعمل emit() اللي بيشغّل sync() فوق (useEffect) وهي بالفعل
+    // بتنادي goToCenterLogin() — نداء تاني هنا كان بيسبب تنقّل مزدوج (navigate
+    // مرتين) لنفس الوجهة في نفس اللحظة، وده اللي كان يظهر كـ"لازم أسجل دخول
+    // مرتين" (سباق بين التنقّلين وTanStack Router). الاعتماد على sync() وحدها كافٍ.
     signOut();
-    goToCenterLogin(slug);
   };
 
 
@@ -82,8 +83,13 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   }
 
   return (
-    <div dir="rtl" className="flex min-h-screen bg-canvas">
-      {/* §11-أ: tenant accent — sidebar background only, independent of the 5 subject colors. */}
+    <div
+      dir="rtl"
+      className="flex min-h-screen bg-canvas"
+      style={getTenantPaletteVars(center.accent_color) as React.CSSProperties}
+    >
+      {/* هوية العميل بقت منتشرة على التطبيق كله (كروت/خلفيات/حدود/ظلال) عبر
+          getTenantPaletteVars فوق، مش القائمة الجانبية بس — انظر tenant-colors.ts. */}
       <aside
         className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col text-navy-foreground md:flex"
         style={{ backgroundColor: center.accent_color ?? DEFAULT_TENANT_ACCENT }}
