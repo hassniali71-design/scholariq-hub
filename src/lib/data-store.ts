@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { getSession } from "@/lib/auth";
@@ -466,10 +466,6 @@ export function subscribeData(listener: () => void) {
 let hydratedForIdentifier: string | null = null;
 let hydrating = false;
 
-export function isHydrating(): boolean {
-  return hydrating;
-}
-
 /**
  * §0 fix — Drop the in-memory cache to the seed placeholder so `useSyncExternalStore`
  * can't paint the previous tenant's rows for the RTT between the identifier change and
@@ -581,13 +577,6 @@ export function resetData() {
 
 export function useDataStore(): DataState {
   return useSyncExternalStore(subscribeData, readState, () => SERVER_STATE);
-}
-
-/** Selector variant to avoid re-rendering on unrelated table changes. */
-export function useDataSelector<T>(selector: (state: DataState) => T): T {
-  const get = useCallback(() => selector(readState()), [selector]);
-  const getServer = useCallback(() => selector(SERVER_STATE), [selector]);
-  return useSyncExternalStore(subscribeData, get, getServer);
 }
 
 /* ---------------- Lookups ---------------- */
