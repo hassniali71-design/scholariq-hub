@@ -20,25 +20,15 @@
 @import "@fontsource/tajawal/900.css";
 
 /*
- * الهوية البصرية الجديدة — 3 خطوط بأدوار منفصلة (بدل Tajawal وحده لكل حاجة):
- *  - Quest: النصوص العادية والواجهة (--font-sans) — Tajawal يفضل fallback
- *    لتغطية أي حرف عربي ناقص في Quest.
- *  - GE Jarida Heavy: عناوين الأقسام h2..h6 (--font-display).
- *  - Cairo (900، مستورد عبر @fontsource): عناوين الصفحة الرئيسية h1 وأرقام
- *    KPI الكبيرة تحديداً (--font-title) — أبرز خط في الهوية، للفت الانتباه بس.
+ * كانت الهوية البصرية بتستخدم خطين مرفوعين يدوياً (Quest لـ--font-sans،
+ * "GE Jarida Heavy" لـ--font-display) — ملفات OTF بوزن ثابت واحد فقط (زي ما
+ * أسماؤها بتقول: "Regular"، "Heavy")، لكن معلنة بمدى أوزان واسع (400-700،
+ * 700-900). المتصفح ما بيصنّعش Bold وهمي لملف ثابت — بيعرض نفس وزن الملف
+ * الحقيقي أياً كان الوزن المطلوب، فكل نص "بولد" (بما فيه body نفسه، مضبوط
+ * font-weight:700 تحت) كان بيظهر أرفع من المطلوب فعلياً. رجّعنا Tajawal
+ * لـ--font-sans/--font-display (تشيل أوزان 800/900 حقيقية وموثّقة) والإبقاء
+ * على Cairo لـ--font-title بس (h1 + أرقام KPI) — نفس السبب، أوزان حقيقية.
  */
-@font-face {
-  font-family: "Quest";
-  src: url("/fonts/Quest-Regular.otf") format("opentype");
-  font-weight: 400 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: "GE Jarida Heavy";
-  src: url("/fonts/GEJarida-Heavy.otf") format("opentype");
-  font-weight: 700 900;
-  font-display: swap;
-}
 @import "@fontsource/cairo/800.css";
 @import "@fontsource/cairo/900.css";
 
@@ -52,8 +42,8 @@
  */
 
 @theme inline {
-  --font-sans: "Quest", "Tajawal", system-ui, sans-serif;
-  --font-display: "GE Jarida Heavy", "Tajawal", system-ui, sans-serif;
+  --font-sans: "Tajawal", system-ui, sans-serif;
+  --font-display: "Tajawal", system-ui, sans-serif;
   --font-title: "Cairo", "Tajawal", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
