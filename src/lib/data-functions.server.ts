@@ -62,6 +62,7 @@ const TABLES = [
   "group_activations",
   "student_group_enrollments",
   "subject_quotes",
+  "launch_views",
 ] as const;
 
 export type TableName = (typeof TABLES)[number];
@@ -216,6 +217,7 @@ async function fetchAllTablesForCenter(centerId: string) {
     groupActivations,
     studentGroupEnrollments,
     subjectQuotes,
+    launchViews,
   ] = await Promise.all([
     optional("center_finance_settings"),
     optional("safe_handovers"),
@@ -237,6 +239,7 @@ async function fetchAllTablesForCenter(centerId: string) {
     optional("group_activations"),
     optional("student_group_enrollments"),
     optional("subject_quotes"),
+    optional("launch_views"),
   ]);
 
   if (centerRow.error) {
@@ -274,6 +277,7 @@ async function fetchAllTablesForCenter(centerId: string) {
     groupActivations,
     studentGroupEnrollments,
     subjectQuotes,
+    launchViews,
   } as unknown as {
     centerId: string;
     center: {
@@ -304,7 +308,8 @@ async function fetchAllTablesForCenter(centerId: string) {
       | "homeworkAttempts"
       | "groupActivations"
       | "studentGroupEnrollments"
-      | "subjectQuotes",
+      | "subjectQuotes"
+      | "launchViews",
       unknown[]
     >;
 }

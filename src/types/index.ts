@@ -891,6 +891,18 @@ export interface HomeworkAttempt {
   submitted_at: string;
 }
 
+/**
+ * Migration 0035: تعليم "اطلعت عليه" من الطالب على إطلاق مدرس — منفصل تماماً
+ * عن HomeworkAttempt (التسليم الفعلي)، مجرد إشارة خفيفة إن الطالب شاف المهمة.
+ */
+export interface LaunchView {
+  id: UUID;
+  center_id: UUID;
+  launch_id: UUID;
+  student_id: UUID;
+  seen_at: string;
+}
+
 /** Migration 0022: snapshot for the "إغلاق شهري" feature on the owner treasury page. */
 export interface MonthlyClosing {
   id: UUID;

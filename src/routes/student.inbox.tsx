@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { FileUp, Inbox, Send } from "lucide-react";
+import { CheckCheck, Eye, FileUp, Inbox, Send } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,8 @@ import { useCurrentStudent } from "@/hooks/use-current-student";
 import {
   getGroupsForStudent,
   getTeacherLaunchesForGroup,
+  hasSeenLaunch,
+  markLaunchSeen,
   useDataStore,
 } from "@/lib/data-store";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -90,6 +92,7 @@ function InboxPage() {
               const submitted = state.homeworkAttempts.some(
                 (a) => a.launch_id === l.id && a.student_id === me.id,
               );
+              const seen = hasSeenLaunch(state, l.id, me.id);
               const status = launchStatus(l, submitted);
               const isReading = l.launch_type === "reading_assignment";
               const isFile = isReading && !!l.file_data;
@@ -136,6 +139,22 @@ function InboxPage() {
                         تحميل
                       </a>
                     ) : null}
+                    {seen ? (
+                      <span className="flex items-center gap-1 rounded-lg bg-success/10 px-2.5 py-1 text-[11px] font-black text-success">
+                        <CheckCheck className="size-3.5" /> اطلعت عليه
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          markLaunchSeen(l.id, me.id);
+                          toast.success("تم تسجيل اطّلاعك");
+                        }}
+                        className="flex items-center gap-1 rounded-lg border-2 border-border px-2.5 py-1 text-[11px] font-black text-foreground hover:border-primary hover:text-primary"
+                      >
+                        <Eye className="size-3.5" /> اطلعت عليه
+                      </button>
+                    )}
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                   </div>
                 </div>

@@ -53,6 +53,7 @@ import type {
   GroupResource,
   HomeworkAttempt,
   HomeworkTask,
+  LaunchView,
   LeaderboardEntry,
   Lesson,
   LessonSlide,
@@ -323,6 +324,8 @@ export interface DataState {
   studentGroupEnrollments: StudentGroupEnrollment[];
   /** Migration 0033: عبارات المواد القابلة للتعديل/الإطلاق من المالك. */
   subjectQuotes: SubjectQuote[];
+  /** Migration 0035: تعليم "اطلعت عليه" من الطالب على إطلاق مدرس. */
+  launchViews: LaunchView[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -435,6 +438,7 @@ function seedState(): DataState {
     groupActivations: [],
     studentGroupEnrollments: [],
     subjectQuotes: [],
+    launchViews: [],
   };
 }
 
@@ -3907,6 +3911,31 @@ export function getHomeworkAttemptsForStudent(state: DataState, studentId: strin
   return state.homeworkAttempts
     .filter((a) => a.student_id === studentId)
     .sort((a, b) => (a.submitted_at < b.submitted_at ? 1 : -1));
+}
+
+/** هل الطالب ضغط "اطلعت عليه" على هذا الإطلاق؟ — منفصل تماماً عن التسليم الفعلي. */
+export function hasSeenLaunch(state: DataState, launchId: string, studentId: string): boolean {
+  return state.launchViews.some((v) => v.launch_id === launchId && v.student_id === studentId);
+}
+
+/**
+ * Migration 0035 — يعلّم "اطلعت عليه" على إطلاق معيّن. upsert بـ (launch_id,
+ * student_id) عشان الضغط أكتر من مرة ميعملش صفوف مكررة.
+ */
+export function markLaunchSeen(launchId: string, studentId: string): void {
+  if (hasSeenLaunch(readState(), launchId, studentId)) return;
+  let row: LaunchView | null = null;
+  update((state) => {
+    row = {
+      id: `lv-${Date.now()}`,
+      center_id: state.center.id,
+      launch_id: launchId,
+      student_id: studentId,
+      seen_at: new Date().toISOString(),
+    };
+    return { ...state, launchViews: [row, ...state.launchViews] };
+  });
+  if (row) syncUpsert("launch_views", row, "launch_id,student_id");
 }
 
 /**
