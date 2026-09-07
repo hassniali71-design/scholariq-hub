@@ -156,7 +156,7 @@ export const Route = createFileRoute("/student/")({
   component: StudentPortal,
 });
 
-function AvatarUpload({ studentId, avatarData }: { studentId: string; avatarData?: string | null }) {
+function AvatarUpload({ studentId, avatarData }: { studentId: string; avatarData?: string | null | undefined }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {

@@ -2261,7 +2261,8 @@ export function closeShift(countedAmount: number): { expected: number; diff: num
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  const c = closure as ShiftClosure;
+  if (!closure) throw new Error("فشل إنشاء سجل التقفيل");
+  const c = closure;
   syncInsert("shift_closures", c);
   logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
   // القيمة المرجعة هي المرجع الرسمي المُسجَّل فعلياً (محسوبة لحظة الإغلاق نفسها) —
