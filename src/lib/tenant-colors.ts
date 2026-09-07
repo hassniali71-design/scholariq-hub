@@ -27,8 +27,12 @@ export const DEFAULT_TENANT_ACCENT = TENANT_ACCENT_COLORS[0].hex;
  * مكوّن موجود بالفعل بيستخدم bg-card/bg-canvas/border-border/shadow-card
  * هياخد الهوية الجديدة تلقائياً من غير أي تعديل فيه.
  *
- * الدرجات محسوبة لتفضل فاتحة جداً (3-22%) عشان القراءة والتباين يفضلوا سليمين
- * أياً كان اللون المختار، من نفس الـ 8 ألوان المعتمدة (كلها غامقة بما يكفي).
+ * 4 مستويات تدرّج واضحة للعين (كانت 3-22% سابقاً — قريبة من الأبيض لدرجة إنها
+ * كانت شبه مش ظاهرة، وده كان طلب صريح بالتعديل):
+ *  المستوى ١ — الكروت (--card): أفتح درجة، لسه تفرق عن الأبيض بوضوح.
+ *  المستوى ٢ — خلفية الصفحة/التمييز الخفيف (--canvas, --secondary, --muted).
+ *  المستوى ٣ — التمييز الأوضح (--accent) لعناصر بارزة زي الشارات.
+ *  المستوى ٤ — الحدود (--border, --border-strong) بتباين واضح مع الكروت.
  */
 export function getTenantPaletteVars(accentColor?: string | null): Record<string, string> {
   const hex = accentColor?.trim() || DEFAULT_TENANT_ACCENT;
@@ -43,15 +47,15 @@ export function getTenantPaletteVars(accentColor?: string | null): Record<string
     "--sidebar-accent": mix(70),
     "--sidebar-border": mix(65),
     "--sidebar-ring": mix(55),
-    "--card": mix(3),
-    "--canvas": mix(6),
-    "--accent": mix(12),
+    "--card": mix(8),
+    "--canvas": mix(14),
+    "--accent": mix(22),
     "--accent-foreground": hex,
-    "--secondary": mix(8),
+    "--secondary": mix(14),
     "--secondary-foreground": hex,
-    "--muted": mix(8),
-    "--border": mix(22),
-    "--border-strong": mix(34),
+    "--muted": mix(14),
+    "--border": mix(32),
+    "--border-strong": mix(46),
     "--shadow-card": `0 1px 2px color-mix(in srgb, ${hex} 18%, transparent), 0 8px 24px color-mix(in srgb, ${hex} 12%, transparent)`,
     "--shadow-lift": `0 12px 40px color-mix(in srgb, ${hex} 22%, transparent)`,
   };
