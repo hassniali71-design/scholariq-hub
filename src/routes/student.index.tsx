@@ -12,7 +12,7 @@ import {
 import {
   ScoreTrendChart,
   SubjectGauge,
-  WeeklyAttendanceChart,
+  StudentCalendarWeekAttendanceChart,
 } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -30,7 +30,7 @@ import {
   useDataStore,
   type DataState,
 } from "@/lib/data-store";
-import { buildStudentAttendanceByWeekday, WEEKDAYS } from "@/lib/owner-metrics";
+import { buildStudentAttendanceByCalendarWeek, WEEKDAYS } from "@/lib/owner-metrics";
 import type { ElectronicHomework } from "@/types";
 
 /**
@@ -194,7 +194,7 @@ function StudentPortal() {
 
   const today = WEEKDAYS[new Date().getDay()];
   const todaysGroups = myGroups.filter((g) => g.weekday === today);
-  const attendanceByWeekday = buildStudentAttendanceByWeekday(state, me.id);
+  const attendanceByCalendarWeek = buildStudentAttendanceByCalendarWeek(state, me.id);
 
   return (
     <AppShell
@@ -312,8 +312,8 @@ function StudentPortal() {
         <Panel title="منحنى نتائجي" description="كل الدرجات والتقييمات من كل حصة">
           <ScoreTrendChart data={trend} />
         </Panel>
-        <Panel title="حضوري بالأيام" description="مقارنة كل يوم بالتاني هذا الأسبوع">
-          <WeeklyAttendanceChart data={attendanceByWeekday} />
+        <Panel title="حضوري أسبوعياً" description="نسبة الحضور والغياب آخر ٤ أسابيع حقيقية">
+          <StudentCalendarWeekAttendanceChart data={attendanceByCalendarWeek} />
         </Panel>
       </div>
     </AppShell>

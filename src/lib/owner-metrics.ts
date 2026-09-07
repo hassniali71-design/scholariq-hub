@@ -185,6 +185,108 @@ export function buildStudentAttendanceByWeekday(
   });
 }
 
+/**
+ * تاريخ حقيقي لسجل حضور واحد. `checked_in_at` بيبقى ISO كامل لسجلات الحضور/التأخير
+ * الحقيقية، لكن سجلات الغياب لسه بتتسجَّل بعلامة "—" (مفيش وقت "دخول" فعلي) — في
+ * الحالة دي بنرجع للطابع الزمني المُضمَّن في الـ id نفسه (`at-${Date.now()}`)، وهو
+ * موجود دايماً لأي سجل حقيقي اتسجل من recordAttendance/updateAttendanceForSession.
+ */
+function attendanceRecordDate(record: { id: string; checked_in_at: string }): Date | null {
+  const parsed = Date.parse(record.checked_in_at);
+  if (!Number.isNaN(parsed)) return new Date(parsed);
+  const match = /^at-(\d+)/.exec(record.id);
+  return match ? new Date(Number(match[1])) : null;
+}
+
+export interface StudentDayCard {
+  dateIso: string;
+  label: string;
+  status: "present" | "late" | "absent" | "none";
+}
+
+/**
+ * آخر N يوم تقويمي حقيقي (افتراضياً ٧) بحالة الطالب الفعلية في كل يوم — كارت
+ * وصفي لكل يوم (حضر/غاب/اتأخر)، مش تجميع إحصائي. لو أكتر من حصة في نفس اليوم،
+ * أسوأ حالة هي اللي تُعرَض (غياب > تأخير > حضور).
+ */
+export function buildStudentRecentDays(
+  state: DataState,
+  studentId: string,
+  days = 7,
+): StudentDayCard[] {
+  const records = state.attendanceRecords.filter((a) => a.student_id === studentId);
+  const dayFormatter = new Intl.DateTimeFormat("ar-EG", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    numberingSystem: "latn",
+  });
+  const result: StudentDayCard[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - i);
+    const dateIso = day.toISOString().slice(0, 10);
+    const dayRecords = records.filter((r) => {
+      const d = attendanceRecordDate(r);
+      return d ? d.toISOString().slice(0, 10) === dateIso : false;
+    });
+    let status: StudentDayCard["status"] = "none";
+    if (dayRecords.some((r) => r.status === "absent")) status = "absent";
+    else if (dayRecords.some((r) => r.status === "late")) status = "late";
+    else if (dayRecords.some((r) => r.status === "present")) status = "present";
+    result.push({ dateIso, label: dayFormatter.format(day), status });
+  }
+  return result;
+}
+
+export interface StudentWeekAttendancePoint {
+  label: string;
+  attendancePct: number;
+  absencePct: number;
+}
+
+/**
+ * آخر N أسبوع تقويمي حقيقي (نوافذ ٧ أيام فعلية، افتراضياً ٤) بنسبة حضور/غياب
+ * حقيقية لكل أسبوع — بديل "أسبوع ١ / أسبوع ٢" بتواريخ حقيقية في الـ label.
+ */
+export function buildStudentAttendanceByCalendarWeek(
+  state: DataState,
+  studentId: string,
+  weeks = 4,
+): StudentWeekAttendancePoint[] {
+  const records = state.attendanceRecords.filter((a) => a.student_id === studentId);
+  const shortDate = new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "short",
+    numberingSystem: "latn",
+  });
+  const result: StudentWeekAttendancePoint[] = [];
+  for (let w = weeks - 1; w >= 0; w--) {
+    const end = new Date();
+    end.setDate(end.getDate() - w * 7);
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    const weekRecords = records.filter((r) => {
+      const d = attendanceRecordDate(r);
+      return d ? d >= start && d <= end : false;
+    });
+    const total = weekRecords.length;
+    const attendancePct =
+      total > 0
+        ? Math.round((weekRecords.filter((r) => r.status !== "absent").length / total) * 100)
+        : 0;
+    result.push({
+      label: `${shortDate.format(start)} — ${shortDate.format(end)}`,
+      attendancePct,
+      absencePct: total > 0 ? 100 - attendancePct : 0,
+    });
+  }
+  return result;
+}
+
 /* ---------------- المجموعات النشطة الآن + حوكمة الحصص ---------------- */
 
 export interface ActiveGroupRow {

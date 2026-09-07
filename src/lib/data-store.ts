@@ -1379,6 +1379,14 @@ export function recordAttendance(
   update((state) => {
     const student = findStudentById(state, studentId);
     if (!student) return state;
+    /**
+     * كان بيتسجَّل هنا بـ nowTime() (وقت بس، بدون تاريخ — "٣:٤٥ م") بينما باقي
+     * أماكن المشروع (markAttendanceForGroup, AttendanceGate.tsx) بتكتب ISO كامل
+     * فعلاً في نفس العمود — التناقض ده كان يمنع أي حساب حقيقي بتاريخ تقويمي من
+     * سجلات "وضع الحصة" تحديداً (الأكتر استخداماً)، وكان بيظهر كنص خام في أي
+     * مكان بيعرض التاريخ (formatDateTime بيرجع للنص الخام لما Date.parse يفشل).
+     */
+    const checkedInAt = status === "absent" ? "—" : new Date().toISOString();
     record = {
       id: `at-${Date.now()}`,
       center_id: student.center_id,
@@ -1386,7 +1394,7 @@ export function recordAttendance(
       student_name: student.full_name,
       group_name: student.group_name,
       status,
-      checked_in_at: status === "absent" ? "—" : nowTime(),
+      checked_in_at: checkedInAt,
       method,
       session_id: sessionId ?? null,
       late_minutes: status === "late" ? Math.max(0, Math.round(lateMinutes ?? 0)) : 0,
@@ -1400,7 +1408,7 @@ export function recordAttendance(
       message:
         status === "absent"
           ? `تنبيه: لم يتم تسجيل حضور الطالب ${student.full_name} في حصة ${student.group_name}.`
-          : `تم تسجيل حضور الطالب ${student.full_name} في حصة ${student.group_name} الساعة ${record.checked_in_at}.`,
+          : `تم تسجيل حضور الطالب ${student.full_name} في حصة ${student.group_name} الساعة ${nowTime()}.`,
       delivered: true,
     };
     let sessionEvents = state.sessionEvents;
@@ -1564,7 +1572,7 @@ export function updateAttendanceForSession(
       student_name: student.full_name,
       group_name: student.group_name,
       status,
-      checked_in_at: existing?.checked_in_at ?? (status === "absent" ? "—" : nowTime()),
+      checked_in_at: existing?.checked_in_at ?? (status === "absent" ? "—" : new Date().toISOString()),
       method: existing?.method ?? "manual",
       session_id: sessionId,
     };

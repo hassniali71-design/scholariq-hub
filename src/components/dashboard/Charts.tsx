@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 
+import type { StudentWeekAttendancePoint } from "@/lib/owner-metrics";
 import type { AttendancePoint, PerformancePoint, RevenuePoint } from "@/types";
 
 const axisStyle = { fontSize: 12, fontWeight: 800, fill: "var(--color-foreground)" } as const;
@@ -261,6 +262,53 @@ export function WeeklyAttendanceChart({ data }: { data: AttendancePoint[] }) {
         <Legend wrapperStyle={{ fontWeight: 900, fontSize: 16, paddingTop: 8 }} />
         <Bar dataKey="present" name="حضور" fill="var(--color-chart-1)" radius={[10, 10, 0, 0]} />
         <Bar dataKey="absent" name="غياب" fill="var(--color-chart-5)" radius={[10, 10, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/**
+ * مقارنة حضور/غياب أسبوعية بتواريخ تقويمية حقيقية (بدل "أسبوع ١"/"أسبوع ٢") —
+ * عمودان جنب بعض لكل أسبوع: أخضر لنسبة الحضور، أحمر لنسبة الغياب.
+ */
+export function StudentCalendarWeekAttendanceChart({ data }: { data: StudentWeekAttendancePoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart data={data} margin={{ top: 12, right: 12, left: 12, bottom: 4 }} barGap={8}>
+        <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ ...axisStyle, fontSize: 13 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+        />
+        <YAxis
+          tick={axisStyle}
+          axisLine={false}
+          tickLine={false}
+          width={40}
+          domain={[0, 100]}
+          tickFormatter={(v: number) => `${v}%`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          cursor={{ fill: "var(--color-muted)" }}
+          formatter={(value: number) => `${value}%`}
+        />
+        <Legend wrapperStyle={{ fontWeight: 900, fontSize: 14, paddingTop: 8 }} />
+        <Bar
+          dataKey="attendancePct"
+          name="نسبة الحضور"
+          fill="var(--color-success)"
+          radius={[8, 8, 0, 0]}
+        />
+        <Bar
+          dataKey="absencePct"
+          name="نسبة الغياب"
+          fill="var(--color-destructive)"
+          radius={[8, 8, 0, 0]}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

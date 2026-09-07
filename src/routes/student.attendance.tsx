@@ -3,13 +3,18 @@ import { CalendarCheck, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
-import { WeeklyAttendanceChart } from "@/components/dashboard/Charts";
+import { StudentCalendarWeekAttendanceChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import { useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
-import { buildStudentAttendanceByWeekday } from "@/lib/owner-metrics";
+import {
+  buildStudentAttendanceByCalendarWeek,
+  buildStudentRecentDays,
+  type StudentDayCard,
+} from "@/lib/owner-metrics";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/student/attendance")({
   head: () => ({
@@ -46,7 +51,8 @@ function AttendancePage() {
   const rate = total > 0 ? Math.round(((presentCount + lateCount) / total) * 100) : 0;
   const totalLateMinutes = myRecords.reduce((s, r) => s + (r.late_minutes ?? 0), 0);
 
-  const byWeekday = buildStudentAttendanceByWeekday(state, me.id);
+  const recentDays = buildStudentRecentDays(state, me.id);
+  const byCalendarWeek = buildStudentAttendanceByCalendarWeek(state, me.id);
 
   return (
     <AppShell
@@ -67,8 +73,19 @@ function AttendancePage() {
         </p>
       ) : null}
 
-      <Panel title="الحضور حسب أيام الأسبوع" description="مقارنة كل يوم بالتاني، مش أسبوع بأسبوع">
-        <WeeklyAttendanceChart data={byWeekday} />
+      <Panel title="آخر ٧ أيام" description="حالتك الفعلية كل يوم — حضور/غياب/تأخير">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+          {recentDays.map((d) => (
+            <DayCard key={d.dateIso} day={d} />
+          ))}
+        </div>
+      </Panel>
+
+      <Panel
+        title="مقارنة أسبوعية"
+        description="نسبة الحضور والغياب لكل أسبوع حقيقي بتاريخه، آخر ٤ أسابيع"
+      >
+        <StudentCalendarWeekAttendanceChart data={byCalendarWeek} />
       </Panel>
 
       <Panel title="سجل كل الحصص" description={`${formatNumber(total)} سجل حضور مسجَّل`}>
@@ -101,5 +118,44 @@ function AttendancePage() {
         )}
       </Panel>
     </AppShell>
+  );
+}
+
+const DAY_STATUS_META: Record<
+  StudentDayCard["status"],
+  { text: string; icon: typeof CheckCircle2; classes: string }
+> = {
+  present: {
+    text: "حاضر",
+    icon: CheckCircle2,
+    classes: "border-success/40 bg-success/5 text-success",
+  },
+  late: { text: "متأخر", icon: Clock, classes: "border-warning/40 bg-warning/5 text-warning" },
+  absent: {
+    text: "غائب",
+    icon: XCircle,
+    classes: "border-destructive/40 bg-destructive/5 text-destructive",
+  },
+  none: {
+    text: "لا توجد حصة",
+    icon: CalendarCheck,
+    classes: "border-dashed border-border text-muted-foreground",
+  },
+};
+
+function DayCard({ day }: { day: StudentDayCard }) {
+  const meta = DAY_STATUS_META[day.status];
+  const Icon = meta.icon;
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center gap-2 rounded-xl border-2 p-3 text-center",
+        meta.classes,
+      )}
+    >
+      <Icon className="size-5" />
+      <p className="text-xs font-black">{day.label}</p>
+      <p className="text-[11px] font-bold opacity-80">{meta.text}</p>
+    </div>
   );
 }
