@@ -174,7 +174,7 @@ export function LoginCard({
             <button
               type="submit"
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3.5 text-base font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-base font-black text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               <LogIn className="size-5" />
               {submitting ? "جارٍ الدخول…" : "دخول"}
