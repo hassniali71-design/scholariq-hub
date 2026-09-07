@@ -1,64 +1,66 @@
-# EduFlow Suite
+# ScholarIQ Hub
 
-SYSTEM INSTRUCTION & EXECUTION PROTOCOL FOR AI DEVELOPER (LOVABLE / CLINE)
+نظام ERP + LMS متعدد المستأجرين (Multi-Tenant) لإدارة المراكز التعليمية — بوابات منفصلة للمالك، الموظف، المدرس، الطالب، ولي الأمر، الزائر، ومشغّل المنصة (Platform Admin) لإدارة المراكز المشتركة كلها.
 
-PROJECT CRITICALITY & PURPOSE:
+واجهة عربية RTL بالكامل.
 
-You are building an Enterprise-Grade Educational Center ERP & LMS platform. This is a production-ready application designed to automate educational centers with strict in-class timers, zero-excuse parent monitoring, and multi-tenant capabilities. Every single line of code must be clean, modular, fully typed (TypeScript), and thoroughly structured.
+⚠️ **النظام متصل فعلياً بقاعدة بيانات Supabase حقيقية ويخدم مراكز عميل حقيقية بالفعل — ليس مجرد ديمو.** ومع ذلك لا يوجد بعد Row Level Security ولا تشفير لكلمات السر (تفاصيل كاملة في [`report.md`](report.md)). راجع [`CLAUDE.md`](CLAUDE.md) قبل أي تعديل على المصادقة أو الصلاحيات.
 
-DEVELOPMENT & HANDOVER WORKFLOW:
+## المرجع الكامل
 
-1. Local-First Architecture: Assume this repository will be cloned and executed locally on VS Code using Node.js and Vite/React.
+- [`CLAUDE.md`](CLAUDE.md) — السياق التقني الحقيقي والحالة الحالية — **المرجع الأول لأي عمل قادم**.
+- [`report.md`](report.md) — تدقيق تقني وأمني شامل (بالمسار ورقم السطر لكل نتيجة).
+- [`SUPABASE_MIGRATION_SPEC.md`](SUPABASE_MIGRATION_SPEC.md), [`PLATFORM_CLIENT_MANAGEMENT_SPEC.md`](PLATFORM_CLIENT_MANAGEMENT_SPEC.md), [`TEACHER_MODULE_SPEC.md`](TEACHER_MODULE_SPEC.md), [`CURRICULUM_ENGINE_SPEC.md`](CURRICULUM_ENGINE_SPEC.md), [`DESIGN_ATMOSPHERE_SPEC.md`](DESIGN_ATMOSPHERE_SPEC.md), [`DEPLOYMENT_SPEC.md`](DEPLOYMENT_SPEC.md) — مواصفات معمارية تفصيلية لكل جزء.
 
-2. Modular Codebase: Write self-contained, highly structured components, utility functions, and custom hooks. DO NOT dump massive code into single files. Separate UI components, types (`types/index.ts`), Supabase client setups (`lib/supabase.ts`), and static mocks.
+## الستاك
 
-3. Credit Exhaustion Protocol (Seamless Handover):
+TanStack Start (SSR) · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · TanStack Router/Query · Vite · Bun · Cloudflare Workers (نشر) · Supabase (Postgres، عبر عميل خادم بمفتاح Service Role فقط).
 
-   - If execution stops or credit/token limits are reached at any point, the project state MUST remain fully buildable and runnable (`npm run dev` should never break).
+## التشغيل محلياً
 
-   - Ensure all pending changes are committed cleanly to the connected GitHub repository so the developer can seamlessly pull the code into VS Code and continue editing with local AI tools (e.g., Cline / Cursor).
-
-STRICT UI & VISUAL IDENTITY RULES:
-
-- Layout: Pure Clean White Canvas (#FFFFFF / #F8FAFC) with Deep Royal Navy Blue Sidebar (#1E3A8A).
-
-- Typography: ALL Arabic UI text, labels, titles, descriptions, and KPI stats MUST use BOLD Typography (Font Weight: 700 to 900) with ultra-high contrast dark colors (#0F172A) for maximum readability on smart displays.
-
-- Cards: Crisp high-contrast dashboard cards with 2px borders (`border-2 border-slate-300`).
-
-REQUIRED CORE MODULES TO BUILD:
-
-1. Super Admin / Owner Control Tower: Analytics, Financial flow, Teacher compliance SLA timers.
-
-2. Staff / Secretary Gate: High-speed QR/Barcode check-in, cashier, shift closing.
-
-3. Teacher In-Class Mode: Fullscreen presenter view with 4-step timers (10m Homework, PDF Lesson presentation, 60s Random Question Picker per student, Assignment release).
-
-4. Student & Parent Portals: Attendance charts, real-time scorecards, gamification points, and WhatsApp activity logs.
-
-5. Supabase Multi-Tenancy: Auth & Row Level Security (RLS) setup using `center_id`.
-
-Analyze the complete architecture, read every specification carefully, and implement all modules exhaustively.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://scholariq-hub.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/51a9760b-15a8-4d21-a590-901397fe002b).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+```bash
+bun i
+bun run dev
 ```
+
+### متغيرات البيئة
+
+المشروع يقرأ بيانات اتصال Supabase بأولوية `ERP_SUPABASE_*` (لأن منصة الاستضافة تحجز بادئة `SUPABASE_` لنظامها الخاص)، مع سقوط تلقائي لـ`SUPABASE_*` العادية للتشغيل المحلي وسكريبتات `scripts/`:
+
+```
+ERP_SUPABASE_URL=
+ERP_SUPABASE_SERVICE_ROLE_KEY=
+```
+
+بدون هذين المتغيرين، أي عملية تلمس قاعدة البيانات (تسجيل دخول، أي صفحة بيانات) ستفشل بخطأ صريح — لا يوجد وضع Mock كامل بديل نشط حالياً رغم وجود الكود القديم له (راجع `CLAUDE.md` §3).
+
+### التحقق قبل أي Commit
+
+```bash
+bun run build
+bun run lint
+bunx tsc --noEmit
+```
+
+## البوابات المتاحة
+
+| الدور | المسار | الوصف |
+|---|---|---|
+| مشغّل المنصة | `/`, `/platform/*` | إدارة كل المراكز: إنشاء مركز جديد + حساب مالك له، تفعيل/إيقاف/تمديد الاشتراك، تصدير بيانات مركز، رسائل عابرة للمراكز لمدرسي مادة معيّنة |
+| المالك | `/owner/*` | برج تحكم (KPIs حقيقية)، قاعدة بيانات الطلاب/المجموعات، التدفق المالي، الخزنة، التزام المدرسين (SLA)، جدولة، صلاحيات الدخول، كل المهام |
+| الموظف | `/staff/*` | بوابة حضور، كاشير تحصيل، مخزون كتب/ملازم، تقفيل وردية، مهامه الشخصية |
+| المدرس | `/teacher/*` | مركز قيادة الحصص + "وضع الحصة" (حضور → شرح → تقييم → مهام → أنشطة → مراجعة)، تقييمات، خطة/منهج، جدول القراءة فقط، مهامه الشخصية |
+| الطالب | `/student/*` | الرئيسية، حضوره الكامل، لوحة الشرف (شارات حقيقية)، مستوى الأداء التفصيلي، مدرسوه، صندوق الوارد |
+| ولي الأمر | `/parent/*` | متابعة لحظية للابن، أرشيف إشعارات |
+| الزائر | `/visitor/*` | صفحة تسويقية عامة بدون بيانات حساسة |
+| دخول لكل مركز | `/login`, `/login/:slug` | دخول عام أو رابط مخصص بهوية/لون المركز |
+
+## الحالة الحقيقية (بدون تجميل)
+
+- **طبقة البيانات:** Supabase حقيقي (Postgres) خلف دوال خادم فقط (لا اتصال متصفح مباشر)، مع تحديث محلي فوري (Optimistic UI) ثم مزامنة خلفية. التفاصيل الكاملة في `CLAUDE.md` §3.
+- **الذكاء الاصطناعي (توليد الدرس من PDF):** الهيكل جاهز لكن التوليد الفعلي **Stub بالكامل** — لا استدعاء نموذج حقيقي بعد.
+- **"واتساب":** سجل إشعارات داخلي معروض بأسلوب واتساب، وليس إرسال واتساب فعلي.
+- **الأمان:** لا توجد سياسات RLS، وكلمات السر مخزَّنة نص صريح — قرارات مؤجَّلة موثَّقة، لكنها أصبحت مخاطرة حقيقية بوجود عملاء حقيقيين. **راجع `report.md` قبل الاعتماد على النظام في أي استخدام أوسع.**
+- **الاختبارات:** لا توجد أي اختبارات آلية في المشروع حالياً.
+
+راجع `CLAUDE.md` للخريطة الكاملة والقواعد الهندسية المعتمدة قبل أي تعديل.

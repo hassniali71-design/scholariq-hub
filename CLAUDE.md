@@ -1,137 +1,169 @@
-<!-- CLAUDE.md — هذا الملف يُقرأ تلقائياً بواسطة Claude Code عند فتح المشروع. ضعه في جذر الريبو (نفس مستوى package.json). لا تحذفه ولا تدمجه مع AGENTS.md. -->
-ScholarIQ Hub — سياق المشروع الكامل وخطة العمل
+<!-- CLAUDE.md — يُقرأ تلقائياً بواسطة Claude Code عند فتح المشروع. اقرأه كاملاً قبل أي تعديل. -->
 
-ملحوظة لـ Claude Code: هذا المشروع بدأ في Lovable ووصلنا فيه لمرحلة "الشكل الأساسي" (Skeleton) لكل الأدوار الستة. من دلوقتي العمل انتقل بالكامل لك (Claude Code) محلياً. اقرأ الملف ده كامل قبل أي تعديل. كل قرار معماري مكتوب هنا اتاخد بعد تحليل الكود الفعلي سطر بسطر، مش افتراضات.
+# ScholarIQ Hub — سياق المشروع الحقيقي (محدَّث بعد قراءة الكود الفعلي بالكامل)
 
-1) نظرة عامة على المنتج
+> **ملحوظة تاريخية مهمة:** نسخة سابقة من هذا الملف كانت تصف مرحلة "قبل Phase 0" (بيانات وهمية بالكامل في `localStorage`، بدون أي اتصال حقيقي بقاعدة بيانات). **هذا الوصف لم يعد صحيحاً إطلاقاً.** المشروع تطوّر بشكل كبير منذ ذلك الحين عبر جلسات عمل متعددة (Claude Code + Kilo Code)، وأصبح متصلاً فعلياً بـ Supabase حقيقي، وفيه **مركزان حقيقيان بالفعل بأداء تشغيلي حقيقي** — هذا ليس ديمو بحت. **لا تنفّذ أي خطة "Phase 0" من نسخة قديمة لهذا الملف قد تكون محفوظة في ذاكرتك أو في ملخص محادثة سابقة — ستكون بايظة وقد تتسبب في تراجع فعلي (إلغاء اتصال Supabase الحقيقي).**
 
-نظام ERP + LMS متكامل لإدارة سنتر تعليمي ("سنتر النخبة التعليمي" — بيانات تجريبية). النظام مقسّم لـ 6 أدوار (Portals) منفصلة تماماً في الصلاحيات والواجهة، لكن مفروض تشترك في نفس مصدر البيانات:
+المرجع الأدق والأحدث لتفاصيل الأمان والأخطاء الحالية هو `report.md` (تدقيق تقني شامل بتاريخ إنشاء هذا التحديث) — راجعه قبل أي عمل على الأمان أو المصادقة أو طبقة CRUD العامة.
 
-الدور	المسار الأساسي	الوظيفة الجوهرية
-المالك (Owner)	/owner/*	تحليلات مالية، التزام مدرسين (SLA)، إدارة صلاحيات الدخول
-الموظف (Staff)	/staff/*	بوابة حضور QR، كاشير، مخزون ملازم، تقفيل وردية
-المدرس (Teacher)	/teacher/*	لوحة رئيسية + "وضع الحصة": محرك تايمر رباعي المراحل
-الطالب (Student)	/student/*	لوحة أداء شخصية + لوحة شرف
-ولي الأمر (Parent)	/parent/*	متابعة لحظية للابن + أرشيف واتساب
-الزائر (Visitor)	/visitor/*	صفحة تسويقية عامة، بدون بيانات حساسة
+---
 
-الفكرة المحورية للمنتج: "وضع الحصة" (Session Mode) عند المدرس هو قلب النظام — كل حدث بيحصل جواه (حضور، تقييم واجب، درجة سؤال، إطلاق مهمة) المفروض يتغذى منه: لوحة المالك (كأرقام مجمّعة)، لوحة الموظف (كعملية تحصيل)، لوحة الطالب (كنقاط)، لوحة ولي الأمر (كإشعار واتساب)، ولوحة الشرف (كترتيب تنافسي).
+## 1) نظرة عامة على المنتج
 
-2) الستاك التقني (مهم — مختلف عن الافتراضات الشائعة)
-TanStack Start (ليس Next.js وليس Vite+React SPA عادي) — فريمورك SSR كامل
-TanStack Router: file-based routing حسب اسم الملف (owner.index.tsx → /owner, teacher.session.tsx → /teacher/session)
-React 19 + TanStack Query (مُجهّز في router.tsx لكن غير مُستخدم فعلياً بعد)
-Tailwind CSS v4 (نظام توكينز @theme inline مختلف عن v3 — راجع src/styles.css)
-shadcn/ui (style: new-york, prefix فارغ, alias @/* → src/*)
-Vite 8 + بلجن Lovable (@lovable.dev/vite-tanstack-config) — لا تضف بلجنز يدوياً فوق البلجن ده، فيه تحذير صريح في vite.config.ts إنه هيكسر التطبيق (duplicate plugins)
-Package manager: bun (bun.lock موجود، مفيش package-lock.json أو yarn.lock)
-dir="rtl" وlang="ar" مضبوطين على مستوى <html> في routes/__root.tsx — الواجهة كلها RTL
-أوامر التشغيل
-bash
+نظام ERP + LMS متكامل لإدارة مراكز تعليمية، **متعدد المستأجرين فعلياً (Multi-Tenant SaaS)** — ليس مركزاً واحداً تجريبياً، بل منصة تستضيف عدة "مراكز" (Centers) حقيقية، كل مركز بياناته معزولة (بفلترة تطبيقية، بدون RLS بعد — انظر قسم 6). 7 أدوار فعلياً:
+
+| الدور | المسار الأساسي | الوظيفة الجوهرية |
+|---|---|---|
+| المالك (Owner) | `/owner/*` | برج تحكم، تحليلات مالية حقيقية، التزام مدرسين (SLA)، إدارة صلاحيات الدخول |
+| الموظف (Staff) | `/staff/*` | بوابة حضور، كاشير، مخزون ملازم/كتب، تقفيل وردية |
+| المدرس (Teacher) | `/teacher/*` | لوحة رئيسية + "وضع الحصة": محرك متعدد المراحل (حضور، شرح، تقييم، إطلاق مهام، أنشطة تفاعلية، مراجعات/امتحانات) |
+| الطالب (Student) | `/student/*` | لوحة أداء شخصية، لوحة شرف بشارات حقيقية، صندوق وارد للمهام |
+| ولي الأمر (Parent) | `/parent/*` | متابعة لحظية للابن + أرشيف إشعارات (يُعرض كـ"واتساب" لكنه سجل داخلي — انظر قسم 5) |
+| الزائر (Visitor) | `/visitor/*` | صفحة تسويقية عامة، بدون بيانات حساسة |
+| **مشغّل المنصة (Platform Admin)** | `/`, `/platform/*` | **دور سابع فعلي** — ليس قيمة `role` منفصلة، بل حساب Owner خاص بـ `center_id = "platform"` (ثابت `PLATFORM_CENTER_ID`). يدير كل المراكز الحقيقية: إنشاء مركز جديد + حساب Owner له (`/platform/new-center`)، تفعيل/إيقاف/تمديد اشتراك (`/platform/clients`)، رسائل تُبَث عبر كل المراكز لمدرسي مادة معيّنة (`/platform/teacher-notes`) |
+
+**"وضع الحصة" (Session Mode)** عند المدرس يبقى قلب المنتج — أي حدث بداخله (حضور، تقييم واجب، درجة سؤال، إطلاق مهمة) يتغذى منه المالك (كأرقام مجمّعة حقيقية عبر `owner-metrics.ts`)، الطالب (كنقاط/شارات)، ولي الأمر (كإشعار)، ولوحة الشرف (كترتيب).
+
+---
+
+## 2) الستاك التقني
+
+- **TanStack Start** (SSR كامل، ليس Next.js) + **TanStack Router** (file-based: `owner.index.tsx` → `/owner`, `teacher.session.$groupId.tsx` → `/teacher/session/:groupId`).
+- **React 19** + **TanStack Query** (مُجهّز، غير مُستخدم فعلياً بعد حسب آخر فحص).
+- **Tailwind CSS v4** (`@theme inline` — راجع `src/styles.css`) + **shadcn/ui** (style: new-york, alias `@/*` → `src/*`).
+- **Supabase** (`@supabase/supabase-js@2.112.3`) — **عميل خادم واحد فقط بمفتاح Service Role** (`src/lib/supabase-server.ts`, `getSupabaseAdmin()`). لا يوجد أي استخدام لـ anon key أو اتصال من المتصفح مباشرة؛ كل استعلام يمرّ عبر TanStack Start server functions (`createServerFn`).
+- **Nitro** + إعداد **Cloudflare Workers** للنشر (`DEPLOYMENT_SPEC.md`, `scripts/fix-cloudflare-chunks.ts` يُشغَّل تلقائياً بعد كل `build` عبر `postbuild`).
+- **Bun** كمدير حزم (`bun.lock`) — لكن السكريبتات الفعلية تستدعي `vite` مباشرة (`vite dev`/`vite build`)، بلا تعارض.
+- `xlsx` (تصدير Excel حقيقي)، `recharts`، `zod`، `react-hook-form`، `sonner`، `@fontsource/tajawal`.
+- **لا يوجد أي SDK ذكاء اصطناعي** (لا `@anthropic-ai/sdk` ولا غيره) — ميزة "توليد الدرس بالـ AI" مازالت Stub بالكامل (قسم 4).
+- `dir="rtl"` و`lang="ar"` على مستوى `<html>` في `src/routes/__root.tsx` — الواجهة كلها RTL. **لا تغيّر هذا أبداً.**
+- `tsconfig.json`: `strict: true` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`، لكن `noUnusedLocals`/`noUnusedParameters` **معطَّلين عمداً** (وكذلك في ESLint) — هذا سبب وجود متغيرات ميتة معلَّقة بـ`void x;` بدل حذفها في أماكن متفرقة.
+
+### أوامر التشغيل
+```bash
 bun i
 bun run dev      # أو: npm run dev
 bun run build
-bun run lint
+bun run lint     # bunx eslint . --fix لإصلاح مشاكل Prettier تلقائياً
+bunx tsc --noEmit
+```
 
-⚠️ قاعدة صارمة موروثة من AGENTS.md الأصلي: npm run dev (أو bun run dev) لازم يفضل شغال بعد أي تعديل طول الوقت. لو انقطع الشغل في أي لحظة (تحقق أو حد الرسائل)، لازم المشروع يفضل في حالة قابلة للتشغيل والبناء، مش نص شغلانة.
+⚠️ **قاعدة صارمة:** `bun run dev`/`build`/`lint` لازم تفضل نظيفة بعد أي تعديل. تأكد بتشغيلهم الثلاثة قبل ما تعتبر أي مهمة خلصت.
 
-3) حالة قاعدة البيانات الحقيقية: لا توجد — Mock كامل
+---
 
-فحصنا المشروع بالكامل بحثاً عن أي اتصال حقيقي (Supabase / API / env vars) — صفر نتائج. كل ما هو موجود:
+## 3) طبقة البيانات — Hybrid حقيقي فوق Supabase (مش localStorage Mock)
 
-src/lib/mock-data.ts: مصفوفات ثابتة في الذاكرة (students, teachers, groups, payments...) هذه هي "قاعدة البيانات" الوهمية الحالية. كل صفحة بتاخد نسخة منها في useState محلي منفصل.
-src/lib/auth.ts: النظام الوحيد المتصل فعلياً بـ localStorage (حسابات + جلسات دخول). فيه نمط subscribe/emit شغال ومُثبت — ده النمط اللي هنعمم على باقي الكيانات.
-الفجوة الجوهرية المكتشفة
+`src/lib/auth.ts` و`src/lib/data-store.ts` كلاهما فيهم علم واحد:
 
-لما البيانات بتظهر متطابقة بين تابات المالك/الموظف/المدرس/الطالب في السكرين شوتس، ده مش لأن فيه ربط حقيقي — كلهم بيقروا من نفس القيم المبدئية الثابتة في mock-data.ts. أي تفاعل (تسجيل حضور، تحصيل فلوس، رصد درجة) بيضيع فوراً بمجرد الخروج من الصفحة أو الـ refresh، ومفيش أي تأثير متبادل بين الأدوار.
+```ts
+export const USE_SUPABASE = true;
+```
 
-ملاحظات دقة صغيرة (اعرفها قبل ما تلمس owner.*)
-totalStudents = 764 في owner.index.tsx مكتوب يدوي، مش students.length (الفعلي = 6)
-نفس الموضوع: "٢٢ مجموعة" في owner.students.tsx مكتوب يدوي
-الشارات (Badges) في لوحة شرف الطالب صورية بالكامل، مش مشتقة من أي شرط حقيقي
-تنبيهات "قرارات تحتاج اتخاذ" في برج التحكم نص ثابت (hardcoded strings)
-4) خريطة الملفات الحرجة
-src/config/roles.ts          ← مصدر وحيد للتنقل (Sidebar) لكل الأدوار الستة
-src/components/layout/AppShell.tsx   ← القالب العام (Sidebar+Header) — تعديل هنا يأثر على الكل
-src/components/dashboard/StatCard.tsx ← StatCard, Panel, StatusBadge (مشتركة عبر كل الصفحات)
-src/components/dashboard/Charts.tsx   ← RevenueChart, AttendanceChart, PerformanceChart, ScoreTrendChart
-src/components/session/SessionSteps.tsx  ← مكونات المراحل الأربعة (Homework/Lesson/Question/Live)
-src/components/session/SessionTimer.tsx  ← التايمر البصري (يُعاد استخدامه لمرحلة السؤال 60 ثانية)
-src/hooks/use-countdown.ts   ← منطق العد التنازلي (مستقل، لا يلمس الـ store)
-src/lib/auth.ts              ← نظام الحسابات/الجلسات (نمط localStorage+subscribe جاهز ومُثبت)
-src/lib/mock-data.ts         ← البيانات الوهمية الحالية (المصدر الذي سيُستبدل)
-src/types/index.ts           ← تعريفات الأنواع = القاموس الرسمي للبيانات
-src/routes/*.tsx             ← صفحة لكل مسار (18 route file)
-5) خطة التأسيس (Phase 0) — لازم تخلص قبل أي فيتشر جديد
+**النمط في كل دالة تصدير:** فرع `if (USE_SUPABASE) { ...server function حقيقية... } else { ...كود localStorage قديم... }`. مسار الـ`localStorage` القديم **موجود لكنه ميت** حالياً — تُرك عمداً كـ"مفتاح رجوع سريع" (fast revert) موثّق في تعليقات الكود، وليس دليلاً على نقص في الترحيل. **لا تحذفه بدون سبب قوي، ولا تفترض أنه هو المصدر الفعلي للبيانات.**
 
-الهدف: تحويل البيانات من "مصفوفات معزولة لكل صفحة" إلى مصدر مركزي واحد بحيث أي حدث في أي دور ينعكس تلقائياً على باقي الأدوار، بدون أي تعديل بصري (Refactor بحت، صفر تغيير في الشكل/الألوان/التخطيط).
+### كيف تتدفق البيانات فعلياً
+1. عند التحميل، `bootstrapFromSupabase()` (`data-store.ts`) يستدعي `fetchCenterData()` (`data-functions.server.ts`) التي تحلّ `center_id` الحقيقي للمستخدم من `identifier` **في الخادم** (`resolveCenterId` في `supabase-server.ts`)، وتجيب كل جداول هذا المركز فقط.
+2. كل دالة Mutation (~90 دالة في `data-store.ts`) تتبع نمط **Optimistic UI**: تعدّل الـ state المحلي فوراً للاستجابة الفورية، ثم ترسل مزامنة خلفية (`syncInsert`/`syncUpdate`/`syncUpsert`/`syncDeleteIds`/`syncDeleteAll`) لدوال الخادم العامة `insertRow`/`updateRow`/`upsertRow`/`deleteRows` (`data-functions.server.ts`). فشل المزامنة الخلفية يظهر Toast لكن **لا يرجّع (rollback) التحديث المحلي** — لا يوجد حل تعارض offline حتى الآن.
+3. `data-functions.server.ts` طبقة CRUD عامة واحدة فوق **44 جدولاً مسموحاً** (`TABLES` allowlist)، بدل دالة خادم منفصلة لكل جدول. فيها `withColumnFallback`: لو Postgres رجّع خطأ "عمود غير موجود"، تعيد المحاولة بدون هذا العمود مع تحذير في اللوج — تسامح مقصود مع تأخر تطبيق migration معيّنة، **وليس حلاً بديلاً عن تطبيقها**.
+4. `src/lib/mock-data.ts` (460 سطر) **لم يعد مصدر البيانات الحي** — يُستخدم فقط: (أ) بيانات seed لمركز جديد يُنشأ عبر `/platform/new-center` (مواد/صفوف/ربط مادة-صف)، (ب) placeholder الـ SSR قبل الـ hydration، (ج) fallback لو `USE_SUPABASE = false`.
+5. حماية من "وميض بيانات مركز سابق": `resetCacheToPlaceholder()` يمسح الكاش فوراً عند تسجيل الخروج أو تغيّر الـ identifier، لتفادي عرض بيانات مركز آخر لجزء من الثانية عند تبديل الحسابات.
 
-5.1 توسعة الأنواع (src/types/index.ts)
+### الجلسة (Session)
+`Session { role, full_name, identifier, isPlatformAdmin? }` تُخزَّن في `localStorage` — **موثَّق صراحة كحالة UI محلية فقط، ليست حداً أمنياً**. الحد الأمني الحقيقي المفترض هو `resolveCenterId` في الخادم — لكن انظر قسم 6 لثغرات حقيقية في هذا النموذج.
 
-أضف student_id: UUID إلى: QuizResult, HomeworkTask, WhatsAppLog, TeacherNote, LeaderboardEntry. احذف is_me من LeaderboardEntry واجعلها محسوبة (derived) من هوية الطالب الحالي بدل علم ثابت داخل البيانات.
+---
 
-5.2 إنشاء src/lib/data-store.ts
+## 4) ميزة الذكاء الاصطناعي — Stub متعمَّد وليس تكاملاً حقيقياً
 
-طبّق نفس نمط auth.ts (قراءة/كتابة localStorage + subscribe/emit) على الكيانات: students, teachers, groups, attendanceRecords, payments, booklets, quizResults, homeworkTasks, whatsappLogs, teacherNotes, leaderboard.
+`src/lib/ai/lesson-pipeline.ts` (169 سطر): الشكل الهندسي حقيقي (hash → فحص كاش → استخراج → توليد → تخزين، بحالة `ai_status`: processing/ready/failed، مع إعادة محاولة). **لكن `stubExtractText`/`stubGenerateContent` نصوص Placeholder ثابتة مبنية على اسم الملف/المادة — لا استخراج PDF حقيقي ولا استدعاء نموذج فعلي.** لا يوجد أي SDK ذكاء اصطناعي في `package.json`. عند ربط مفتاح API حقيقي مستقبلاً، فقط هاتين الدالتين تحتاجان تغيير — الهيكل حولهما جاهز.
 
-أول تشغيل (seed) لازم يبذر بنفس القيم الموجودة في mock-data.ts بالظبط — صفر فرق بصري عند أول تشغيل بعد الترقية.
+---
 
-5.3 دوال Mutation مركزية (العقد اللي Claude Code هينفذه بالظبط)
-ts
-recordAttendance(studentId: UUID, status: AttendanceStatus, method: AttendanceRecord["method"]): void
-recordPayment(studentCode: string, amount: number, method: PaymentMethod, item: string): void
-deliverBooklet(bookletId: UUID): void
-closeShift(countedAmount: number): { expected: number; diff: number }
-scoreHomework(studentId: UUID, value: number): void          // يحدّث homework_score + points
-recordQuestionAnswer(studentId: UUID, correct: boolean): void // يحدّث points + leaderboard
-releaseSessionTasks(groupId: UUID): void
-  // ينشئ HomeworkTask لكل طالب في المجموعة
-  // + WhatsAppLog تلقائي لكل ولي أمر
-  // + يحدّث ملخص الحصة
+## 5) ميزات أخرى تستحق الذكر
 
-كل دالة: تعدّل المصدر المركزي في localStorage ثم تستدعي emit() عشان أي صفحة مفتوحة تحدّث نفسها فوراً (نفس آلية auth.ts بالظبط).
+- **"واتساب" ليس واتساب فعلي.** `whatsapp_logs` جدول حقيقي، لكن الإرسال مجرد إنشاء سجل بـ`delivered: true` مكتوب يدوياً وقت الكتابة — لا يوجد أي استدعاء لـ Twilio/Meta WhatsApp Business API. `parent.messages.tsx` يعرضه كـ"أرشيف واتساب" لكنه فعلياً سجل إشعارات داخلي منسّق ليبدو كذلك.
+- **تصدير Excel حقيقي** عبر `xlsx` (`src/lib/export-excel.ts`) — يصدّر بيانات المركز كاملة، مستخدَم من المالك ومن أدوات المنصة.
+- **توليد المعرّفات (`identifier-gen.ts`) قرار أمني واعٍ ومقصود مؤقتاً:** الأكواد الآن مشتقة من الاسم (أول حرفين من الاسم الأول + أول حرفين من اسم الأب) بدل أرقام عشوائية بحتة — أسهل تخميناً، وموثَّق صراحة كتنازل مقبول لمرحلة التجربة فقط، وليس نسياناً.
+- **تخزين ملفات Base64 بدل Supabase Storage**: `teacher_launches.file_data` و`students.avatar_data` يخزّنان الملفات/الصور كنص Base64 مباشرة في العمود، بلا حد أقصى للحجم على مستوى قاعدة البيانات — قرار مؤقت موثَّق، قابل للنقل لـ Storage لاحقاً بدون تغيير الـ Schema العام.
+- **ألوان/هوية المركز**: `src/lib/tenant-colors.ts` يحدّد لوحة ألوان ثابتة (`TENANT_ACCENT_COLORS`) يختار منها كل مركز لونه (`centers.accent_color`)، يتحكم في تلوين الشريط الجانبي لكل عميل.
+- **دخول لكل مركز برابط مخصص**: `login.$slug.tsx` — رابط مخصص لكل مركز (`/login/futures-academy` مثلاً) يُظهر اسم ولون المركز قبل تسجيل الدخول (استعلام عام غير حساس، `fetchCenterBySlug` يرجّع الاسم واللون فقط).
 
-5.4 ربط الصفحات الـ 18 كلها
+---
 
-كل route تحت owner.*, staff.*, teacher.*, student.*, parent.*, visitor.* يقرأ ويكتب من data-store.ts فقط — يتوقف الاستيراد المباشر من mock-data.ts في الصفحات (يفضل mock-data.ts كمصدر seed فقط داخل data-store.ts).
+## 6) الحالة الأمنية — **مهم جداً قبل أي عمل مستقبلي**
 
-5.5 تصحيح الأرقام الوهمية
+النظام يخدم **مركزين حقيقيين ببيانات تشغيلية فعلية الآن**، وليس بيئة تجريبية معزولة. `report.md` (تدقيق كامل بالمسار ورقم السطر لكل نتيجة) يوثّق ثغرات حقيقية غير مُصلَحة بعد. **راجعه بالكامل قبل لمس `auth.ts`, `auth-functions.server.ts`, `data-functions.server.ts`, أو `supabase-server.ts`.** أهم النقاط:
 
-owner.index.tsx وowner.students.tsx: استبدال 764 و22 وأمثالها بقيم مشتقة فعلياً (students.length, groups.length).
+- **لا توجد سياسات RLS إطلاقاً** على أي جدول (قرار موثَّق صراحة كدين تقني مؤجَّل في `SUPABASE_MIGRATION_SPEC.md`، أصبح أخطر بعد وجود عملاء حقيقيين). العزل الوحيد هو فلترة `center_id` يدوياً في كل استعلام.
+- **دوال CRUD العامة (`insertRow`/`updateRow`/`upsertRow`/`deleteRows` في `data-functions.server.ts`) لا تتحقق من الدور (role) إطلاقاً** — أي حساب مسجَّل دخوله (حتى طالب) يقدر يستدعيها مباشرة (عبر HTTP، مش بس من الواجهة) ويعدّل بيانات أي جدول في مركزه، بما فيه رواتب ودرجات طلاب آخرين. طبقة `/platform/*` وحدها مطبِّقة تحققاً صحيحاً (`assertPlatformCaller`).
+- **`deleteRows` بدون تمرير `ids` تمسح الجدول بالكامل** لهذا المركز — احتمال فعلي لفقدان بيانات كارثي.
+- **كلمات السر نص صريح (plain text)** بلا أي تشفير، وتُعرض نص صريح في `owner.access.tsx`. حساب مالك تجريبي معروض بالكامل على صفحة الدخول العامة.
+- **`resolveCurrentStudent` يرجّع طالباً عشوائياً بدل `null`** عند جلسة غير صالحة (نفس فئة الخطأ اتصلحت للمدرس، نُسيت هنا) — تسريب بيانات محتمل بين عائلات.
+- **بنك إجابات الاختبارات (`correct_index`) يتخزّن ويُعرض حرفياً في بوابة الطالب** — أي طالب يقدر يشوف الإجابة الصحيحة قبل الحل.
+- **سكريبتات `scripts/reset-clean-slate.ts` و`reset-and-seed-real.ts` تمسح بيانات مركزين حقيقيين فعلاً بدون أي تأكيد أو نسخة احتياطية** — لا تُشغَّل هذه السكريبتات أبداً بدون التأكد المطلق من الهدف، ويُفضَّل إضافة حماية `--confirm`/`--dry-run` قبل أي استخدام قادم.
 
-5.6 ربط "وضع الحصة" فعلياً بالمصدر المركزي
+هذه ليست كلها "أخطاء" بمعنى النسيان — RLS وتشفير كلمات السر موثَّقان صراحة في `SUPABASE_MIGRATION_SPEC.md §0/§7` كديون تقنية مؤجَّلة بقرار واعٍ لمرحلة الإطلاق المبكر. **لكن أي عمل مستقبلي على المصادقة/الصلاحيات لازم يبدأ من قراءة `report.md` قسم 6 كاملاً، مش من افتراضات.** أي تغيير في نموذج المصادقة (تشفير كلمات سر، RLS، جلسات موقّعة) يمس حسابات حقيقية موجودة فعلاً — يحتاج تخطيط ترحيل (migration) واضح، مش استبدالاً مباشراً.
 
-teacher.session.tsx: كل تقييم واجب / نقطة سؤال / إطلاق مهام يتسجل مباشرة في data-store.ts (مش useState محلي بيضيع). النتيجة تظهر فوراً في لوحة الطالب/ولي الأمر/المالك عند رجوعهم للصفحة، وتفضل محفوظة بعد تسجيل خروج ودخول.
+---
 
-قاعدة عامة لكل Phase 0
+## 7) قاعدة البيانات — بنية الـ Migrations (نقطة تشغيلية حرجة)
 
-حافظ على نمط center_id في كل كيان (تحضير مسبق لعزل بيانات المستأجرين RLS عند ربط Supabase مستقبلاً). اكتب الكود بحيث الانتقال لاحقاً من localStorage إلى استعلامات Supabase يكون استبدال دالة داخلية بسيط (drop-in)، مش إعادة بناء لكل الصفحات.
+- `supabase/migrations/` فيه 24 ملفاً (0001→0030 بفجوات عند 0009-0011 و0027).
+- **0009, 0010, 0011 مش ناقصين — موجودين فقط في `db/`** (`db/0009_owner_control_tower.sql` إلخ) لأن منصة الاستضافة قفلت مجلد `supabase/migrations/` وقتها. **هذا يعني: تطبيق `supabase/migrations/` وحده على قاعدة بيانات جديدة (بيئة staging جديدة مثلاً) سيفشل**، لأن `0013_notifications_extension.sql` يفترض وجود جدول `notifications` الذي يُنشأ فقط في `db/0009`. لازم تطبيق ملفات `db/0009→0011` يدوياً (عبر Supabase SQL Editor) **قبل** باقي الـ migrations المرقّمة، وهذا غير موثَّق حالياً في `DEPLOYMENT_SPEC.md` — يستحق الإضافة هناك.
+- `db/handoff_*.sql` نسخ مطابقة لملفات مرقّمة موجودة أصلاً في `supabase/migrations/` — نفس آلية "شغّلها يدوياً لو المجلد مقفول"، مش تغييرات مختلفة.
+- **0027 فجوة حقيقية غير موثَّقة** — لا يوجد ملف بهذا الرقم في أي مكان، ولا تفسير في أي Spec. لو احتجت رقم migration جديد، ابدأ من 0031، ولا تحاول ملء 0027 بدون فهم سبب غيابه أولاً.
 
-6) منهجية العمل بعد Phase 0 — الترتيب ولماذا
+---
 
-المبدأ: الأطراف المنتجة للبيانات قبل الأطراف المستهلكة لها، عشان محدش يرجع يعدّل مرتين.
+## 8) خريطة الملفات الحرجة
 
-المدرس (Teacher) — منتج أساسي (حضور، درجات، تقييم، إطلاق مهام)
-الموظف (Staff) — منتج ثانٍ (فلوس، حضور بوابة الدخول، مخزون)
-المالك (Owner) — مستهلك بحت الآن (تجميع وعرض فقط، بيانات المصدر خلصت)
-الطالب + ولي الأمر معاً — نسخة طبق الأصل من بعض بصلاحية مختلفة، توفير وقت
-الزائر — آخر حاجة، أبسط طرف وأقل اعتماد
+```
+src/config/roles.ts                     ← مصدر التنقل (Sidebar) لكل الأدوار
+src/components/layout/AppShell.tsx      ← القالب العام (Sidebar+Header) — يؤثر على كل الصفحات
+src/components/dashboard/StatCard.tsx   ← StatCard, Panel, StatusBadge المشتركة
+src/components/session/                 ← مكوّنات "وضع الحصة" (SessionSteps, SessionFreeTimer, ActivityRunner...)
+src/hooks/use-countdown.ts              ← منطق عدّ تنازلي (⚠️ 3 تطبيقات مستقلة منفصلة موجودة فعلياً — انظر report.md #14)
+src/lib/auth.ts                         ← حسابات/جلسات (USE_SUPABASE flag + fallback localStorage ميت)
+src/lib/auth-functions.server.ts        ← دوال خادم المصادقة الحقيقية (signIn, createAccount, createCenter...)
+src/lib/data-store.ts                   ← 4400+ سطر: كل منطق الأعمال + التخزين المؤقت + المزامنة مع Supabase
+src/lib/data-functions.server.ts        ← طبقة CRUD عامة (insertRow/updateRow/upsertRow/deleteRows) فوق 44 جدولاً
+src/lib/platform-functions.server.ts    ← دوال خادم طبقة المنصة (assertPlatformCaller مطبَّق صح هنا)
+src/lib/supabase-server.ts              ← عميل Supabase الوحيد (service role) + resolveCenterId
+src/lib/owner-metrics.ts                ← كل حسابات KPI/تنبيهات المالك (مشتقة حقيقياً، لا نصوص ثابتة)
+src/lib/mock-data.ts                    ← seed لمركز جديد فقط — ليس مصدر بيانات حي
+src/lib/identifier-gen.ts               ← توليد أكواد الدخول (قرار أمني مؤقت موثَّق)
+src/lib/ai/lesson-pipeline.ts           ← Stub توليد الدرس بالـ AI (قسم 4)
+src/types/index.ts                      ← تعريفات الأنواع = القاموس الرسمي للبيانات
+src/routes/*.tsx                        ← 36 ملف route (owner:8, staff:5, teacher:6, student:6, parent:2, visitor:1, platform:4, login/index:4)
+supabase/migrations/ + db/              ← Schema (انظر قسم 7 — لازم تطبيق db/0009-0011 يدوياً)
+```
 
-كل دور هيتقسّم لتعديلات صغيرة متتالية (نفس منطق "3 تعديلات × 5 طلبات" اللي كان متبع في Lovable)، لكن بما إننا دلوقتي في Claude Code مباشرة: كل تعديل = مهمة هندسية محددة واحدة Claude Code ينفذها، يشغّل bun run dev للتأكد، يعمل commit بوصف واضح، وبعدين ننتقل للي بعده. مفيش داعي لصيغة "برومت" — الوصف المباشر للمهمة كافي.
+**مستندات Spec كاملة موجودة في جذر الريبو ويجب الرجوع لها قبل أي عمل في نطاقها:**
+`SUPABASE_MIGRATION_SPEC.md`, `PLATFORM_CLIENT_MANAGEMENT_SPEC.md`, `TEACHER_MODULE_SPEC.md`, `CURRICULUM_ENGINE_SPEC.md`, `DESIGN_ATMOSPHERE_SPEC.md`, `DEPLOYMENT_SPEC.md`, `report.md` (التدقيق الأمني/الهندسي الكامل).
 
-مثال تقسيم "تعديل 1" في المدرس (بعد Phase 0):
+---
 
-منطق وضع الحصة الأساسي (تثبيت الـ 4 مراحل بعد الربط بالـ store)
-فيتشرز ذكية (رفع درس PDF → توليد شرح وأسئلة تلقائي بالـ AI) — مؤجّل لحد ما Phase 0 يخلص
-الصفحة الرئيسية للمدرس (جدول مجموعات حقيقي، متابعة طلاب متعثرين من الداتا الحقيقية)
-7) قواعد عمل عامة لـ Claude Code في هذا المشروع
-لا تغيّر أي تصميم بصري (ألوان، خطوط، تخطيط) إلا لو طُلب صراحة — هذا القسم كله Refactor أو إضافة وظيفية فوق شكل ثابت بالفعل ومعتمد.
-حافظ على RTL/العربي في كل مكان — dir="rtl" وlang="ar" أساسيان في هذا المنتج.
-لا تكسر bun run dev بعد أي تعديل — تأكد بتشغيله قبل ما تعتبر المهمة خلصت.
-Commit صغير ومتكرر بوصف واضح بالعربي أو الإنجليزي (مش commit ضخم يجمع كذا حاجة).
-لا تضف مكتبات جديدة بدون داعي واضح — الستاك الحالي (recharts, lucide-react, shadcn/ui) كافي لمعظم الاحتياجات المتوقعة.
-عند الشك في نمط تصميم (زي إزاي تتعامل مع state مشترك)، ارجع لنمط auth.ts الموجود بالفعل كمرجع — هو النمط المُعتمد في هذا المشروع، لا تخترع نمط تاني بجانبه.
-ملف AGENTS.md الأصلي فيه ملاحظة خاصة بمزامنة Lovable (git history) — Lovable لم يعد مصدر التعديل الأساسي، لكن اتركه كما هو احتياطياً ما لم يُطلب حذفه.
-8) الخطوة التالية المباشرة
+## 9) قواعد عمل عامة
 
-تنفيذ Phase 0 (القسم 5 كامل) بالترتيب المكتوب فيه (5.1 → 5.6)، مع تشغيل bun run dev والتأكد من عدم وجود أي فرق بصري بعد كل خطوة فرعية، ثم commit، ثم الانتقال للفرعية التالية. بعد Phase 0، الانتظار لتعليمات تفصيلية لتعديل 1 في دور المدرس.
+1. لا تغيّر أي تصميم بصري (ألوان، خطوط، تخطيط) إلا لو طُلب صراحة.
+2. حافظ على RTL/العربي في كل مكان — `dir="rtl"` و`lang="ar"` أساسيان.
+3. `bun run dev`/`build`/`lint`/`tsc --noEmit` لازم تفضل نظيفة بعد أي تعديل.
+4. Commit صغير ومتكرر بوصف واضح (مش commit ضخم يجمع كذا حاجة غير مترابطة).
+5. لا تضف مكتبات جديدة بدون داعي واضح.
+6. عند الشك في نمط تعامل مع البيانات، ارجع لنمط `data-store.ts`/`auth.ts` الموجود (Optimistic update + مزامنة خلفية + `USE_SUPABASE` flag) — لا تخترع نمط تخزين تاني بجانبه.
+7. **لا تُشغّل `scripts/reset-clean-slate.ts` أو `scripts/reset-and-seed-real.ts` أبداً** إلا بتأكيد صريح ومباشر من المستخدم لهذا الاستخدام تحديداً — يمسحان بيانات مراكز حقيقية بلا نسخة احتياطية.
+8. أي تغيير في نموذج المصادقة/الصلاحيات (قسم 6) يحتاج تأكيداً من المستخدم قبل التنفيذ — يمس حسابات وبيانات حقيقية حية، وليس قراراً هندسياً بحتاً بلا أثر خارجي.
+9. `AGENTS.md` فيه فقط تحذير مزامنة Git الخاص بـ Lovable — لا تعليمات هندسية إضافية هناك.
+
+---
+
+## 10) الأولويات الموصى بها للعمل القادم (من `report.md` §10، بالترتيب)
+
+**فوري (أمان):** تعطيل/حماية سكريبتات التصفير المباشرة · إخفاء بيانات المالك التجريبي من صفحة الدخول العامة · إخفاء عرض كلمات السر في `owner.access.tsx` · إضافة تحقق دور حقيقي في `data-functions.server.ts`/`auth-functions.server.ts` · إصلاح `resolveCurrentStudent` (يرجّع `null` بدل طالب عشوائي) · منع تسريب `correct_index` للطالب.
+
+**قريب المدى:** تشفير كلمات السر (bcrypt/argon2) · توحيد الـ migrations أو توثيق خطوات `db/*.sql` بوضوح في `DEPLOYMENT_SPEC.md` · جلسة موقّعة/منتهية الصلاحية بدل identifier خام · إصلاحات أخطاء متفرقة موثَّقة بالتفصيل في `report.md` §7 (كاشير، وردية، ملاحظة مدرّس احتياطية...).
+
+**متوسط المدى:** Pagination على `fetchAllTablesForCenter` · تفعيل RLS تدريجياً · توحيد منطق العدّاد التنازلي في هوك واحد · اختبارات آلية أساسية (المشروع حالياً بصفر تغطية اختبارات).
+
+لا تبدأ أي عمل من هذه القائمة بدون توجيه صريح من المستخدم حول الأولوية — القائمة هنا للمرجعية، مش خطة تنفيذ تلقائية.
