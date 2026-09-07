@@ -10,7 +10,7 @@ import {
   QUESTION_KIND_LABELS,
 } from "@/components/session/SessionSteps";
 import {
-  ScoreTrendChart,
+  PerformanceChart,
   SubjectGauge,
   StudentCalendarWeekAttendanceChart,
 } from "@/components/dashboard/Charts";
@@ -25,6 +25,7 @@ import {
   getElectronicHomeworkScore,
   getGroupsForStudent,
   getOverallStudentPerformance,
+  getPerformanceLayers,
   recordAssessmentScore,
   setStudentAvatar,
   useDataStore,
@@ -176,21 +177,12 @@ function StudentPortal() {
 
   const behaviorScore = getAverageBehaviorScore(state, me.id);
 
-  // منحنى النتائج: يشمل كل الدرجات والتقييمات (quiz_results + assessment_scores)
-  // من كل حصة فعلية، مش الاختبارات بس — مرتّب زمنياً ومحدَّث لحظياً.
-  const quizTrend = state.quizResults
-    .filter((q) => q.student_id === me.id)
-    .map((q) => ({ label: q.date, at: Date.parse(q.date) || 0, score: Math.round((q.score / q.max_score) * 100) }));
-  const assessmentTrend = state.assessmentScores
-    .filter((a) => a.student_id === me.id && a.max_value > 0)
-    .map((a) => ({
-      label: new Date(a.recorded_at).toLocaleDateString("ar-EG", { numberingSystem: "latn" }),
-      at: Date.parse(a.recorded_at) || 0,
-      score: Math.round((a.value / a.max_value) * 100),
-    }));
-  const trend = [...quizTrend, ...assessmentTrend]
-    .sort((a, b) => a.at - b.at)
-    .map(({ label, score }) => ({ label, score }));
+  // ملخّص نتائجي: أعمدة مُجمَّعة (واجبات/مهام/أنشطة/سلوك) عبر كل المواد المشترك
+  // فيها الطالب — مش منحنى زمني لكل تسليم على حدة، ده تجميع حقيقي واضح للعين.
+  const performanceLayers = getPerformanceLayers(state, me.id).map((layer) => ({
+    subject: layer.label,
+    avg: layer.pct,
+  }));
 
   const today = WEEKDAYS[new Date().getDay()];
   const todaysGroups = myGroups.filter((g) => g.weekday === today);
@@ -314,8 +306,11 @@ function StudentPortal() {
       <ElectronicHomeworkSection state={state} studentId={me.id} />
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Panel title="منحنى نتائجي" description="كل الدرجات والتقييمات من كل حصة">
-          <ScoreTrendChart data={trend} />
+        <Panel
+          title="ملخّص نتائجي"
+          description="واجباتك ومهامك وأنشطتك وسلوكك مُجمَّعة عبر كل موادك"
+        >
+          <PerformanceChart data={performanceLayers} />
         </Panel>
         <Panel title="حضوري أسبوعياً" description="نسبة الحضور والغياب آخر ٤ أسابيع حقيقية">
           <StudentCalendarWeekAttendanceChart data={attendanceByCalendarWeek} />
