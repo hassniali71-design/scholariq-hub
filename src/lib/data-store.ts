@@ -1319,6 +1319,32 @@ export function classificationReason(student: Student): string {
 
 /* ---------------- Mutations ---------------- */
 
+/**
+ * يعيد حساب attendance_rate/avg_score من سجلات الحضور والتقييمات الفعلية للطالب —
+ * كانا يُكتَبان مرة واحدة بس عند الإنشاء (صفر) ولا يتحدّثان بعدها أبداً، فكانت
+ * أرقام الطالب تفضل صفر عند المدرس/المالك/الطالب نفسه حتى بعد تسجيل حضور/درجات
+ * حقيقية. نفس نمط تحديث `balance_due` الموجود بالفعل عند كل عملية دفع — هنا لكن
+ * للحضور والدرجات. يُستدعى من كل دالة تسجّل حضوراً أو درجة حقيقية.
+ */
+export function recomputeStudentStats(studentId: string): void {
+  let patch: { attendance_rate: number; avg_score: number } | null = null;
+  update((state) => {
+    const student = findStudentById(state, studentId);
+    if (!student) return state;
+    const records = state.attendanceRecords.filter((a) => a.student_id === studentId);
+    const attendance_rate =
+      records.length > 0
+        ? Math.round((records.filter((r) => r.status !== "absent").length / records.length) * 100)
+        : 0;
+    const scores = state.assessmentScores.filter((a) => a.student_id === studentId && a.max_value > 0);
+    const avg_score = averagePercent(scores);
+    patch = { attendance_rate, avg_score };
+    const students = state.students.map((s) => (s.id === studentId ? { ...s, ...patch! } : s));
+    return { ...state, students, leaderboard: buildLeaderboard(students) };
+  });
+  if (patch) syncUpdate("students", studentId, patch);
+}
+
 /** `sessionId`: only passed from inside session mode — logs a durable SessionEvent too (§7-ح). */
 export function recordAttendance(
   studentId: string,
@@ -1373,6 +1399,7 @@ export function recordAttendance(
   if (record) syncInsert("attendance_records", record);
   if (log) syncInsert("whatsapp_logs", log);
   if (event) syncInsert("session_events", event);
+  if (record) recomputeStudentStats(studentId);
 }
 
 /**
@@ -2900,6 +2927,7 @@ export function recordAssessmentScore(input: AssessmentScoreInput) {
     return { ...state, assessmentScores };
   });
   if (entry) syncUpsert("assessment_scores", entry);
+  if (entry) recomputeStudentStats(input.studentId);
 }
 
 /** §8: has this student already completed this lesson's electronic homework? */
@@ -3808,14 +3836,38 @@ export function recordHomeworkAttempt(input: RecordHomeworkAttemptInput): Homewo
   return row;
 }
 
+/**
+ * تصحيح محاولة واجب — كانت بتحدّث homework_attempts بس، وأبداً مش بتلمس نقاط
+ * الطالب (كانت تفضل صفر بعد التصحيح رغم ظهور الدرجة في المحاولة نفسها). دلوقتي
+ * بتضيف فرق النقاط (فرق الدرجة الجديدة عن القديمة، مقاسة على ٥٠ نقطة).
+ */
 export function scoreHomeworkAttempt(attemptId: string, score: number, maxScore: number): void {
-  update((state) => ({
-    ...state,
-    homeworkAttempts: state.homeworkAttempts.map((a) =>
-      a.id === attemptId ? { ...a, score, max_score: maxScore } : a,
-    ),
-  }));
+  let studentId: string | null = null;
+  let nextPoints: number | null = null;
+  update((state) => {
+    const attempt = state.homeworkAttempts.find((a) => a.id === attemptId);
+    if (!attempt) return state;
+    studentId = attempt.student_id;
+    const prevPoints =
+      attempt.score !== null && attempt.max_score ? Math.round((attempt.score / attempt.max_score) * 50) : 0;
+    const newPoints = maxScore > 0 ? Math.round((score / maxScore) * 50) : 0;
+    const delta = newPoints - prevPoints;
+    const students = state.students.map((s) => {
+      if (s.id !== attempt.student_id) return s;
+      nextPoints = s.points + delta;
+      return { ...s, points: nextPoints };
+    });
+    return {
+      ...state,
+      students,
+      leaderboard: buildLeaderboard(students),
+      homeworkAttempts: state.homeworkAttempts.map((a) =>
+        a.id === attemptId ? { ...a, score, max_score: maxScore } : a,
+      ),
+    };
+  });
   syncUpdate("homework_attempts", attemptId, { score, max_score: maxScore });
+  if (studentId && nextPoints !== null) syncUpdate("students", studentId, { points: nextPoints });
 }
 
 export function getHomeworkAttemptsForLaunch(state: DataState, launchId: string): HomeworkAttempt[] {
