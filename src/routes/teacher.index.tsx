@@ -21,6 +21,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { AvatarUpload } from "@/components/shared/AvatarUpload";
 import { PlatformTeacherNoteCard } from "@/components/teacher/PlatformTeacherNoteCard";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
+import { StudentMessagesCard } from "@/components/teacher/StudentMessagesCard";
 import { SubjectRoomHeader } from "@/components/teacher/SubjectRoomHeader";
 import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import {
@@ -117,6 +118,8 @@ function TeacherHome() {
       </div>
 
       <PlatformTeacherNoteCard subjectId={teacher.subject_id} />
+
+      <StudentMessagesCard teacherId={teacher.id} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="عدد الطلاب" value={formatNumber(myStudents.length)} icon={Users} />

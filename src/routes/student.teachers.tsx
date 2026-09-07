@@ -11,8 +11,10 @@ import {
   getCurriculumProgress,
   getGroupResourcesForGroup,
   getGroupsForStudent,
+  pushNotification,
   useDataStore,
 } from "@/lib/data-store";
+import { buildDmKind, getDmThread } from "@/lib/dm-messages";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Group } from "@/types";
 
@@ -156,48 +158,114 @@ function TeachersPage() {
         })
       )}
 
-      {messageFor ? <QuickMessageModal group={messageFor} onClose={() => setMessageFor(null)} /> : null}
+      {messageFor ? (
+        <QuickMessageModal
+          group={messageFor}
+          studentId={me.id}
+          studentName={me.full_name}
+          onClose={() => setMessageFor(null)}
+        />
+      ) : null}
     </AppShell>
   );
 }
 
 /**
- * رسالة سريعة تجميلية للمدرس — لا يوجد نظام مراسلة حقيقي بين الطالب والمدرس في
- * المشروع بعد، فهي بلا حفظ حقيقي (نفس روح الشات بوت الخفيف)، مجرد تفاعل بصري.
+ * رسالة حقيقية للمدرس — بدون قاعدة بيانات مخصّصة لمحادثات (نفس نمط
+ * OwnerNotesCard: notifications بـkind نصي يحدد الأطراف)، لكن الطرفين
+ * فعلاً بيستقبلوا ويردّوا على بعض زي شات بسيط.
  */
-function QuickMessageModal({ group, onClose }: { group: Group; onClose: () => void }) {
+function QuickMessageModal({
+  group,
+  studentId,
+  studentName,
+  onClose,
+}: {
+  group: Group;
+  studentId: string;
+  studentName: string;
+  onClose: () => void;
+}) {
+  const state = useDataStore();
   const [text, setText] = useState("");
+  const thread = getDmThread(state.notifications, studentId, group.teacher_id);
+
+  function send() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    pushNotification(
+      buildDmKind(studentId, group.teacher_id, "student"),
+      "info",
+      studentName,
+      trimmed,
+    );
+    setText("");
+    toast.success(`تم إرسال رسالتك لـ${group.teacher_name}`);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-md rounded-2xl border-2 border-border bg-background p-5 shadow-2xl"
+        className="flex h-[28rem] w-full max-w-md flex-col rounded-2xl border-2 border-border bg-background p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-black text-foreground">رسالة سريعة لـ{group.teacher_name}</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted">
+          <h3 className="text-lg font-black text-foreground">رسالة لـ{group.teacher_name}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+          >
             <X className="size-4" />
           </button>
         </div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-          maxLength={300}
-          placeholder={`اكتب رسالتك عن مادة ${group.subject}…`}
-          className="w-full rounded-xl border-2 border-border bg-background p-2 text-sm font-bold outline-none focus:border-primary"
-        />
-        <button
-          type="button"
-          disabled={!text.trim()}
-          onClick={() => {
-            toast.success(`تم إرسال رسالتك لـ${group.teacher_name}`);
-            onClose();
-          }}
-          className="mt-3 w-full rounded-xl bg-navy px-4 py-2.5 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          إرسال
-        </button>
+        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+          {thread.length === 0 ? (
+            <p className="rounded-xl border-2 border-dashed border-border p-4 text-center text-xs font-bold text-muted-foreground">
+              ابدأ أول رسالة عن مادة {group.subject}…
+            </p>
+          ) : (
+            thread.map((n) => (
+              <div
+                key={n.id}
+                className={
+                  n.kind.endsWith(":student")
+                    ? "mr-auto max-w-[85%] rounded-2xl rounded-bl-sm bg-primary/10 px-3 py-2 text-sm font-bold text-foreground"
+                    : "ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-muted px-3 py-2 text-sm font-bold text-foreground"
+                }
+              >
+                {n.body}
+              </div>
+            ))
+          )}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={1}
+            maxLength={300}
+            placeholder={`اكتب رسالتك عن مادة ${group.subject}…`}
+            className="h-11 flex-1 resize-none rounded-xl border-2 border-border bg-background p-2.5 text-sm font-bold outline-none focus:border-primary"
+          />
+          <button
+            type="button"
+            disabled={!text.trim()}
+            onClick={send}
+            className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-navy px-4 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            إرسال
+          </button>
+        </div>
       </div>
     </div>
   );
