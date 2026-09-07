@@ -5,7 +5,6 @@ import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { DailyStaffEvents } from "@/components/staff/DailyStaffEvents";
 import { getSession } from "@/lib/auth";
 import { getTasksForAssignee, setTaskStatus, useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -70,8 +69,6 @@ function TeacherTasksPage() {
           tone="success"
         />
       </div>
-
-      <DailyStaffEvents />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="مستعجل/متأخر" description="أولوية قصوى أو مرّ الموعد">

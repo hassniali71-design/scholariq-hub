@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Banknote, Calculator, HandCoins, Wallet } from "lucide-react";
+import { Banknote, HandCoins, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,12 +9,7 @@ import { MonthOverMonthPanel } from "@/components/owner/MonthOverMonthPanel";
 import { PaperCreditsPanel } from "@/components/owner/PaperCreditsPanel";
 import { AppShell } from "@/components/layout/AppShell";
 import { getAccounts, subscribeAuth, type Account } from "@/lib/auth";
-import {
-  getFinanceSettings,
-  recordSafeHandover,
-  saveFinanceSettings,
-  useDataStore,
-} from "@/lib/data-store";
+import { recordSafeHandover, useDataStore } from "@/lib/data-store";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/owner/treasury")({
@@ -32,7 +27,6 @@ export const Route = createFileRoute("/owner/treasury")({
 
 function TreasuryPage() {
   const state = useDataStore();
-  const settings = getFinanceSettings(state);
   const [staff, setStaff] = useState<Account[]>([]);
 
   useEffect(() => {
@@ -215,5 +209,3 @@ function TreasuryPage() {
     </AppShell>
   );
 }
-
-void Calculator;

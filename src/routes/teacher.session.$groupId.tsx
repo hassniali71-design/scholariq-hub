@@ -39,6 +39,7 @@ import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import { useSession } from "@/hooks/use-current-student";
 import { retryLessonPipeline, runLessonPipeline } from "@/lib/ai/lesson-pipeline";
 import { formatNumber } from "@/lib/format";
+import { getSession } from "@/lib/auth";
 import {
   getAssessmentScoresForLesson,
   getBookExerciseTask,
@@ -56,6 +57,7 @@ import {
   recordRandomPick,
   recordSessionSummary,
   releaseSessionTasks,
+  resolveCurrentTeacher,
   updateLessonSlide,
   updateQuizQuestion,
   useDataStore,
@@ -115,9 +117,20 @@ const SECTIONS: SessionSectionDef[] = [
 
 export const Route = createFileRoute("/teacher/session/$groupId")({
   beforeLoad: ({ params }) => {
-    const exists = getData().groups.some((g) => g.id === params.groupId);
-    if (!exists) {
+    const data = getData();
+    const group = data.groups.find((g) => g.id === params.groupId);
+    if (!group) {
       throw redirect({ to: "/teacher" });
+    }
+    // نتحقق من ملكية المدرس للمجموعة هنا (قبل ما الصفحة تعرض أي بيانات)، مش بس
+    // في useEffect بعد الرسم — عشان بيانات مجموعة مدرس تاني ما تتقراش أصلاً.
+    // getSession يعتمد على localStorage فمتاح على المتصفح بس (typeof window check).
+    if (typeof window !== "undefined") {
+      const session = getSession();
+      const teacher = resolveCurrentTeacher(data, session?.identifier);
+      if (teacher && group.teacher_id !== teacher.id && group.teacher_user_id !== teacher.user_id) {
+        throw redirect({ to: "/teacher" });
+      }
     }
   },
   head: () => ({
@@ -230,8 +243,9 @@ function SessionMode() {
 
   const attendanceStatus = useCallback(
     (studentId: string): AttendanceStatus | null =>
-      attendanceRecords.find((a) => a.student_id === studentId)?.status ?? null,
-    [attendanceRecords],
+      attendanceRecords.find((a) => a.student_id === studentId && a.group_name === group.name)
+        ?.status ?? null,
+    [attendanceRecords, group.name],
   );
   const attendedStudentIds = useMemo(
     () =>
@@ -275,6 +289,8 @@ function SessionMode() {
             ? "نفس الملف اتعالج قبل كده — استخدمنا النتيجة المحفوظة فوراً"
             : "تم توليد عرض الدرس بنجاح",
         );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "فشل رفع الملف — حاول مرة أخرى");
       } finally {
         setUploading(false);
       }
@@ -295,6 +311,8 @@ function SessionMode() {
     try {
       await retryLessonPipeline(selectedLesson.id, group.subject);
       toast.success("تم توليد عرض الدرس بنجاح");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "فشلت إعادة المحاولة");
     } finally {
       setUploading(false);
     }

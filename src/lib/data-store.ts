@@ -49,6 +49,7 @@ import type {
   Grade,
   GradeSubject,
   Group,
+  GroupActivation,
   GroupResource,
   HomeworkAttempt,
   HomeworkTask,
@@ -78,6 +79,7 @@ import type {
   LessonPlan,
   PlatformTeacherNote,
   Student,
+  StudentGroupEnrollment,
   Subject,
   SuggestedActivity,
   Task,
@@ -314,6 +316,10 @@ export interface DataState {
   teacherLaunches: TeacherLaunch[];
   /** Migration 0023 (المرحلة A): محاولات الطلاب على الواجبات الإلكترونية. */
   homeworkAttempts: HomeworkAttempt[];
+  /** Migration 0029: إشارة "نشطة الآن" مستقلة — فعل الموظف فقط، انظر تعليق GroupActivation. */
+  groupActivations: GroupActivation[];
+  /** Migration 0030: تسجيل الطالب في مجموعات إضافية (مواد تانية) — إضافي بحت. */
+  studentGroupEnrollments: StudentGroupEnrollment[];
 }
 
 /* ---------------- Derived helpers ---------------- */
@@ -423,6 +429,8 @@ function seedState(): DataState {
     groupResources: [],
     teacherLaunches: [],
     homeworkAttempts: [],
+    groupActivations: [],
+    studentGroupEnrollments: [],
   };
 }
 
@@ -589,13 +597,35 @@ export function findStudentById(state: DataState, id: string): Student | undefin
 }
 
 /**
- * Resolves the student the current session is about.
- * Parents authenticate with their child's student code, so the same
- * resolution works for both `student` and `parent` roles.
+ * Resolves the student the current session is about, or `null` if no
+ * student matches the session's identifier (invalid/stale session, or no
+ * session at all). Parents authenticate with their child's student code,
+ * so the same resolution works for both `student` and `parent` roles.
+ *
+ * Real fix for the same bug class `resolveCurrentTeacher` already fixed
+ * (see its comment): this used to fall back to `state.students[0]!`, which
+ * meant an invalid/stale student or parent session silently showed a
+ * DIFFERENT family's grades, balance, and WhatsApp log instead of being
+ * rejected — a real cross-family data leak, not just a display glitch.
+ *
+ * Breaking change vs the previous `Student` return: consumers MUST check
+ * for `null` and redirect to `/login` (same pattern as `useCurrentTeacher`
+ * callers).
  */
-export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student | undefined {
-  const match = identifier ? findStudentByCode(state, identifier) : undefined;
-  return match ?? state.students[0] ?? undefined;
+export function resolveCurrentStudent(state: DataState, identifier?: string | null): Student | null {
+  if (!identifier) return null;
+  return findStudentByCode(state, identifier) ?? null;
+}
+
+/** صورة بروفايل الطالب (base64) — Migration 0028، نفس نمط تخزين ملفات teacher_launches. */
+export function setStudentAvatar(studentId: string, dataUrl: string, mime: string): void {
+  update((state) => ({
+    ...state,
+    students: state.students.map((s) =>
+      s.id === studentId ? { ...s, avatar_data: dataUrl, avatar_mime: mime } : s,
+    ),
+  }));
+  syncUpdate("students", studentId, { avatar_data: dataUrl, avatar_mime: mime });
 }
 
 /**
@@ -890,6 +920,7 @@ export function getNextPlannedLesson(
   return undefined;
 }
 
+/** تقدّم منهج مادة/صف واحد: عدد الوحدات/الدروس والمكتمل منها + الدرس القادم — لصفحة "مدرّسيني ومنهجي". */
 export interface SubjectCurriculumProgress {
   subject: Subject;
   unitCount: number;
@@ -961,6 +992,27 @@ export function getPerformanceLabel(avgPercent: number): string {
   if (avgPercent >= 25) return "ضعيف";
   if (avgPercent >= 10) return "يحتاج متابعة عاجلة";
   return "خطر — يحتاج تدخل فوري";
+}
+
+/**
+ * نظام التفسير الرباعي المطلوب صراحة لصفحة "المستويات" (ولوحتي): كل رقم/مؤشر
+ * معاه نص تفسيري حسب فئته الأربع، مش رقم مجرد بلا معنى.
+ */
+export function getFourTierLabel(pct: number): {
+  tier: 1 | 2 | 3 | 4;
+  text: string;
+  tone: "destructive" | "warning" | "primary" | "success";
+} {
+  if (pct <= 40) {
+    return { tier: 1, text: "يحتاج انتباه فوري — راجع واجباتك ومهامك في هذه المادة", tone: "destructive" };
+  }
+  if (pct <= 60) {
+    return { tier: 2, text: "مستوى متوسط — حاول تخصص وقت مذاكرة إضافي", tone: "warning" };
+  }
+  if (pct <= 80) {
+    return { tier: 3, text: "مستوى جيد — استمر بنفس الجهد", tone: "primary" };
+  }
+  return { tier: 4, text: "مستوى ممتاز — افتخر بنفسك وحافظ عليه", tone: "success" };
 }
 
 export interface WeakPointDiagnosis {
@@ -1078,6 +1130,35 @@ export function getSubjectPerformanceSummary(
         : "same",
     lessonsRecordedCount: lessonIds.length,
   };
+}
+
+export interface PerformanceLayer {
+  key: "homework" | "tasks" | "activity" | "behavior";
+  label: string;
+  pct: number;
+  hasData: boolean;
+}
+
+/**
+ * 4 طبقات أداء منفصلة (المطلوبة صراحة لصفحة "المستويات"): الواجبات (homework +
+ * e_homework)، المهام (أسئلة الحصة الحية)، الأنشطة، والسلوك — كل طبقة بمتوسطها
+ * الحقيقي من assessment_scores، مش رقم واحد مجمَّع.
+ */
+export function getPerformanceLayers(state: DataState, studentId: string): PerformanceLayer[] {
+  const pctFor = (categories: AssessmentScore["category"][]) => {
+    const scores = state.assessmentScores.filter(
+      (s) => s.student_id === studentId && categories.includes(s.category),
+    );
+    if (scores.length === 0) return { pct: 0, hasData: false };
+    const pct = averagePercent(scores);
+    return { pct, hasData: true };
+  };
+  return [
+    { key: "homework", label: "الواجبات", ...pctFor(["homework", "e_homework"]) },
+    { key: "tasks", label: "المهام (أسئلة الحصة)", ...pctFor(["question"]) },
+    { key: "activity", label: "الأنشطة", ...pctFor(["activity"]) },
+    { key: "behavior", label: "السلوك", ...pctFor(["behavior"]) },
+  ];
 }
 
 export interface OverallStudentPerformance {
@@ -1241,6 +1322,34 @@ export function recordAttendance(
 }
 
 /**
+ * Migration 0029 — يسجّل المجموعة كـ"نشطة الآن" لعرض "المجموعات النشطة" عند المالك.
+ * يُستدعى فقط من داخل `startGroupSession` و`markAttendanceForGroup` (فعل الموظف)،
+ * أبداً من أي مسار يخص وضع الحصة عند المدرس — هذا هو الفصل المطلوب بالضبط.
+ * تحقّق سريع من عدم تكرار تسجيل نفس المجموعة أكثر من مرة في نفس اليوم.
+ */
+function activateGroupNow(groupId: string) {
+  const state = readState();
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+  const now = new Date();
+  const alreadyToday = state.groupActivations.some(
+    (a) => a.group_id === groupId && sameDay(a.activated_at, now),
+  );
+  if (alreadyToday) return;
+  let activation: GroupActivation | null = null;
+  update((s) => {
+    activation = {
+      id: `gact-${Date.now()}`,
+      center_id: group.center_id,
+      group_id: groupId,
+      activated_at: now.toISOString(),
+    };
+    return { ...s, groupActivations: [activation, ...s.groupActivations] };
+  });
+  if (activation) syncInsert("group_activations", activation);
+}
+
+/**
  * Migration 0023 / خطة C (C14): "بدأت الحصة" — الموظف يفتح الحصة ويُسجّل
  * كل طلاب المجموعة كـ "حاضر" في انتظار تأكيد المدرس. لا يمسح الحالات
  * اليدوية الموجودة (المتأخر/الغائب) — فقط الطلاب بلا سجل لليوم.
@@ -1252,6 +1361,7 @@ export function startGroupSession(groupId: string): { sessionId: string; marked:
   const sessionId = `sess-${Date.now()}`;
   const state = readState();
   const students = getStudentsForGroup(state, groupId);
+  activateGroupNow(groupId);
   let marked = 0;
   for (const s of students) {
     // تخطّي الطلاب اللي عندهم سجل حضور/تأخر لليوم
@@ -1330,51 +1440,6 @@ export function getAttendanceForSession(
   return state.attendanceRecords.find(
     (a) => a.student_id === studentId && a.session_id === sessionId,
   );
-}
-
-export interface StudentAttendanceSeries {
-  day: string;
-  present: number;
-  absent: number;
-}
-
-export function getStudentAttendanceSeries(
-  state: DataState,
-  studentId: string,
-): StudentAttendanceSeries[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const records = state.attendanceRecords.filter((r) => {
-    if (r.student_id !== studentId) return false;
-    if (!r.checked_in_at || r.checked_in_at === "—") return false;
-    const d = new Date(r.checked_in_at);
-    if (Number.isNaN(d.getTime())) return false;
-    return true;
-  });
-
-  const buckets: { present: number; absent: number }[] = Array.from({ length: 4 }, () => ({
-    present: 0,
-    absent: 0,
-  }));
-
-  for (const r of records) {
-    const d = new Date(r.checked_in_at);
-    const diffMs = today.getTime() - d.getTime();
-    const bucketIndex = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
-    const bucket = buckets[bucketIndex];
-    if (!bucket) continue;
-    if (r.status === "present" || r.status === "late") {
-      bucket.present += 1;
-    } else if (r.status === "absent") {
-      bucket.absent += 1;
-    }
-  }
-
-  return [...buckets].reverse().map((b, i) => ({
-    day: `أسبوع ${i + 1}`,
-    present: b.present,
-    absent: b.absent,
-  }));
 }
 
 /**
@@ -1670,6 +1735,7 @@ export function markAttendanceForGroup(
   });
   if (record) syncUpsert("attendance_records", record);
   if (log) syncInsert("whatsapp_logs", log);
+  if (record) activateGroupNow(groupId);
   return result;
 }
 
@@ -2181,7 +2247,7 @@ export function getPlatformNotesForSubject(
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
-export function closeShift(countedAmount: number) {
+export function closeShift(countedAmount: number): { expected: number; diff: number } {
   let closure: ShiftClosure | null = null;
   update((state) => {
     const expected = state.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -2195,11 +2261,13 @@ export function closeShift(countedAmount: number) {
     };
     return { ...state, shiftClosures: [closure, ...state.shiftClosures] };
   });
-  if (closure) {
-    const c = closure as ShiftClosure;
-    syncInsert("shift_closures", c);
-    logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
-  }
+  const c = closure as ShiftClosure;
+  syncInsert("shift_closures", c);
+  logActivity("shift", "تقفيل وردية", `الفرق: ${c.diff} ج.م`, null, c.counted);
+  // القيمة المرجعة هي المرجع الرسمي المُسجَّل فعلياً (محسوبة لحظة الإغلاق نفسها) —
+  // الواجهة تعرض هذه القيمة بعد التقفيل بدل إعادة حسابها محلياً من بيانات قد تكون
+  // تغيّرت بين لحظة الضغط ولحظة الرسم.
+  return { expected: c.expected, diff: c.diff };
 }
 
 function ensureLiveScore(state: DataState, student: Student): LiveScore {
@@ -3015,11 +3083,48 @@ export function setStaffPermissions(
   update((state) => {
     const existing = state.staffPermissions.find((p) => p.account_identifier === identifier);
     row = {
+      ...existing,
       id: existing?.id ?? `perm-${identifier}`,
       center_id: state.center.id,
       account_identifier: identifier,
       full_name: fullName,
       permissions,
+      updated_at: new Date().toISOString(),
+    };
+    const rest = state.staffPermissions.filter((p) => p.account_identifier !== identifier);
+    return { ...state, staffPermissions: [...rest, row] };
+  });
+  if (row) syncUpsert("staff_permissions", row, "account_identifier");
+}
+
+/** الراتب المتوقع للموظف — تذكير فقط في صفحة التدفق المالي، لا يُخصم تلقائياً. نفس نمط setStaffPermissions (تحديث/إنشاء صف واحد لكل موظف). */
+export function getStaffExpectedSalary(
+  state: DataState,
+  identifier: string,
+): { basis: PayrollBasis; value: number } | null {
+  const row = state.staffPermissions.find((p) => p.account_identifier === identifier);
+  if (!row?.expected_salary_basis || row.expected_salary_value == null) return null;
+  return { basis: row.expected_salary_basis, value: row.expected_salary_value };
+}
+
+export function setStaffExpectedSalary(
+  identifier: string,
+  fullName: string,
+  basis: PayrollBasis,
+  value: number,
+) {
+  let row: StaffPermissionRecord | null = null;
+  update((state) => {
+    const existing = state.staffPermissions.find((p) => p.account_identifier === identifier);
+    row = {
+      ...existing,
+      id: existing?.id ?? `perm-${identifier}`,
+      center_id: state.center.id,
+      account_identifier: identifier,
+      full_name: fullName,
+      permissions: existing?.permissions ?? [],
+      expected_salary_basis: basis,
+      expected_salary_value: value,
       updated_at: new Date().toISOString(),
     };
     const rest = state.staffPermissions.filter((p) => p.account_identifier !== identifier);
@@ -3899,6 +4004,77 @@ function hoursAgo(iso: string): string {
 
 
 /** متوسط درجة السلوك لكل طالب (يستخدمه owner.compliance). */
+export interface EarnedBadge {
+  key: "question_streak" | "full_attendance" | "no_late_homework" | "improving";
+  title: string;
+  text: string;
+}
+
+/**
+ * شارات حقيقية مشتقة من بيانات فعلية — مش نص تزييني ثابت. تُحسب من نفس
+ * الجداول اللي بتتغذى من "وضع الحصة" فعلياً (assessmentScores/attendanceRecords/
+ * homeworkTasks/quizResults)، وما تظهرش أي شارة إلا لو الطالب استحقّها فعلاً.
+ */
+export function getEarnedBadges(state: DataState, studentId: string): EarnedBadge[] {
+  const badges: EarnedBadge[] = [];
+
+  const correctQuestions = state.assessmentScores.filter(
+    (s) => s.student_id === studentId && s.category === "question" && s.value >= s.max_value,
+  ).length;
+  if (correctQuestions >= 5) {
+    badges.push({
+      key: "question_streak",
+      title: "بطل الأسئلة",
+      text: `${correctQuestions} إجابة صحيحة على أسئلة الحصة حتى الآن`,
+    });
+  }
+
+  const myAttendance = state.attendanceRecords.filter((a) => a.student_id === studentId);
+  if (myAttendance.length >= 5) {
+    const presentOrLate = myAttendance.filter((a) => a.status !== "absent").length;
+    const rate = Math.round((presentOrLate / myAttendance.length) * 100);
+    if (rate >= 95) {
+      badges.push({
+        key: "full_attendance",
+        title: "الالتزام الكامل",
+        text: `معدل حضور ${rate}% عبر ${myAttendance.length} حصة`,
+      });
+    }
+  }
+
+  const myHomework = state.homeworkTasks.filter(
+    (h) => h.student_id === studentId && h.status !== "pending",
+  );
+  const lateHomework = myHomework.filter((h) => h.status === "late").length;
+  if (myHomework.length >= 5 && lateHomework === 0) {
+    badges.push({
+      key: "no_late_homework",
+      title: "واجب بلا تأخير",
+      text: `${myHomework.length} واجب تم تسليمهم في الموعد بلا أي تأخير`,
+    });
+  }
+
+  const myQuizzes = [...state.quizResults]
+    .filter((q) => q.student_id === studentId)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((q) => (q.max_score > 0 ? (q.score / q.max_score) * 100 : 0));
+  if (myQuizzes.length >= 6) {
+    const older = myQuizzes.slice(0, myQuizzes.length - 3);
+    const recent = myQuizzes.slice(-3);
+    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const improvement = Math.round(avg(recent) - avg(older));
+    if (improvement >= 10) {
+      badges.push({
+        key: "improving",
+        title: "الأعلى تقدماً",
+        text: `تحسّن ${improvement}٪ في متوسط آخر تقييماتك`,
+      });
+    }
+  }
+
+  return badges;
+}
+
 export function getAverageBehaviorScore(state: DataState, studentId: string): number | null {
   const scores = state.assessmentScores.filter(
     (s) => s.student_id === studentId && s.category === "behavior",
@@ -4093,17 +4269,30 @@ export function addStudentToGroup(
   if (group.enrolled >= group.capacity) {
     return { ok: false, reason: "السعة مكتملة" };
   }
+  // لو الطالب كان مسجَّل في مجموعة تانية قبل كده، لازم ننقّص عدد المسجَّلين فيها
+  // (كانت المجموعة القديمة بتفضل عدادها زي ما هو غلط لو نقلنا الطالب من غيرها).
+  const previousGroupId = student.group_id;
   update((s) => ({
     ...s,
-    groups: s.groups.map((g) =>
-      g.id === groupId ? { ...g, enrolled: g.enrolled + 1 } : g,
-    ),
+    groups: s.groups.map((g) => {
+      if (g.id === groupId) return { ...g, enrolled: g.enrolled + 1 };
+      if (previousGroupId && g.id === previousGroupId) {
+        return { ...g, enrolled: Math.max(0, g.enrolled - 1) };
+      }
+      return g;
+    }),
     students: s.students.map((st) =>
       st.id === studentId ? { ...st, group_id: groupId, group_name: group.name } : st,
     ),
   }));
   syncUpdate("students", studentId, { group_id: groupId, group_name: group.name });
   syncUpdate("groups", groupId, { enrolled: group.enrolled + 1 });
+  if (previousGroupId && previousGroupId !== groupId) {
+    const previousGroup = state.groups.find((g) => g.id === previousGroupId);
+    if (previousGroup) {
+      syncUpdate("groups", previousGroupId, { enrolled: Math.max(0, previousGroup.enrolled - 1) });
+    }
+  }
   return { ok: true };
 }
 
@@ -4132,6 +4321,72 @@ export function removeStudentFromGroup(studentId: string): void {
 
 export function getGroupsForGrade(state: DataState, gradeId: string): Group[] {
   return state.groups.filter((g) => g.grade_id === gradeId);
+}
+
+/**
+ * Migration 0030 — كل مجموعات الطالب: المجموعة الأساسية (student.group_id، لسه
+ * المصدر الوحيد للحضور/المدفوعات/وضع الحصة) + أي مجموعات إضافية سُجِّل فيها عبر
+ * enrollStudentInAdditionalGroup (لمواد تانية). مُستخدمة في صفحة "مدرّسيني ومنهجي".
+ */
+export function getGroupsForStudent(state: DataState, studentId: string): Group[] {
+  const student = state.students.find((s) => s.id === studentId);
+  const extraGroupIds = state.studentGroupEnrollments
+    .filter((e) => e.student_id === studentId)
+    .map((e) => e.group_id);
+  const ids = new Set<string>(extraGroupIds);
+  if (student?.group_id) ids.add(student.group_id);
+  return state.groups.filter((g) => ids.has(g.id));
+}
+
+/** تسجيل الطالب في مجموعة إضافية (مادة تانية) — لا يلمس student.group_id إطلاقاً. */
+export function enrollStudentInAdditionalGroup(
+  studentId: string,
+  groupId: string,
+): { ok: boolean; reason?: string } {
+  const state = getData();
+  const student = state.students.find((s) => s.id === studentId);
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!student || !group) return { ok: false, reason: "بيانات غير مكتملة" };
+  if (student.group_id === groupId) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
+  const already = state.studentGroupEnrollments.some(
+    (e) => e.student_id === studentId && e.group_id === groupId,
+  );
+  if (already) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
+  if (group.enrolled >= group.capacity) return { ok: false, reason: "السعة مكتملة" };
+  let row: StudentGroupEnrollment | null = null;
+  update((s) => {
+    row = {
+      id: `sge-${Date.now()}`,
+      center_id: student.center_id,
+      student_id: studentId,
+      group_id: groupId,
+    };
+    return {
+      ...s,
+      studentGroupEnrollments: [row, ...s.studentGroupEnrollments],
+      groups: s.groups.map((g) => (g.id === groupId ? { ...g, enrolled: g.enrolled + 1 } : g)),
+    };
+  });
+  if (row) syncInsert("student_group_enrollments", row);
+  syncUpdate("groups", groupId, { enrolled: group.enrolled + 1 });
+  return { ok: true };
+}
+
+export function unenrollStudentFromAdditionalGroup(enrollmentId: string): void {
+  const state = getData();
+  const enrollment = state.studentGroupEnrollments.find((e) => e.id === enrollmentId);
+  const group = enrollment ? state.groups.find((g) => g.id === enrollment.group_id) : undefined;
+  update((s) => ({
+    ...s,
+    studentGroupEnrollments: s.studentGroupEnrollments.filter((e) => e.id !== enrollmentId),
+    groups: enrollment
+      ? s.groups.map((g) =>
+          g.id === enrollment.group_id ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
+        )
+      : s.groups,
+  }));
+  syncDeleteIds("student_group_enrollments", [enrollmentId]);
+  if (group) syncUpdate("groups", group.id, { enrolled: Math.max(0, group.enrolled - 1) });
 }
 
 export function getEligibleStudentsForGroup(

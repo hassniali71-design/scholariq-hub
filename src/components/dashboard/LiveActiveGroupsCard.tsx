@@ -12,14 +12,12 @@ import type { Group } from "@/types";
  *
  * المنطق:
  *  - يقرأ جدول اليوم من `state.groups` ويختار المجموعات المسجّلة ليوم `today`.
- *  - يحدد لكل مجموعة: هل حان وقت بدئها (started)؟ هل فعّلها المدرس (activated)؟
- *  - `activated` يتطلب Action حقيقي على `sessionRecords` (أول SessionEvent أو سجل حضور).
- *  - العداد يحدّث كل ثانية `useEffect setInterval(1s)` ويتوقف لحظة تفعيل المدرس.
- *
- * لا يعتبر فتح الصفحة أو تسجيل الدخول بداية الحصة. فقط:
- *  - رفع واجب (homework_status != pending) لنفس المادة
- *  - تسجيل حضور عبر الـ QR (attendanceRecords)
- *  - إنشاء SessionEvent أو SessionRecord للمجموعة
+ *  - يحدد لكل مجموعة: هل حان وقت بدئها (started)؟ هل فعّلها **الموظف** (activated)؟
+ *  - `activated` معتمد حصراً على `groupActivations` (Migration 0029) — يُكتب فقط
+ *    من `startGroupSession`/`markAttendanceForGroup` (فعل الموظف). أي حركة من
+ *    المدرس في وضع الحصة (تسجيل حضور من الروستر، رفع واجب، إنهاء الحصة) لا تُحسب
+ *    هنا إطلاقاً — فصل متعمّد بطلب صريح.
+ *  - العداد يحدّث كل ثانية `useEffect setInterval(1s)` ويتوقف لحظة تفعيل الموظف.
  */
 
 const WEEKDAYS_AR = [
@@ -61,29 +59,21 @@ function computeLive(state: ReturnType<typeof useDataStore>, now: Date): LiveGro
     .map((g) => {
       const scheduledMs = parseTimeToMs(g.time, now) ?? 0;
       const started = scheduledMs > 0 && nowMs >= scheduledMs;
-      // البحث عن أول Action حقيقي مرتبط بالمجموعة:
-      // 1) attendanceRecord على نفس اسم المجموعة
-      const att = state.attendanceRecords.find(
-        (a) => a.group_name === g.name && a.checked_in_at,
-      );
-      const attMs = att ? new Date(att.checked_in_at).getTime() : Number.POSITIVE_INFINITY;
-      // 2) sessionRecord على نفس group_id
-      const sr = state.sessionRecords.find((s) => s.group_id === g.id);
-      const srMs = sr ? new Date(sr.date).getTime() : Number.POSITIVE_INFINITY;
-      // 3) homework مرتبط بنفس المادة بحالة != pending
-      const hw = state.homeworkTasks.find(
-        (h) => h.subject === g.subject && h.status !== "pending",
-      );
-      const hwMs = hw?.created_at ? new Date(hw.created_at).getTime() : Number.POSITIVE_INFINITY;
-      // 4) sessionEvent مرتبط بـ session
-      const ev = sr
-        ? state.sessionEvents
-            .filter((e) => e.session_id === sr.id)
-            .map((e) => new Date(e.at).getTime())
-            .sort((a, b) => a - b)[0] ?? Number.POSITIVE_INFINITY
-        : Number.POSITIVE_INFINITY;
-      const firstActionMs = Math.min(attMs, srMs, hwMs, ev);
-      const activated = Number.isFinite(firstActionMs) && firstActionMs < Number.POSITIVE_INFINITY;
+      // نفس اليوم فقط — تفعيل من أمس ما يفضلش شغال النهاردة.
+      const todaysActivations = state.groupActivations.filter((a) => {
+        if (a.group_id !== g.id) return false;
+        const t = new Date(a.activated_at);
+        return (
+          t.getFullYear() === now.getFullYear() &&
+          t.getMonth() === now.getMonth() &&
+          t.getDate() === now.getDate()
+        );
+      });
+      const firstActivation = todaysActivations
+        .map((a) => new Date(a.activated_at).getTime())
+        .sort((a, b) => a - b)[0];
+      const firstActionMs = firstActivation ?? Number.POSITIVE_INFINITY;
+      const activated = Number.isFinite(firstActionMs);
       return {
         group: g,
         started,
@@ -143,7 +133,7 @@ export function LiveActiveGroupsCard({
         <StatusBadge tone="primary">{formatNumber(live.length)} حصة اليوم · {today}</StatusBadge>
       </div>
       <p className="mt-1 text-sm font-bold text-muted-foreground">
-        العداد يتحدث كل ثانية. الحصة تُعتبر "بدأت" فقط عند أول Action حقيقي للمدرس.
+        العداد يتحدث كل ثانية. الحصة تُعتبر "بدأت" فقط لما الموظف يفعّلها من صفحته.
       </p>
       <div className="mt-4 space-y-3">
         {live.map((row) => (
@@ -175,7 +165,7 @@ function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
   } else if (started) {
     display = formatLiveClock(lateMs);
     tone = lateMs > 15 * 60 * 1000 ? "destructive" : "warning";
-    label = "موعد الحصة الآن — في انتظار بدء المدرس";
+    label = "موعد الحصة الآن — في انتظار بدء الموظف";
   } else {
     const remaining = scheduledMs - nowMs;
     display = `بعد ${formatLiveClock(remaining)}`;

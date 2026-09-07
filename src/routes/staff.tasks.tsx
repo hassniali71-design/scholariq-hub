@@ -4,7 +4,6 @@ import { CheckCheck, Clock, ListTodo, PieChart } from "lucide-react";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { DailyStaffEvents } from "@/components/staff/DailyStaffEvents";
 import { getSession } from "@/lib/auth";
 import { getTasksForAssignee, setTaskStatus, useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
@@ -111,8 +110,6 @@ function StaffTasksPage() {
           icon={Clock}
         />
       </div>
-
-      <DailyStaffEvents />
 
       <Panel title="ملخص الأداء" description="نظرة سريعة على حال المهام">
         <PerformanceDashboard

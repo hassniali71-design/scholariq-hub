@@ -88,7 +88,6 @@ function FinancePage() {
 
   const topSubject = subjectRevenue[0];
   const grossBefore = kpis.monthRevenue;
-  const marginBefore = grossBefore ? 100 : 0;
   const lastPayment = payments[0];
 
   /**
@@ -210,9 +209,6 @@ function FinancePage() {
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-bold text-muted-foreground">الإيراد قبل الخصم</p>
             <p className="kpi-number text-2xl">{formatCurrency(grossBefore)}</p>
-            <p className="mt-1 text-sm font-bold text-muted-foreground">
-              {formatPercent(marginBefore)}
-            </p>
           </div>
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-bold text-muted-foreground">

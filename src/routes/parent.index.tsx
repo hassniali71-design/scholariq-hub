@@ -1,13 +1,15 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { CalendarCheck, MessageSquareText, ShieldCheck, Target, Wallet } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
-import { AttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
+import { WeeklyAttendanceChart, ScoreTrendChart } from "@/components/dashboard/Charts";
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import { useDataStore } from "@/lib/data-store";
-import { studentAttendanceSeries } from "@/lib/mock-data";
+import { buildStudentAttendanceByWeekday } from "@/lib/owner-metrics";
 
 export const Route = createFileRoute("/parent/")({
   head: () => ({
@@ -28,14 +30,53 @@ export const Route = createFileRoute("/parent/")({
 });
 
 function ParentPortal() {
-  const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores } = useDataStore();
+  const state = useDataStore();
+  const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores, attendanceRecords, students } =
+    state;
   const child = useCurrentStudent();
-  if (!child) return <AppShell role="parent" title="جارٍ التحميل…" description="جارٍ تحميل بيانات الطالب"><div /></AppShell>;
+  useEffect(() => {
+    if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [child]);
+  if (!child) return <Navigate to="/login" />;
   const childQuizzes = quizResults.filter((q) => q.student_id === child.id);
   const childHomework = homeworkTasks.filter((h) => h.student_id === child.id);
   const childNotes = teacherNotes.filter((n) => n.student_id === child.id);
   const childLogs = whatsappLogs.filter((w) => w.student_id === child.id);
   const live = liveScores.find((s) => s.student_id === child.id);
+
+  // آخر سجل حضور حقيقي لهذا الطالب — بدل جملة ثابتة "حضر الساعة ٣:٥٢ م" لكل الطلاب.
+  const lastAttendance = attendanceRecords
+    .filter((a) => a.student_id === child.id)
+    .find((a) => !!a.checked_in_at);
+  const attendanceStatusLabel =
+    lastAttendance?.status === "present"
+      ? "حاضر"
+      : lastAttendance?.status === "late"
+        ? "حضر متأخراً"
+        : lastAttendance?.status === "absent"
+          ? "غائب"
+          : "لا يوجد تسجيل بعد";
+
+  // متوسط درجة الواجب لباقي طلاب نفس المجموعة (استبعاد الطالب نفسه) — بدل جملة ثابتة
+  // "أعلى من متوسط المجموعة" كانت بتتكرر لكل الطلاب بلا استثناء.
+  const groupmateScores = child.group_id
+    ? students
+        .filter((s) => s.group_id === child.group_id && s.id !== child.id)
+        .map((s) => liveScores.find((l) => l.student_id === s.id)?.homework_score)
+        .filter((v): v is number => v != null)
+    : [];
+  const groupAverage =
+    groupmateScores.length > 0
+      ? groupmateScores.reduce((a, b) => a + b, 0) / groupmateScores.length
+      : null;
+  const homeworkComparisonLabel =
+    live?.homework_score == null || groupAverage == null
+      ? "لا يوجد تقييم بعد"
+      : live.homework_score > groupAverage
+        ? "أعلى من متوسط المجموعة"
+        : live.homework_score < groupAverage
+          ? "أقل من متوسط المجموعة"
+          : "في متوسط المجموعة";
   const trend = childQuizzes
     .map((q) => ({ label: q.date, score: Math.round((q.score / q.max_score) * 100) }))
     .reverse();
@@ -80,27 +121,40 @@ function ParentPortal() {
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-black text-muted-foreground">الحضور</p>
-            <p className="mt-2 text-xl font-black text-foreground">حضر الساعة ٣:٥٢ م</p>
-            <StatusBadge tone="success" className="mt-3">
-              داخل الحصة الآن
+            <p className="mt-2 text-xl font-black text-foreground">
+              {lastAttendance ? formatDateTime(lastAttendance.checked_in_at) : "—"}
+            </p>
+            <StatusBadge
+              tone={
+                lastAttendance?.status === "present"
+                  ? "success"
+                  : lastAttendance?.status === "late"
+                    ? "warning"
+                    : lastAttendance?.status === "absent"
+                      ? "destructive"
+                      : "neutral"
+              }
+              className="mt-3"
+            >
+              {attendanceStatusLabel}
             </StatusBadge>
           </div>
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-black text-muted-foreground">تقييم الواجب</p>
             <p className="kpi-number mt-2 text-3xl">
-              {formatNumber(live?.homework_score ?? 8)} / ١٠
+              {live?.homework_score != null ? formatNumber(live.homework_score) : "—"} / ١٠
             </p>
             <StatusBadge tone="primary" className="mt-3">
-              أعلى من متوسط المجموعة
+              {homeworkComparisonLabel}
             </StatusBadge>
           </div>
           <div className="rounded-xl border-2 border-border p-4">
             <p className="text-sm font-black text-muted-foreground">سؤال الحصة</p>
             <p className="kpi-number mt-2 text-3xl">
-              {formatNumber(live?.question_score ?? 10)} / ١٠
+              {live?.question_score != null ? formatNumber(live.question_score) : "—"} / ١٠
             </p>
-            <StatusBadge tone="success" className="mt-3">
-              إجابة صحيحة خلال ٤٢ ثانية
+            <StatusBadge tone={live?.question_score ? "success" : "neutral"} className="mt-3">
+              {live?.question_score != null ? "تم الرد على سؤال الحصة" : "لسه ما جاوبش على سؤال في الحصة"}
             </StatusBadge>
           </div>
         </div>
@@ -110,8 +164,8 @@ function ParentPortal() {
         <Panel title="منحنى النتائج" description="نسبة الدرجات في آخر التقييمات">
           <ScoreTrendChart data={trend} />
         </Panel>
-        <Panel title="سجل الحضور" description="عدد الحصص المحضورة أسبوعياً">
-          <AttendanceChart data={studentAttendanceSeries} />
+        <Panel title="سجل الحضور" description="حضور الابن حقيقي بالأيام هذا الأسبوع">
+          <WeeklyAttendanceChart data={buildStudentAttendanceByWeekday(state, child.id)} />
         </Panel>
       </div>
 

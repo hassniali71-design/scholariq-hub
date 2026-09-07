@@ -64,7 +64,7 @@ export function BehaviorScoreColumn({
             {isOpen && showKeyboard ? (
               <div className="mt-2">
                 <StudentScoreKeyboard
-                  value={busyId === s.id ? current : current}
+                  value={current}
                   onChange={(next) => {
                     if (!teacher) return;
                     setBusyId(s.id);

@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { TopBar } from "@/components/layout/TopBar";
+import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useDataStore } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
@@ -185,6 +186,8 @@ export function AppShell({ role, title, description, actions, children }: AppShe
           <div className="mx-auto w-full max-w-7xl space-y-6">{children}</div>
         </main>
       </div>
+
+      {role === "student" ? <StudentChatWidget /> : null}
     </div>
   );
 }

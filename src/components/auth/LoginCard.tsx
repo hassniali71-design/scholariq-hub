@@ -1,15 +1,15 @@
 import { useNavigate } from "@tanstack/react-router";
-import { GraduationCap, Info, LogIn, ShieldCheck } from "lucide-react";
+import { GraduationCap, LogIn, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ROLES, ROLE_ORDER } from "@/config/roles";
-import { DEMO_OWNER, signIn } from "@/lib/auth";
+import { signIn } from "@/lib/auth";
 import { DEFAULT_TENANT_ACCENT } from "@/lib/tenant-colors";
 import type { UserRole } from "@/types";
 
 const identifierLabel: Record<UserRole, string> = {
-  owner: "البريد الإلكتروني",
+  owner: "كود المالك",
   teacher: "كود المدرس",
   staff: "كود الموظف",
   student: "كود الطالب (Student ID)",
@@ -18,16 +18,17 @@ const identifierLabel: Record<UserRole, string> = {
 };
 
 const identifierPlaceholder: Record<UserRole, string> = {
-  owner: "owner@center.com",
-  teacher: "TCH-2001",
-  staff: "STF-3001",
-  student: "STD-10234",
-  parent: "STD-10234",
+  owner: "OWN-AHFO",
+  teacher: "TCH-AHFO",
+  staff: "STF-AHFO",
+  student: "STD-AHFO",
+  parent: "STD-AHFO",
   visitor: "VIS-ABC123",
 };
 
 function needsPassword(role: UserRole) {
-  return role === "owner" || role === "teacher" || role === "staff";
+  // مرحلة التجربة الحالية: كل الأدوار محتاجة كلمة سر حتى الطالب/ولي الأمر.
+  return role !== "visitor";
 }
 
 /**
@@ -60,13 +61,6 @@ export function LoginCard({
     setError(null);
     toast.success(`مرحباً ${result.session.full_name}`);
     navigate({ to: result.session.isPlatformAdmin ? "/platform/new-center" : ROLES[role].home });
-  }
-
-  function useDemoOwner() {
-    setRole("owner");
-    setIdentifier(DEMO_OWNER.email);
-    setPassword(DEMO_OWNER.password);
-    toast.info("تم تعبئة بيانات المالك التجريبية");
   }
 
   return (
@@ -163,26 +157,6 @@ export function LoginCard({
               <LogIn className="size-5" />
               {submitting ? "جارٍ الدخول…" : "دخول"}
             </button>
-
-            {/* Demo credentials only make sense on the generic entry point — showing "هنا حساب
-                تجريبي" on a real client's own dedicated link would be confusing/wrong. */}
-            {!branding ? (
-              <div className="rounded-xl border-2 border-dashed border-border bg-muted/60 p-4">
-                <p className="flex items-center gap-2 text-xs font-black text-foreground">
-                  <Info className="size-4 text-primary" />
-                  حساب المالك التجريبي
-                </p>
-                <p className="mt-1.5 font-mono text-sm font-black text-foreground">{DEMO_OWNER.email}</p>
-                <p className="font-mono text-sm font-black text-foreground">{DEMO_OWNER.password}</p>
-                <button
-                  type="button"
-                  onClick={useDemoOwner}
-                  className="mt-3 w-full rounded-lg border-2 border-navy px-3 py-2 text-xs font-black text-navy transition-colors hover:bg-navy hover:text-navy-foreground"
-                >
-                  تعبئة البيانات تلقائياً
-                </button>
-              </div>
-            ) : null}
 
             <p className="flex items-center justify-center gap-1.5 text-center text-xs font-bold text-muted-foreground">
               <ShieldCheck className="size-4" />

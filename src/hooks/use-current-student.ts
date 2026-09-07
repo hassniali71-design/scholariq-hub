@@ -32,11 +32,12 @@ export function useSession(): Session | null {
 
 
 /**
- * The student the active session is about.
- * Students authenticate with their own code, parents with their child's code,
- * so the same lookup serves both portals.
+ * The student the active session is about, or `null` if no student matches
+ * (invalid/stale session). Students authenticate with their own code,
+ * parents with their child's code, so the same lookup serves both portals.
+ * Callers MUST check for `null` and redirect — see `resolveCurrentStudent`.
  */
-export function useCurrentStudent(): Student | undefined {
+export function useCurrentStudent(): Student | null {
   const data = useDataStore();
   const session = useSession();
   return resolveCurrentStudent(data, session?.identifier);

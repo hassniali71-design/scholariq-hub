@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { AddStudentToGroupModal } from "@/components/owner/AddStudentToGroupModal";
 import { GroupCreateModal } from "@/components/owner/GroupCreateModal";
 import {
   addTeacherNote,
@@ -28,7 +29,7 @@ import {
 } from "@/lib/data-store";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Student } from "@/types";
+import type { Group, Student } from "@/types";
 
 /**
  * §0.3 — صفحة الطلاب:
@@ -95,13 +96,13 @@ function StudentsPage() {
     attendanceRecords,
     homeworkTasks,
     teacherNotes,
-    teachers,
   } = state;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | Student["payment_status"]>("all");
   const [noteDraft, setNoteDraft] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [addStudentGroup, setAddStudentGroup] = useState<Group | null>(null);
 
   const primaryCount = groups.filter((g) => g.grade.includes("الابتدائي")).length;
   const prepCount = groups.filter((g) => g.grade.includes("الإعدادي") || g.grade.includes("الاعدادي")).length;
@@ -156,6 +157,7 @@ function StudentsPage() {
       }
     >
       <GroupCreateModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <AddStudentToGroupModal group={addStudentGroup} onClose={() => setAddStudentGroup(null)} />
       {/* 4 كروت حوكمة */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -213,6 +215,13 @@ function StudentsPage() {
                       ? `مُجدوَلة · ${g.weekday} ${g.time}`
                       : "بانتظار الجدولة"}
                   </StatusBadge>
+                  <button
+                    type="button"
+                    onClick={() => setAddStudentGroup(g)}
+                    className="flex items-center gap-1.5 rounded-lg border-2 border-primary/40 px-2.5 py-2 text-xs font-black text-primary hover:border-primary"
+                  >
+                    <UserPlus className="size-4" /> أضف طالب
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -514,7 +523,13 @@ function StudentsPage() {
                   return;
                 }
                 if (!selected) return;
-                addTeacherNote(selected.id, teachers[0]?.id ?? selected.id, noteDraft);
+                const studentGroup = groups.find((g) => g.id === selected.group_id);
+                const teacherId = studentGroup?.teacher_id;
+                if (!teacherId) {
+                  toast.error("الطالب غير مسجّل في مجموعة لها مدرس بعد");
+                  return;
+                }
+                addTeacherNote(selected.id, teacherId, noteDraft);
                 setNoteDraft("");
                 toast.success("تم حفظ الملاحظة");
               }}

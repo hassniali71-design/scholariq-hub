@@ -15,10 +15,7 @@ import {
   useDataStore,
 } from "@/lib/data-store";
 import { formatNumber, formatPercent } from "@/lib/format";
-import {
-  buildTeacherWeeklyMetrics,
-  WEEKDAYS,
-} from "@/lib/owner-metrics";
+import { buildTeacherWeeklyMetrics } from "@/lib/owner-metrics";
 
 /**
  * Section 0 fix: real cumulative season metrics. The previous placeholder
@@ -216,5 +213,3 @@ function CompliancePage() {
     </AppShell>
   );
 }
-
-void WEEKDAYS;

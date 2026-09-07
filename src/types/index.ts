@@ -65,6 +65,9 @@ export interface Student {
    * the group's scheduled weekday).
    */
   due_day_of_month?: number | null;
+  /** صورة بروفايل الطالب (base64) — Migration 0028، بنفس نمط TeacherLaunch.file_data. */
+  avatar_data?: string | null;
+  avatar_mime?: string | null;
 }
 
 /** نوع دورة الراتب — مشترك بين الراتب المتوقع (المتفق عليه) والراتب المدفوع فعلياً. */
@@ -174,6 +177,19 @@ export interface Group {
   scheduling_status: "pending" | "scheduled";
   created_at: string;
   notes?: string | null;
+}
+
+/**
+ * Migration 0030 — تسجيل الطالب في مجموعة **إضافية** (مادة تانية)، منفصل تماماً
+ * عن `Student.group_id` (المجموعة الأساسية القديمة اللي كل الحضور/المدفوعات/
+ * وضع الحصة لسه معتمدين عليها بلا أي تغيير). إضافي بحت لصفحة "مدرّسيني ومنهجي" —
+ * صفر تأثير على أي سلوك موجود.
+ */
+export interface StudentGroupEnrollment {
+  id: UUID;
+  center_id: UUID;
+  student_id: UUID;
+  group_id: UUID;
 }
 
 /** Reference table — replaces free-text `subject`/`subject_id` pairs with a real lookup. */
@@ -401,6 +417,21 @@ export interface CurriculumLesson {
   linked_lesson_id: UUID | null;
 }
 
+/**
+ * Migration 0029 — إشارة "المجموعة نشطة الآن" مستقلة تماماً عن sessionRecords/
+ * attendanceRecords. تُكتب فقط من إجراء الموظف (بوابة الحضور markAttendanceForGroup،
+ * أو زر بدء الحصة startGroupSession) — أي حركة يعملها المدرس في "وضع الحصة" (تسجيل
+ * حضور من الروستر، إنهاء الحصة) لا تكتب هنا إطلاقاً، فمينفعش تُظهر المجموعة كـ"نشطة"
+ * عند المالك. الغرض الوحيد لهذا الجدول هو "المجموعات النشطة الآن" — بيانات الحضور/
+ * الحصص الحقيقية (لالتزام المدرسين والتقارير) تفضل في جداولها الأصلية بلا تغيير.
+ */
+export interface GroupActivation {
+  id: UUID;
+  center_id: UUID;
+  group_id: UUID;
+  activated_at: string;
+}
+
 export interface SessionRecord {
   id: UUID;
   center_id: UUID;
@@ -605,7 +636,7 @@ export interface FinanceSettings {
   updated_at: string;
 }
 
-/** Alias matching the actual DB table name `center_finance_settings` (db/0009). */
+/** Alias مطابق لاسم الجدول الفعلي في القاعدة `center_finance_settings` (db/0009). */
 export type CenterFinanceSettings = FinanceSettings;
 
 /** سجل تسليم واستلام الخزنة: المدير استلم مبلغ من موظف معيّن بتاريخه. */
@@ -704,6 +735,9 @@ export interface StaffPermissionRecord {
   account_identifier: string;
   full_name: string;
   permissions: StaffPermissionKey[];
+  /** الراتب المتوقع (للتذكير فقط في صفحة التدفق المالي — لا يُخصم تلقائياً). */
+  expected_salary_basis?: PayrollBasis | null;
+  expected_salary_value?: number | null;
   updated_at: string;
 }
 

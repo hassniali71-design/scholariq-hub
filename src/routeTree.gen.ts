@@ -33,6 +33,10 @@ import { Route as StaffShiftRouteImport } from './routes/staff.shift'
 import { Route as StaffTasksRouteImport } from './routes/staff.tasks'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentLeaderboardRouteImport } from './routes/student.leaderboard'
+import { Route as StudentAttendanceRouteImport } from './routes/student.attendance'
+import { Route as StudentInboxRouteImport } from './routes/student.inbox'
+import { Route as StudentLevelsRouteImport } from './routes/student.levels'
+import { Route as StudentTeachersRouteImport } from './routes/student.teachers'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherAssessmentsRouteImport } from './routes/teacher.assessments'
 import { Route as TeacherCurriculumRouteImport } from './routes/teacher.curriculum'
@@ -161,6 +165,26 @@ const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
   path: '/student/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
+  id: '/student/attendance',
+  path: '/student/attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentInboxRoute = StudentInboxRouteImport.update({
+  id: '/student/inbox',
+  path: '/student/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentLevelsRoute = StudentLevelsRouteImport.update({
+  id: '/student/levels',
+  path: '/student/levels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentTeachersRoute = StudentTeachersRouteImport.update({
+  id: '/student/teachers',
+  path: '/student/teachers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherIndexRoute = TeacherIndexRouteImport.update({
   id: '/teacher/',
   path: '/teacher/',
@@ -218,6 +242,10 @@ export interface FileRoutesByFullPath {
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/inbox': typeof StudentInboxRoute
+  '/student/levels': typeof StudentLevelsRoute
+  '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/schedule': typeof TeacherScheduleRoute
@@ -251,6 +279,10 @@ export interface FileRoutesByTo {
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/inbox': typeof StudentInboxRoute
+  '/student/levels': typeof StudentLevelsRoute
+  '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/schedule': typeof TeacherScheduleRoute
@@ -285,6 +317,10 @@ export interface FileRoutesById {
   '/staff/shift': typeof StaffShiftRoute
   '/staff/tasks': typeof StaffTasksRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/inbox': typeof StudentInboxRoute
+  '/student/levels': typeof StudentLevelsRoute
+  '/student/teachers': typeof StudentTeachersRoute
   '/teacher/assessments': typeof TeacherAssessmentsRoute
   '/teacher/curriculum': typeof TeacherCurriculumRoute
   '/teacher/schedule': typeof TeacherScheduleRoute
@@ -320,6 +356,10 @@ export interface FileRouteTypes {
     | '/staff/shift'
     | '/staff/tasks'
     | '/student/leaderboard'
+    | '/student/attendance'
+    | '/student/inbox'
+    | '/student/levels'
+    | '/student/teachers'
     | '/teacher/assessments'
     | '/teacher/curriculum'
     | '/teacher/schedule'
@@ -353,6 +393,10 @@ export interface FileRouteTypes {
     | '/staff/shift'
     | '/staff/tasks'
     | '/student/leaderboard'
+    | '/student/attendance'
+    | '/student/inbox'
+    | '/student/levels'
+    | '/student/teachers'
     | '/teacher/assessments'
     | '/teacher/curriculum'
     | '/teacher/schedule'
@@ -386,6 +430,10 @@ export interface FileRouteTypes {
     | '/staff/shift'
     | '/staff/tasks'
     | '/student/leaderboard'
+    | '/student/attendance'
+    | '/student/inbox'
+    | '/student/levels'
+    | '/student/teachers'
     | '/teacher/assessments'
     | '/teacher/curriculum'
     | '/teacher/schedule'
@@ -419,6 +467,10 @@ export interface RootRouteChildren {
   StaffShiftRoute: typeof StaffShiftRoute
   StaffTasksRoute: typeof StaffTasksRoute
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
+  StudentAttendanceRoute: typeof StudentAttendanceRoute
+  StudentInboxRoute: typeof StudentInboxRoute
+  StudentLevelsRoute: typeof StudentLevelsRoute
+  StudentTeachersRoute: typeof StudentTeachersRoute
   TeacherAssessmentsRoute: typeof TeacherAssessmentsRoute
   TeacherCurriculumRoute: typeof TeacherCurriculumRoute
   TeacherScheduleRoute: typeof TeacherScheduleRoute
@@ -602,6 +654,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentLeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/student/attendance': {
+      id: '/student/attendance'
+      path: '/student/attendance'
+      fullPath: '/student/attendance'
+      preLoaderRoute: typeof StudentAttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/inbox': {
+      id: '/student/inbox'
+      path: '/student/inbox'
+      fullPath: '/student/inbox'
+      preLoaderRoute: typeof StudentInboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/levels': {
+      id: '/student/levels'
+      path: '/student/levels'
+      fullPath: '/student/levels'
+      preLoaderRoute: typeof StudentLevelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/teachers': {
+      id: '/student/teachers'
+      path: '/student/teachers'
+      fullPath: '/student/teachers'
+      preLoaderRoute: typeof StudentTeachersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher/': {
       id: '/teacher/'
       path: '/teacher'
@@ -684,6 +764,10 @@ const rootRouteChildren: RootRouteChildren = {
   StaffShiftRoute: StaffShiftRoute,
   StaffTasksRoute: StaffTasksRoute,
   StudentLeaderboardRoute: StudentLeaderboardRoute,
+  StudentAttendanceRoute: StudentAttendanceRoute,
+  StudentInboxRoute: StudentInboxRoute,
+  StudentLevelsRoute: StudentLevelsRoute,
+  StudentTeachersRoute: StudentTeachersRoute,
   TeacherAssessmentsRoute: TeacherAssessmentsRoute,
   TeacherCurriculumRoute: TeacherCurriculumRoute,
   TeacherScheduleRoute: TeacherScheduleRoute,

@@ -7,6 +7,7 @@ import {
   CreditCard,
   Eye,
   GraduationCap,
+  Inbox,
   KeyRound,
   LayoutDashboard,
   ListTodo,
@@ -14,6 +15,7 @@ import {
   MonitorPlay,
   QrCode,
   ShieldCheck,
+  TrendingUp,
   Trophy,
   Users,
   Wallet,
@@ -95,6 +97,10 @@ export const ROLES: Record<UserRole, RoleConfig> = {
     nav: [
       { label: "لوحتي", to: "/student", icon: LayoutDashboard },
       { label: "لوحة الشرف", to: "/student/leaderboard", icon: Trophy },
+      { label: "الحضور والغياب", to: "/student/attendance", icon: CalendarCheck },
+      { label: "الاستقبال", to: "/student/inbox", icon: Inbox },
+      { label: "المستويات", to: "/student/levels", icon: TrendingUp },
+      { label: "مدرّسيني ومنهجي", to: "/student/teachers", icon: BookMarked },
     ],
   },
   parent: {
