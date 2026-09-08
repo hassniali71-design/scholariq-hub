@@ -26,11 +26,22 @@
  * 700-900). المتصفح ما بيصنّعش Bold وهمي لملف ثابت — بيعرض نفس وزن الملف
  * الحقيقي أياً كان الوزن المطلوب، فكل نص "بولد" (بما فيه body نفسه، مضبوط
  * font-weight:700 تحت) كان بيظهر أرفع من المطلوب فعلياً. رجّعنا Tajawal
- * لـ--font-sans/--font-display (تشيل أوزان 800/900 حقيقية وموثّقة) والإبقاء
- * على Cairo لـ--font-title بس (h1 + أرقام KPI) — نفس السبب، أوزان حقيقية.
+ * لـ--font-sans (تشيل أوزان 800/900 حقيقية وموثّقة).
  */
 @import "@fontsource/cairo/800.css";
 @import "@fontsource/cairo/900.css";
+
+/*
+ * نظام 4 خطوط عربية تقيلة موزّعة حسب الدور (بدل خطين بس) — كل خط هنا شايل
+ * وزن ExtraBold/Black حقيقي وموثّق من @fontsource، مفيش تخمين أوزان تانية:
+ * Cairo (عناوين h1)، Tajawal (نص عادي)، Almarai (أرقام الـKPI/الجيجات —
+ * شكل هندسي مختلف يميّز الأرقام)، Changa (شارات/أزرار — خط مضغوط شبه Display
+ * يميّز عناصر التفاعل عن النص العادي).
+ */
+@import "@fontsource/almarai/700.css";
+@import "@fontsource/almarai/800.css";
+@import "@fontsource/changa/700.css";
+@import "@fontsource/changa/800.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -45,6 +56,8 @@
   --font-sans: "Tajawal", system-ui, sans-serif;
   --font-display: "Tajawal", system-ui, sans-serif;
   --font-title: "Cairo", "Tajawal", system-ui, sans-serif;
+  --font-numeric: "Almarai", "Cairo", "Tajawal", system-ui, sans-serif;
+  --font-accent: "Changa", "Cairo", "Tajawal", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -96,8 +109,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-card: 0 1px 2px oklch(0.21 0.05 265 / 0.06), 0 8px 24px oklch(0.21 0.05 265 / 0.06);
-  --shadow-lift: 0 12px 40px oklch(0.21 0.05 265 / 0.14);
+  --shadow-card: 0 2px 4px oklch(0.21 0.05 265 / 0.12), 0 12px 32px oklch(0.21 0.05 265 / 0.1);
+  --shadow-lift: 0 16px 48px oklch(0.21 0.05 265 / 0.22);
 }
 
 :root {
@@ -223,6 +236,11 @@
   h1 {
     font-family: var(--font-title);
   }
+
+  /* خط رابع مخصّص للعناصر التفاعلية (أزرار) يميّزها بصرياً عن نص المحتوى العادي. */
+  button {
+    font-family: var(--font-accent);
+  }
 }
 
 /* أي نافذة منبثقة: ارتفاع محدود بالشاشة + Scroll داخلي واضح بدل ما المستخدم يعمل Zoom Out. */
@@ -242,8 +260,8 @@
 
 @utility kpi-number {
   color: var(--color-primary);
-  font-family: var(--font-title);
-  font-weight: 900;
+  font-family: var(--font-numeric);
+  font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }

@@ -1,11 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { GraduationCap, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { getSession, signOut, subscribeAuth, type Session } from "@/lib/auth";
 
 import { TopBar } from "@/components/layout/TopBar";
 import { AvatarCircle } from "@/components/shared/AvatarUpload";
+import { Logo } from "@/components/shared/Logo";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useCurrentStudent } from "@/hooks/use-current-student";
@@ -122,7 +123,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
       >
         <div className="flex items-center gap-3 border-b border-white/15 px-6 py-6">
           <span className="flex size-11 items-center justify-center rounded-xl bg-white/15">
-            <GraduationCap className="size-6" />
+            <Logo className="size-7" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-base font-black">{center.name}</p>
