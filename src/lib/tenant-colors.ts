@@ -56,9 +56,7 @@ export function getTenantPaletteVars(accentColor?: string | null): Record<string
     "--muted": mix(14),
     "--border": mix(32),
     "--border-strong": mix(46),
-    /* ظل تقيل وواضح مشتق من لون هوية العميل نفسه (مش رمادي عام) — يبان بصرياً
-       على كل الكروت/الشارتات، مش خفيف لدرجة إنه شبه مختفي. */
-    "--shadow-card": `0 2px 4px color-mix(in srgb, ${hex} 28%, transparent), 0 12px 32px color-mix(in srgb, ${hex} 20%, transparent)`,
-    "--shadow-lift": `0 16px 48px color-mix(in srgb, ${hex} 34%, transparent)`,
+    "--shadow-card": `0 1px 2px color-mix(in srgb, ${hex} 18%, transparent), 0 8px 24px color-mix(in srgb, ${hex} 12%, transparent)`,
+    "--shadow-lift": `0 12px 40px color-mix(in srgb, ${hex} 22%, transparent)`,
   };
 }

@@ -104,7 +104,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "font-accent inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-xs font-black",
+        "inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-xs font-black",
         statusTones[tone],
         className,
       )}

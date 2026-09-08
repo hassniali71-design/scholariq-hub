@@ -1,18 +1,17 @@
 import { GraduationCap } from "lucide-react";
 
-import { Logo } from "@/components/shared/Logo";
 import { useDataStore } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
 /**
  * الشريط العلوي الموحّد — ثلاث مناطق:
- *  (يمين) شعار "سبّورة" (Logo مشترك من shared/Logo.tsx) + اسم النظام
+ *  (يمين) شعار "سبّورة" + اسم النظام
  *  (وسط) اسم السنتر + اسم اللوحة + دور المستخدم
  *  (يسار) شعار "حلول" + "مقدمة من شركة حلول"
  *
- * شعار "حلول" لسه Placeholder SVG محلي — تُستبدل لاحقاً بصورة حقيقية من
- * public/branding/ عند رفعها.
+ * الشعارات الحالية هي Placeholders SVG — تُستبدل لاحقاً بصور حقيقية
+ * من public/branding/ عند رفعها. تم توثيق ذلك في كل مكون بشكل صريح.
  */
 
 interface TopBarProps {
@@ -31,12 +30,7 @@ export function TopBar({ role, className }: TopBarProps) {
     >
       {/* يمين: سبّورة */}
       <div className="flex items-center gap-2">
-        <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy text-navy-foreground"
-          aria-label="سبّورة"
-        >
-          <Logo className="size-6" />
-        </span>
+        <SabboorahMark />
         <div className="hidden sm:block">
           <p className="text-sm font-black text-foreground leading-tight">سبّورة</p>
           <p className="text-[10px] font-bold text-muted-foreground leading-tight">إدارة ذكية للسناتر</p>
@@ -83,6 +77,26 @@ function roleLabel(role: UserRole): string {
     case "visitor":
       return "صفحة الزائر";
   }
+}
+
+/**
+ * شعار "سبّورة" — نسخة Placeholder SVG مدمجة.
+ * عند رفع شعار حقيقي، استبدل هذا المكون بـ:
+ *   <img src="/branding/sabboorah.svg" alt="سبّورة" className="h-8 w-auto" />
+ */
+function SabboorahMark() {
+  return (
+    <div
+      className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy text-navy-foreground"
+      aria-label="سبّورة"
+    >
+      <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="46" rx="42" ry="30" transform="rotate(-18 50 46)" fill="none" stroke="#F7F5FB" strokeWidth="8" />
+        <rect x="24" y="24" width="52" height="40" rx="6" fill="#2E5339" />
+        <path d="M36 44 L47 55 L65 33" fill="none" stroke="#F7F5FB" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
 }
 
 /**

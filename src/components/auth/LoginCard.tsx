@@ -1,9 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogIn, ShieldCheck } from "lucide-react";
+import { GraduationCap, LogIn, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Logo } from "@/components/shared/Logo";
 import { ROLES, ROLE_ORDER } from "@/config/roles";
 import { signIn } from "@/lib/auth";
 import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
@@ -78,7 +77,7 @@ export function LoginCard({
           </p>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 rounded-xl border-2 border-border bg-card px-3 py-1.5">
-              <Logo className="size-4" />
+              <GraduationCap className="size-4 text-primary" />
               <span className="text-sm font-black text-foreground">سبّورة</span>
             </span>
             <span className="text-muted-foreground">×</span>
@@ -94,7 +93,7 @@ export function LoginCard({
             style={{ backgroundColor: branding?.accentColor ?? DEFAULT_TENANT_ACCENT }}
           >
             <span className="flex size-16 items-center justify-center rounded-2xl bg-white/15">
-              <Logo className="size-10" />
+              <GraduationCap className="size-9" />
             </span>
             <div className="text-center">
               {/* رسالة ترحيب منفصلة عن ترحيب الشركة فوق — دي خاصة بالسنتر نفسه.
