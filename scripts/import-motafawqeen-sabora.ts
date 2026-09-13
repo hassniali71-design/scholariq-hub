@@ -131,7 +131,7 @@ async function main() {
       attendance_rate: 0,
       avg_score: 0,
       subject_ids: subjIds,
-      billing_plan: "month",
+      billing_plan: "monthly",
       billing_mode: "monthly",
       due_day_of_month: 1,
       subject_fees: fees,
