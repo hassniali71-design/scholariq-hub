@@ -1141,20 +1141,42 @@ function lessonCreatedMs(lessonId: string): number {
 }
 
 /**
- * Every `AssessmentScore` tied (via `lesson_id`) to a lesson in this subject (§5).
- * Scores with a null `lesson_id` (general/retroactive entries from teacher.assessments.tsx)
- * have no subject to attribute them to, so they're excluded here by design.
+ * المادة التي ينتمي إليها تقييم معيّن. كان الربط سابقاً عبر `lesson_id` فقط،
+ * فكانت كل الدرجات المسجَّلة من "وضع الحصة" أو من صفحة التقييمات (بدون درس AI)
+ * تسقط من شارت "أداء المواد" في صفحة الطالب ويظهر فارغاً رغم وجود تقييمات فعلية.
+ *
+ * الترتيب: درس AI ← درس المنهج ← مجموعة الحصة ← مادة المدرس الذي رصد الدرجة.
  */
+export function resolveScoreSubjectId(
+  state: DataState,
+  score: AssessmentScore,
+): string | null {
+  if (score.lesson_id) {
+    const lesson = state.lessons.find((l) => l.id === score.lesson_id);
+    if (lesson) return lesson.subject_id;
+    const curriculum = state.curriculumLessons.find((l) => l.id === score.lesson_id);
+    if (curriculum) {
+      const unit = state.curriculumUnits.find((u) => u.id === curriculum.unit_id);
+      if (unit) return unit.subject_id;
+    }
+  }
+  if (score.session_id) {
+    const record = state.sessionRecords.find((r) => r.id === score.session_id);
+    const group = record ? state.groups.find((g) => g.id === record.group_id) : undefined;
+    if (group?.subject_id) return group.subject_id;
+  }
+  const teacher = state.teachers.find((t) => t.id === score.recorded_by_teacher_id);
+  return teacher?.subject_id ?? null;
+}
+
+/** كل تقييمات الطالب المنسوبة لهذه المادة (§5) — عبر `resolveScoreSubjectId`. */
 export function getStudentScoresForSubject(
   state: DataState,
   studentId: string,
   subjectId: string,
 ): AssessmentScore[] {
-  const lessonIds = new Set(
-    state.lessons.filter((l) => l.subject_id === subjectId).map((l) => l.id),
-  );
   return state.assessmentScores.filter(
-    (a) => a.student_id === studentId && a.lesson_id !== null && lessonIds.has(a.lesson_id),
+    (a) => a.student_id === studentId && resolveScoreSubjectId(state, a) === subjectId,
   );
 }
 
