@@ -602,6 +602,19 @@ export function useIsHydrated(): boolean {
   );
 }
 
+/**
+ * فشل `fetchCenterData` (تعثر شبكة/Supabase) بيسيب `hydratedForIdentifier` فاضل
+ * `null` بدون أي `emit()` — يعني المكوّنات المشتركة في `useDataStore()` ممكن ما
+ * تتعادش تترندر تاني غير لو حاجة تانية سببت render، فـ`useIsHydrated()` يفضل
+ * `false` لأجل غير مسمى من غير ما AppShell يعرف إن فيه خطأ حقيقي (مش لسه بيحمّل).
+ * هذه الدالة بتتنادى من زرار "إعادة المحاولة" — بترجّع `hydratedForIdentifier`
+ * لـ`null` صراحة و`emit()` عشان تجبر محاولة `fetchCenterData` جديدة فوراً.
+ */
+export function retryHydration() {
+  hydratedForIdentifier = null;
+  emit();
+}
+
 /* ---------------- Lookups ---------------- */
 
 export function findStudentByCode(state: DataState, code: string): Student | undefined {

@@ -9,7 +9,7 @@ import { AvatarCircle } from "@/components/shared/AvatarUpload";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore, useIsHydrated } from "@/lib/data-store";
+import { retryHydration, useDataStore, useIsHydrated } from "@/lib/data-store";
 import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -58,6 +58,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [checked, setChecked] = useState(false);
+  const [hydrationTimedOut, setHydrationTimedOut] = useState(false);
 
   /**
    * الخروج من لوحة السنتر يرجّع لصفحة دخول نفس السنتر (Tenant Login) — مش صفحة
@@ -86,6 +87,21 @@ export function AppShell({ role, title, description, actions, children }: AppShe
     return subscribeAuth(sync);
   }, [role, navigate]);
 
+  /**
+   * مهلة مستقلة لتحميل بيانات المركز (isHydrated) — منفصلة تماماً عن التحقق من
+   * الجلسة فوق. بدون المهلة دي، تعثر شبكي بسيط في `fetchCenterData` كان يسيب
+   * الشاشة عالقة على "جارٍ التحقق..." للأبد رغم إن تسجيل الدخول سليم 100%،
+   * وده اللي كان بيتحس كـ"جلسة منتهية" وبيدفع لإعادة تسجيل الدخول من غير فايدة.
+   */
+  useEffect(() => {
+    if (isHydrated) {
+      setHydrationTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setHydrationTimedOut(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [isHydrated]);
+
   const handleSignOut = () => {
     // signOut() نفسه بيعمل emit() اللي بيشغّل sync() فوق (useEffect) وهي بالفعل
     // بتنادي goToCenterLogin() — نداء تاني هنا كان بيسبب تنقّل مزدوج (navigate
@@ -94,16 +110,51 @@ export function AppShell({ role, title, description, actions, children }: AppShe
     signOut();
   };
 
-  /**
-   * `!isHydrated` هنا هو تصحيح لباغ حقيقي: قبل ما بيانات المركز الحقيقية توصل من
-   * Supabase، `center.name` بيكون لسه اسم المركز التجريبي المزروع محلياً
-   * (mock-data.ts) — بدون الانتظار ده كان يظهر لحظياً اسم مركز غلط قبل ما يتصحح
-   * لاسم المركز الحقيقي. القالب ده مشترك لكل الأدوار، فالإصلاح بيغطي كل الصفحات.
-   */
-  if (!checked || !session || !isHydrated) {
+  // فحص الجلسة نفسه محلي وسريع (localStorage، بدون شبكة) — لو غير سليم،
+  // useEffect فوق بالفعل بدأ التنقّل لصفحة الدخول، فبنفضل نعرض شاشة بسيطة
+  // للحظة الانتقال دي بس.
+  if (!checked || !session) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">
         <p className="text-base font-black text-muted-foreground">جارٍ التحقق من الصلاحيات…</p>
+      </div>
+    );
+  }
+
+  /**
+   * `!isHydrated` منفصل تماماً عن فحص الجلسة فوق — ده انتظار وصول بيانات المركز
+   * الحقيقية من Supabase (تصحيح لباغ "فلاش اسم مركز تجريبي غلط"). لو الاتصال
+   * بطيء/متعثر، بعد ١٠ ثواني (useEffect فوق) نعرض حالة خطأ واضحة بدل ما نفضل
+   * عالقين على "جارٍ التحقق" للأبد وهو ما كان بيتحس غلط كأنه جلسة منتهية.
+   */
+  if (!isHydrated) {
+    if (hydrationTimedOut) {
+      return (
+        <div
+          dir="rtl"
+          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-canvas px-4 text-center"
+        >
+          <p className="text-base font-black text-foreground">تعذّر تحميل بيانات المركز</p>
+          <p className="text-sm font-bold text-muted-foreground">
+            تسجيل دخولك سليم، لكن الاتصال بالخادم بطيء أو متعثر. تأكد من اتصال
+            الإنترنت وحاول تاني.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setHydrationTimedOut(false);
+              retryHydration();
+            }}
+            className="rounded-xl bg-navy px-5 py-2.5 text-sm font-black text-navy-foreground hover:opacity-90"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div dir="rtl" className="flex min-h-screen items-center justify-center bg-canvas">
+        <p className="text-base font-black text-muted-foreground">جارٍ تحميل بيانات المركز…</p>
       </div>
     );
   }
