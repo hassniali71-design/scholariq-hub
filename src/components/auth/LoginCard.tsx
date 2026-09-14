@@ -51,16 +51,26 @@ export function LoginCard({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
-    const result = await signIn({ role, identifier, password });
-    setSubmitting(false);
-    if (!result.ok) {
-      setError(result.error);
-      toast.error(result.error);
-      return;
+    try {
+      const result = await signIn({ role, identifier, password });
+      if (!result.ok) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      setError(null);
+      toast.success(`مرحباً ${result.session.full_name}`);
+      navigate({ to: result.session.isPlatformAdmin ? "/platform/new-center" : ROLES[role].home });
+    } catch {
+      // خط دفاع أخير — signIn() نفسها بقت بتمسك أي استثناء وترجّع {ok:false}،
+      // لكن لو حصل استثناء غير متوقع هنا برضو، الزرار يفضل قابل لإعادة المحاولة
+      // بدل ما يعلّق على "جارٍ الدخول..." للأبد بدون أي رسالة.
+      const message = "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
     }
-    setError(null);
-    toast.success(`مرحباً ${result.session.full_name}`);
-    navigate({ to: result.session.isPlatformAdmin ? "/platform/new-center" : ROLES[role].home });
   }
 
   return (

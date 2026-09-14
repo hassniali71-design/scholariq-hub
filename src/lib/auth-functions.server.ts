@@ -106,12 +106,23 @@ export const signIn = createServerFn({ method: "POST" })
     // §0 fix — .ilike بدون تهريب كان بيسمح بمطابقة أنماط (%, _) بدل تطابق دقيق.
     // نهرّب علامات الـ wildcard الخاصة بـ ILIKE مع الحفاظ على عدم حساسية حالة الأحرف.
     const escapedIdentifier = identifier.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("*")
-      .eq("role", lookupRole)
-      .ilike("identifier", escapedIdentifier)
-      .maybeSingle<AccountRow>();
+
+    let account: AccountRow | null;
+    try {
+      const { data: found } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("role", lookupRole)
+        .ilike("identifier", escapedIdentifier)
+        .maybeSingle<AccountRow>();
+      account = found;
+    } catch (err) {
+      // تعثر شبكي/Supabase أثناء تسجيل الدخول كان بيرمي استثناء غير مُعالَج، فيعلّق
+      // زر "دخول" للأبد بدون أي رسالة (setSubmitting(false) في LoginCard.tsx كان
+      // بيفضل معلّق بعده) — وده كان بيتحس كإنه لازم يعيد المحاولة كذا مرة.
+      console.error("[auth] signIn: تعذّر الاتصال بالخادم أثناء البحث عن الحساب:", err);
+      return { ok: false as const, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
+    }
 
     if (!account) return { ok: false as const, error: "الكود أو البريد غير صحيح" };
     if (needsPassword && account.password !== data.password?.trim()) {
@@ -124,20 +135,29 @@ export const signIn = createServerFn({ method: "POST" })
      * "platform" itself is never paused (no UI exposes that toggle for it), so this never
      * blocks the platform admin's own login.
      */
-    const { data: center } = await supabase
-      .from("centers")
-      .select("status")
-      .eq("id", account.center_id)
-      .maybeSingle();
-    if (center?.status === "paused") {
-      return { ok: false as const, error: "الاشتراك متوقف حالياً، تواصل مع الدعم" };
+    try {
+      const { data: center } = await supabase
+        .from("centers")
+        .select("status")
+        .eq("id", account.center_id)
+        .maybeSingle();
+      if (center?.status === "paused") {
+        return { ok: false as const, error: "الاشتراك متوقف حالياً، تواصل مع الدعم" };
+      }
+    } catch (err) {
+      console.error("[auth] signIn: تعذّر الاتصال بالخادم أثناء فحص حالة السنتر:", err);
+      return { ok: false as const, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
     }
 
     // Best-effort — a failed timestamp write must never block a valid login.
-    await supabase
-      .from("accounts")
-      .update({ last_login_at: new Date().toISOString() })
-      .eq("id", account.id);
+    try {
+      await supabase
+        .from("accounts")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", account.id);
+    } catch (err) {
+      console.error("[auth] signIn: تعذّر تحديث last_login_at (تجاهل، الدخول ناجح):", err);
+    }
 
     return {
       ok: true as const,

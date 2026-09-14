@@ -367,12 +367,19 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
   }
 
   if (USE_SUPABASE) {
-    const result = await signInFn({ data: { role, identifier: id, password } });
-    if (result.ok) {
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
-      emit();
+    try {
+      const result = await signInFn({ data: { role, identifier: id, password } });
+      if (result.ok) {
+        window.localStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
+        emit();
+      }
+      return result;
+    } catch (err) {
+      // استثناء غير متوقع (شبكة قطعت قبل ما يوصل للسيرفر أصلاً) — كان بيسيب
+      // LoginCard.tsx معلّق على "جارٍ الدخول..." للأبد من غير أي رسالة.
+      console.error("[auth] signIn: استثناء غير متوقع:", err);
+      return { ok: false, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
     }
-    return result;
   }
 
   // Parent authenticates with the student ID of their child.
