@@ -95,6 +95,13 @@ export function GroupCreateModal({ open, onClose }: GroupCreateModalProps) {
       toast.error("عدد الطلاب المختارين يتجاوز السعة");
       return;
     }
+    if (selectedStudents.size === 0) {
+      // بدون هذا الشرط، كان ممكن تتعمل مجموعة كاملة (باسم/مادة/مدرس/معاد) من
+      // غير أي طالب فيها — تفضل "شبح" تماماً بالنسبة لأي طالب (مش هو ولا مدرّسه
+      // ولا معاده هيظهرله في صفحته)، لأن كل شاشات الطالب مبنية على مجموعاته.
+      toast.error("اختر طالباً واحداً على الأقل — المجموعة من غير طلاب لن تظهر لأي طالب");
+      return;
+    }
     setSaving(true);
     try {
       createGroup({

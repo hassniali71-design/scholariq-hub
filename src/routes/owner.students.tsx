@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  AlertCircle,
   Award,
   Banknote,
   BookOpen,
@@ -208,6 +209,11 @@ function StudentsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {g.enrolled === 0 ? (
+                    <StatusBadge tone="destructive">
+                      <AlertCircle className="size-3.5" /> لا يوجد طلاب — لن تظهر لأي طالب
+                    </StatusBadge>
+                  ) : null}
                   <StatusBadge
                     tone={g.scheduling_status === "scheduled" ? "success" : "warning"}
                   >
