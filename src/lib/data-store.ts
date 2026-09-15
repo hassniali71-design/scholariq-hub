@@ -529,6 +529,60 @@ function bootstrapFromSupabase() {
     });
 }
 
+/**
+ * تزامن حي حقيقي — بدون هذه الدالة، كل تبويب متصفح كان بيجيب بيانات المركز مرة
+ * واحدة بس لحظة تسجيل الدخول (`bootstrapFromSupabase` بترجع فوراً لو
+ * `hydratedForIdentifier === identifier`) ومش بيشوف أي تحديث بعد كده أبداً — لا
+ * Supabase Realtime ولا أي إعادة جلب دورية كانت موجودة. طالب فاتح صفحته وقت ما
+ * المدرس بيسجل حضور/درجة/إطلاق مهمة كان مش هيشوف التحديث غير لو عمل ريفريش كامل
+ * أو خرج ودخل تاني — وده السبب الحقيقي وراء "التزامن مش بيحصل" رغم إن كل دوال
+ * الحفظ (createGroup، addStudentToGroup، recordAttendance...) بتكتب صح فعلياً على
+ * Supabase من اللحظة الأولى.
+ *
+ * الحل: إعادة جلب صامتة (بدون أي مؤشر تحميل، بدون توست عند الفشل) على فترات
+ * منتظمة + عند رجوع التبويب للتركيز — أقرب سلوك ممكن لتزامن حي بدون الحاجة لتفعيل
+ * Realtime على جانب Supabase نفسه (خطوة إضافية يدوية كانت هتحتاج إعداد كل جدول).
+ */
+function silentRefresh() {
+  if (!USE_SUPABASE || typeof window === "undefined") return;
+  const identifier = currentIdentifier();
+  // لو لسه مفيش هيدريشن أساسي حصل أصلاً، سيب bootstrapFromSupabase (بتتنادى من
+  // readState() في أي render عادي) تتكفل بالجلب الأول — الدالة دي للتحديث الدوري
+  // بعد الهيدريشن الأول بس.
+  if (!identifier || hydrating || hydratedForIdentifier !== identifier) return;
+  fetchCenterData({ data: { identifier } })
+    .then((result) => {
+      // المستخدم ممكن يكون سجّل خروج أو غيّر الهوية أثناء انتظار الرد.
+      if (currentIdentifier() !== identifier) return;
+      const {
+        centerId: _centerId,
+        center,
+        ...collections
+      } = result as {
+        centerId: string;
+        center: CenterInfo;
+      } & Record<string, unknown[]>;
+      cache = { ...seedState(), ...collections, center } as DataState;
+      cache.leaderboard = buildLeaderboard(cache.students);
+      emit();
+    })
+    .catch((err) => {
+      // فشل صامت عمداً — تحديث دوري في الخلفية مش المفروض يزعج المستخدم بتوست في
+      // كل مرة النت يتعثر فيها لحظياً؛ المحاولة الدورية الجاية هتعوّض تلقائياً.
+      console.error("[data-store] silentRefresh failed:", err);
+    });
+}
+
+const SILENT_REFRESH_INTERVAL_MS = 30_000;
+
+if (typeof window !== "undefined") {
+  window.setInterval(silentRefresh, SILENT_REFRESH_INTERVAL_MS);
+  window.addEventListener("focus", silentRefresh);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") silentRefresh();
+  });
+}
+
 function readState(): DataState {
   if (typeof window === "undefined") return SERVER_STATE;
 
