@@ -69,13 +69,20 @@ function OwnerDashboard() {
   const settings = getFinanceSettings(state);
 
   const today = WEEKDAYS[new Date().getDay()]!;
-  const todayGroups = useMemo(
-    () => groups.filter((g) => g.weekday === today),
-    [groups, today],
+  /**
+   * كل مجموعة ممكن يكون ليها أكثر من موعد أسبوعي (نفس المجموعة تقابل يومين
+   * مختلفين). `group.weekday` حقل قديم بيحمل يوم واحد بس، فكان بيخفي أي موعد
+   * تاني لنفس المجموعة يقع في يوم مختلف — ده بالظبط سبب ظهور حصص أقل من
+   * الحقيقي في "جدول اليوم". المصدر الصحيح هو `scheduleSlots` (سجل منفصل لكل
+   * موعد أسبوعي فعلي)، هو نفسه المستخدم بالفعل في بوابة الكاشير للموظف.
+   */
+  const todaySlots = useMemo(
+    () => scheduleSlots.filter((s) => s.weekday === today),
+    [scheduleSlots, today],
   );
   const teachersToday = useMemo(
-    () => teachers.filter((t) => todayGroups.some((g) => g.teacher_id === t.id)),
-    [teachers, todayGroups],
+    () => teachers.filter((t) => todaySlots.some((s) => s.teacher_id === t.id)),
+    [teachers, todaySlots],
   );
 
   const kpis = useMemo(() => computeOwnerKpis(state), [state]);
@@ -184,7 +191,7 @@ function OwnerDashboard() {
         />
         <StatCard
           label="حصص اليوم"
-          value={formatNumber(todayGroups.length)}
+          value={formatNumber(todaySlots.length)}
           icon={CalendarDays}
           trend={`${formatNumber(scheduleSlots.length)} موعد إجمالي في الجدول`}
         />
@@ -288,9 +295,9 @@ function OwnerDashboard() {
       {/* === جدول اليوم (مفصّل) === */}
       <Panel
         title={`جدول اليوم — ${today}`}
-        description={`${formatNumber(todayGroups.length)} حصة · ${formatNumber(teachersToday.length)} مدرس`}
+        description={`${formatNumber(todaySlots.length)} حصة · ${formatNumber(teachersToday.length)} مدرس`}
       >
-        {todayGroups.length === 0 ? (
+        {todaySlots.length === 0 ? (
           <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-base font-bold text-muted-foreground">
             لا توجد حصص مجدولة لهذا اليوم في {state.center.name}.
           </p>
@@ -308,16 +315,18 @@ function OwnerDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {[...todayGroups]
+                {[...todaySlots]
                   .sort((a, b) => (a.time < b.time ? -1 : 1))
-                  .map((g) => (
-                    <tr key={g.id} className="border-b border-border last:border-0">
-                      <td className="py-3 font-black text-foreground">{g.subject}</td>
-                      <td className="py-3 font-bold text-foreground">{g.teacher_name}</td>
-                      <td className="py-3 font-bold text-muted-foreground">{g.grade}</td>
-                      <td className="py-3 font-extrabold">{g.time}</td>
-                      <td className="py-3 font-extrabold">قاعة {g.room}</td>
-                      <td className="py-3 font-extrabold">{g.name}</td>
+                  .map((s) => (
+                    <tr key={s.id} className="border-b border-border last:border-0">
+                      <td className="py-3 font-black text-foreground">{s.subject}</td>
+                      <td className="py-3 font-bold text-foreground">{s.teacher_name}</td>
+                      <td className="py-3 font-bold text-muted-foreground">{s.grade}</td>
+                      <td className="py-3 font-extrabold">{s.time}</td>
+                      <td className="py-3 font-extrabold">قاعة {s.room}</td>
+                      <td className="py-3 font-extrabold">
+                        {groups.find((g) => g.id === s.group_id)?.name ?? "—"}
+                      </td>
                     </tr>
                   ))}
               </tbody>
