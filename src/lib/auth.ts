@@ -319,23 +319,41 @@ export async function deleteAccount(id: string): Promise<void> {
 /* ---------------- Session ---------------- */
 
 /**
- * جذر شكوى "بمجرد ما نعمل ريفريش بنرجع نسجل دخول": الجلسة كانت متخزّنة في
- * `localStorage` — وده **مشترك بين كل تابات نفس المتصفح لنفس الموقع**. المستخدم
- * بيفتح عمداً تابات متعددة (مالك/مدرس/طالب) في نفس المتصفح عشان يتابع الحركة
- * بينهم لحظياً — أي تسجيل دخول في تاب بيكتب فوق نفس المفتاح المشترك، فالتابات
- * التانية (لسه فاتحة بدور مختلف) بمجرد أي ريفريش أو تنقّل بتقرأ الجلسة الجديدة
- * الغلط وتتحس إنها "خرجت" فترجّع لصفحة الدخول تلقائياً — رغم إن كل حاجة سليمة.
+ * جذر شكوى "بمجرد ما نعمل ريفريش بنرجع نسجل دخول" + "التابات بتتعارض": الجلسة
+ * كانت متخزّنة في مفتاح واحد ثابت في `localStorage` — وده **مشترك بين كل
+ * تابات نفس المتصفح لنفس الموقع**. المستخدم بيفتح عمداً تابات متعددة (مالك/
+ * مدرس/طالب) في نفس المتصفح عشان يتابع الحركة بينهم لحظياً — أي تسجيل دخول
+ * في تاب بيكتب فوق نفس المفتاح المشترك، فالتابات التانية بمجرد أي ريفريش
+ * بتقرأ الجلسة الجديدة الغلط وتترجّع لصفحة الدخول تلقائياً.
  *
- * الحل: `sessionStorage` بدل `localStorage` — نفس آلية المتصفح لكن **مستقلة
- * لكل تاب على حدة** (نفس الموقع، تابات مختلفة = نسخ منفصلة تماماً من الجلسة).
- * تسجيل الدخول في تاب المدرس لا يمسّ جلسة تاب المالك المفتوح جنبه إطلاقاً.
- * الفرق العملي الوحيد: قفل المتصفح بالكامل (مش مجرد التاب) بيمسح الجلسة، فيصير
- * تسجيل الدخول مطلوب تاني بعد إعادة فتح المتصفح — تبادل آمن ومتوقّع لحل مشكلة
- * التعارض بين التابات، وأسلم بكتير من أي محاولة "تذكّر تلقائي" عبر التابات.
+ * محاولة أولى بـ`sessionStorage` وحده حلّت تعارض التابات، لكن كشفت مشكلة
+ * تانية: `sessionStorage` بيتمسح لو التاب اتقفل (حتى لو المتصفح فضل مفتوح)،
+ * وده بيتحس زي "خروج مفاجئ" لأي حد بيقفل التاب بالغلط أو المتصفح بيعيد ترتيب
+ * تاباته. الحل النهائي: **هوية ثابتة لكل تاب** (`erp.tab_id`) متخزّنة في
+ * `sessionStorage` (فريدة لكل تاب، بتفضل طول عمر التاب)، وتحتها الجلسة الفعلية
+ * متخزّنة في `localStorage` **باسم مفتاح مختلف لكل تاب** (`erp.session.v1.<tab
+ * id>`). النتيجة: كل تاب معزول تماماً عن التابات التانية (مفتاح مختلف)، وفي
+ * نفس الوقت الجلسة بتعيش في localStorage فمش بتتمسح بمجرد أي ريفريش أو حتى لو
+ * المتصفح أعاد فتح نفس التاب (Session Restore) — أفضل ما في الاتنين مع بعض.
  */
+function tabId(): string {
+  if (typeof window === "undefined") return "ssr";
+  const KEY = "erp.tab_id";
+  let id = window.sessionStorage.getItem(KEY);
+  if (!id) {
+    id = `tab-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+    window.sessionStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+function tabSessionKey(): string {
+  return `${SESSION_KEY}.${tabId()}`;
+}
+
 export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem(SESSION_KEY);
+  const raw = window.localStorage.getItem(tabSessionKey());
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Session;
@@ -346,7 +364,7 @@ export function getSession(): Session | null {
 
 export function signOut() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(SESSION_KEY);
+  window.localStorage.removeItem(tabSessionKey());
   // §0 fix — تنظيف فوري + متزامن لـ data-store cache و hydratedForIdentifier.
   // الـ import الديناميكي كان يترك frame قصير تتسرب فيه بيانات الـ tenant السابق
   // للـ paint، خاصةً مع sessions متعددة في نفس المتصفح. الآن التنظيف متزامن
@@ -385,7 +403,7 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
     try {
       const result = await signInFn({ data: { role, identifier: id, password } });
       if (result.ok) {
-        window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
+        window.localStorage.setItem(tabSessionKey(), JSON.stringify(result.session));
         emit();
       }
       return result;
@@ -413,7 +431,7 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
     full_name: role === "parent" ? `ولي أمر ${account.full_name}` : account.full_name,
     identifier: account.identifier,
   };
-  window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.localStorage.setItem(tabSessionKey(), JSON.stringify(session));
   emit();
   return { ok: true, session };
 }
