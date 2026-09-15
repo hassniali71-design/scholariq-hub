@@ -126,7 +126,6 @@ export function AddStudentToGroupModal({
                 </div>
               );
             })
-            ))
           )}
         </div>
       </div>
