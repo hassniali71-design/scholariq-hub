@@ -318,9 +318,24 @@ export async function deleteAccount(id: string): Promise<void> {
 
 /* ---------------- Session ---------------- */
 
+/**
+ * جذر شكوى "بمجرد ما نعمل ريفريش بنرجع نسجل دخول": الجلسة كانت متخزّنة في
+ * `localStorage` — وده **مشترك بين كل تابات نفس المتصفح لنفس الموقع**. المستخدم
+ * بيفتح عمداً تابات متعددة (مالك/مدرس/طالب) في نفس المتصفح عشان يتابع الحركة
+ * بينهم لحظياً — أي تسجيل دخول في تاب بيكتب فوق نفس المفتاح المشترك، فالتابات
+ * التانية (لسه فاتحة بدور مختلف) بمجرد أي ريفريش أو تنقّل بتقرأ الجلسة الجديدة
+ * الغلط وتتحس إنها "خرجت" فترجّع لصفحة الدخول تلقائياً — رغم إن كل حاجة سليمة.
+ *
+ * الحل: `sessionStorage` بدل `localStorage` — نفس آلية المتصفح لكن **مستقلة
+ * لكل تاب على حدة** (نفس الموقع، تابات مختلفة = نسخ منفصلة تماماً من الجلسة).
+ * تسجيل الدخول في تاب المدرس لا يمسّ جلسة تاب المالك المفتوح جنبه إطلاقاً.
+ * الفرق العملي الوحيد: قفل المتصفح بالكامل (مش مجرد التاب) بيمسح الجلسة، فيصير
+ * تسجيل الدخول مطلوب تاني بعد إعادة فتح المتصفح — تبادل آمن ومتوقّع لحل مشكلة
+ * التعارض بين التابات، وأسلم بكتير من أي محاولة "تذكّر تلقائي" عبر التابات.
+ */
 export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
+  const raw = window.sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Session;
@@ -331,7 +346,7 @@ export function getSession(): Session | null {
 
 export function signOut() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(SESSION_KEY);
+  window.sessionStorage.removeItem(SESSION_KEY);
   // §0 fix — تنظيف فوري + متزامن لـ data-store cache و hydratedForIdentifier.
   // الـ import الديناميكي كان يترك frame قصير تتسرب فيه بيانات الـ tenant السابق
   // للـ paint، خاصةً مع sessions متعددة في نفس المتصفح. الآن التنظيف متزامن
@@ -370,7 +385,7 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
     try {
       const result = await signInFn({ data: { role, identifier: id, password } });
       if (result.ok) {
-        window.localStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
+        window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.session));
         emit();
       }
       return result;
@@ -398,7 +413,7 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
     full_name: role === "parent" ? `ولي أمر ${account.full_name}` : account.full_name,
     identifier: account.identifier,
   };
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   emit();
   return { ok: true, session };
 }
