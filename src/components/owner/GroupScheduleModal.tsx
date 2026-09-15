@@ -47,10 +47,20 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
 
   const [gradeId, setGradeId] = useState<string>("");
   const [groupId, setGroupId] = useState<string>("");
-  const [weekday, setWeekday] = useState<string>("");
+  /** طلب صريح: مجموعة ممكن يبقى ليها أكثر من يوم أسبوعي (مش يوم واحد بس). */
+  const [weekdays, setWeekdays] = useState<Set<string>>(new Set());
   const [time, setTime] = useState<string>("");
   const [room, setRoom] = useState("");
   const [saving, setSaving] = useState(false);
+
+  function toggleWeekday(day: string) {
+    setWeekdays((prev) => {
+      const next = new Set(prev);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
 
   const pendingGroups = useMemo(() => {
     if (!gradeId) return [];
@@ -67,7 +77,7 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
   function reset() {
     setGradeId("");
     setGroupId("");
-    setWeekday("");
+    setWeekdays(new Set());
     setTime("");
     setRoom("");
   }
@@ -77,27 +87,40 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
       toast.error("اختر المجموعة");
       return;
     }
-    if (!weekday || !time) {
-      toast.error("اختر اليوم والساعة");
+    if (weekdays.size === 0 || !time) {
+      toast.error("اختر يوماً واحداً على الأقل والساعة");
       return;
     }
     if (!selectedGroup) return;
 
     setSaving(true);
     try {
-      setGroupSchedulingStatus(groupId, "scheduled", { weekday, time, room: room.trim() });
-      upsertScheduleSlot({
-        teacherId: selectedGroup.teacher_id,
-        teacherName: selectedGroup.teacher_name,
-        subjectId: selectedGroup.subject_id,
-        subject: selectedGroup.subject,
-        grade: selectedGroup.grade,
-        weekday,
+      // ترتيب الأيام حسب ترتيبها الأسبوعي الطبيعي (مش ترتيب الاختيار) — أول يوم
+      // مُختار (أياً كان ترتيب الضغط) هو اللي بيتسجّل كملخص المجموعة نفسها.
+      const orderedDays = WEEKDAYS.filter((d) => weekdays.has(d));
+      setGroupSchedulingStatus(groupId, "scheduled", {
+        weekday: orderedDays[0]!,
         time,
         room: room.trim(),
-        groupId: selectedGroup.id,
       });
-      toast.success("تم جدولة المجموعة");
+      for (const day of orderedDays) {
+        upsertScheduleSlot({
+          teacherId: selectedGroup.teacher_id,
+          teacherName: selectedGroup.teacher_name,
+          subjectId: selectedGroup.subject_id,
+          subject: selectedGroup.subject,
+          grade: selectedGroup.grade,
+          weekday: day,
+          time,
+          room: room.trim(),
+          groupId: selectedGroup.id,
+        });
+      }
+      toast.success(
+        orderedDays.length > 1
+          ? `تم جدولة المجموعة في ${orderedDays.length} أيام أسبوعياً`
+          : "تم جدولة المجموعة",
+      );
       reset();
       onClose();
     } catch (err) {
@@ -181,16 +204,16 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
             </select>
           </Field>
 
-          <Field label="اليوم">
+          <Field label="الأيام (يمكن اختيار أكثر من يوم)">
             <div className="flex flex-wrap gap-2">
               {WEEKDAYS.map((d) => (
                 <button
                   key={d}
                   type="button"
-                  onClick={() => setWeekday(d)}
+                  onClick={() => toggleWeekday(d)}
                   className={cn(
                     "rounded-xl border-2 px-3 py-2 text-sm font-black transition-colors",
-                    weekday === d
+                    weekdays.has(d)
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background text-foreground hover:border-primary",
                   )}
@@ -199,6 +222,11 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
                 </button>
               ))}
             </div>
+            {weekdays.size > 0 ? (
+              <p className="mt-1.5 text-xs font-bold text-muted-foreground">
+                {weekdays.size} يوم أسبوعياً بنفس الساعة والقاعة
+              </p>
+            ) : null}
           </Field>
 
           <Field label="الساعة">
@@ -251,7 +279,7 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !selectedGroup || !weekday || !time}
+            disabled={saving || !selectedGroup || weekdays.size === 0 || !time}
             className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2 text-sm font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
