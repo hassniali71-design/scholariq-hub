@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarPlus, CalendarRange, Download, LayoutList, Trash2 } from "lucide-react";
+import { CalendarPlus, CalendarRange, Download, LayoutList, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { EditScheduleSlotModal } from "@/components/owner/EditScheduleSlotModal";
 import { GroupScheduleModal } from "@/components/owner/GroupScheduleModal";
 import { deleteScheduleSlot, useDataStore } from "@/lib/data-store";
 import { formatNumber } from "@/lib/format";
@@ -57,6 +58,7 @@ function SchedulePage() {
   const { teachers, scheduleSlots, groups } = state;
   const [aggregate, setAggregate] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<ScheduleSlot | null>(null);
 
   const pendingCount = useMemo(
     () => groups.filter((g) => g.scheduling_status === "pending").length,
@@ -189,6 +191,7 @@ function SchedulePage() {
       }
     >
       <GroupScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />
+      <EditScheduleSlotModal slot={editingSlot} onClose={() => setEditingSlot(null)} />
 
       {pendingCount > 0 ? (
         <div className="rounded-xl border-2 border-warning/40 bg-warning/5 p-4 text-base font-black text-foreground">
@@ -225,14 +228,24 @@ function SchedulePage() {
                       <td className="py-3 font-bold text-muted-foreground">{s.grade}</td>
                       <td className="py-3 font-bold text-muted-foreground">{s.room || "—"}</td>
                       <td className="py-3">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSlot(s.id)}
-                          className="rounded-lg border-2 border-border p-2 text-destructive hover:border-destructive"
-                          aria-label="حذف الموعد"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingSlot(s)}
+                            className="rounded-lg border-2 border-border p-2 text-foreground hover:border-primary"
+                            aria-label="تعديل الموعد"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSlot(s.id)}
+                            className="rounded-lg border-2 border-border p-2 text-destructive hover:border-destructive"
+                            aria-label="حذف الموعد"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -295,14 +308,24 @@ function SchedulePage() {
                                 </span>
                               </td>
                               <td className="py-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteSlot(s.id)}
-                                  className="rounded-lg border-2 border-border p-2 text-destructive hover:border-destructive"
-                                  aria-label="حذف الموعد"
-                                >
-                                  <Trash2 className="size-4" />
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingSlot(s)}
+                                    className="rounded-lg border-2 border-border p-2 text-foreground hover:border-primary"
+                                    aria-label="تعديل الموعد"
+                                  >
+                                    <Pencil className="size-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSlot(s.id)}
+                                    className="rounded-lg border-2 border-border p-2 text-destructive hover:border-destructive"
+                                    aria-label="حذف الموعد"
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
