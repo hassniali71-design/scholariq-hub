@@ -56,6 +56,16 @@ select 'مادة: ' || name,
        ) then '✅ موجود' else '❌ غير موجود' end
 from (values ('عربي'),('إنجليزي'),('رياضيات'),('دراسات'),('علوم')) as t(name);
 
+-- فحص إضافي: أسماء مدرسين مكرّرة (أكتر من صف بنفس full_name) — ده اللي بيسبب
+-- خطأ "more than one row returned by a subquery" لو حصل. السكريبت تحت بقى
+-- يتعامل مع التكرار تلقائياً (بياخد أول صف بترتيب id)، بس شوف هنا لو حابب تنضّف
+-- الصف الزيادة بنفسك لاحقاً من صفحة الصلاحيات.
+select full_name as "اسم مكرر", count(*) as "عدد الصفوف"
+from teachers
+where center_id = 'ctr-1789325195831'
+group by full_name
+having count(*) > 1;
+
 -- ============================================================================
 -- لو كل الصفوف فوق طلعت ✅، كمّل من هنا (الجزء الفعلي اللي بيغيّر البيانات)
 -- ============================================================================
@@ -161,11 +171,11 @@ select
   'ctr-1789325195831' as center_id,
   s.grade_name || ' - ' || s.subject_name || ' - 1' as name,
   s.subject_name as subject,
-  (select id from subjects where center_id = 'ctr-1789325195831' and name = s.subject_name) as subject_id,
+  (select id from subjects where center_id = 'ctr-1789325195831' and name = s.subject_name order by id limit 1) as subject_id,
   s.teacher_name as teacher_name,
-  (select id from teachers where center_id = 'ctr-1789325195831' and full_name = s.teacher_name) as teacher_id,
+  (select id from teachers where center_id = 'ctr-1789325195831' and full_name = s.teacher_name order by id limit 1) as teacher_id,
   s.grade_name as grade,
-  (select id from grades where center_id = 'ctr-1789325195831' and name = s.grade_name) as grade_id,
+  (select id from grades where center_id = 'ctr-1789325195831' and name = s.grade_name order by id limit 1) as grade_id,
   s.weekday as weekday,
   s.time12 as "time",
   s.room_name as room,
@@ -188,9 +198,9 @@ insert into schedule_slots
 select
   'ctr1789325195831-slot-' || s.grade_num || '-' || s.subject_num || '-' || s.session_num as id,
   'ctr-1789325195831' as center_id,
-  (select id from teachers where center_id = 'ctr-1789325195831' and full_name = s.teacher_name) as teacher_id,
+  (select id from teachers where center_id = 'ctr-1789325195831' and full_name = s.teacher_name order by id limit 1) as teacher_id,
   s.teacher_name as teacher_name,
-  (select id from subjects where center_id = 'ctr-1789325195831' and name = s.subject_name) as subject_id,
+  (select id from subjects where center_id = 'ctr-1789325195831' and name = s.subject_name order by id limit 1) as subject_id,
   s.subject_name as subject,
   s.grade_name as grade,
   s.weekday as weekday,
