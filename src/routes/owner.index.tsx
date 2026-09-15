@@ -11,7 +11,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CenterActivityPanels } from "@/components/dashboard/CenterActivityPanels";
@@ -82,6 +82,20 @@ function OwnerDashboard() {
   const performance = useMemo(() => buildTeacherPerformance(state), [state]);
   const activeNow = useMemo(() => buildActiveGroupsNow(state), [state]);
   const alerts = useMemo(() => buildDecisionAlerts(state), [state]);
+
+  /**
+   * لوحة المالك بتحمّل عدد كبير من اللوحات الثقيلة (كل واحدة بتعمل useDataStore()
+   * وتكرار على بيانات المركز كامل بشكل منفصل) — بتحصل كلها بشكل متزامن وقت أول
+   * render، فبتعلّق اللوحة لحظياً على الأجهزة الأبطأ. المستخدم بيحس إنها "علّقت"
+   * فيعمل ريفريش، وده بيرجّعه لشاشة الدخول من الأول — يظهر كأنه "لازم يسجل دخول
+   * مرتين" رغم إن الجلسة سليمة. الحل: نعرض الكروت الأساسية فوراً، ونأجّل اللوحات
+   * الثقيلة لتيك واحد بعدها (setTimeout 0) عشان أول رسم للصفحة يبقى سريع.
+   */
+  const [heavyPanelsReady, setHeavyPanelsReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setHeavyPanelsReady(true), 0);
+    return () => window.clearTimeout(id);
+  }, []);
 
   const openTasks = useMemo(
     () => tasks.filter((t) => t.status === "pending" || t.status === "in_progress"),
@@ -269,7 +283,7 @@ function OwnerDashboard() {
       </div>
 
       {/* === نظرة اليوم (مع الكروت الستة) === */}
-      <TodayOverviewPanels />
+      {heavyPanelsReady ? <TodayOverviewPanels /> : <HeavyPanelSkeleton />}
 
       {/* === جدول اليوم (مفصّل) === */}
       <Panel
@@ -314,7 +328,7 @@ function OwnerDashboard() {
 
       {/* === المجموعات النشطة + التنبيهات === */}
       <div className="grid gap-6 xl:grid-cols-2">
-        <LiveActiveGroupsCard />
+        {heavyPanelsReady ? <LiveActiveGroupsCard /> : <HeavyPanelSkeleton />}
         <Panel
           title="تنبيهات تحتاج قراراً"
           description={`${formatNumber(alerts.length)} تنبيه محسوب لحظياً من حركة السنتر`}
@@ -346,15 +360,15 @@ function OwnerDashboard() {
       </div>
 
       {/* === متوسط أداء السنتر (رسمين منفصلين) === */}
-      <CenterActivityPanels />
+      {heavyPanelsReady ? <CenterActivityPanels /> : <HeavyPanelSkeleton />}
 
       {/* === الحضور الأسبوعي (محسّن) === */}
-      <EnhancedWeeklyAttendance />
+      {heavyPanelsReady ? <EnhancedWeeklyAttendance /> : <HeavyPanelSkeleton />}
 
       {/* === الإشعارات + سجل النشاط (scrollable + بحث + حذف) === */}
       <div className="grid gap-6 xl:grid-cols-2">
         <NotificationsPanel notifications={notifications} />
-        <ActivityLogPanel entries={activityLog} />
+        {heavyPanelsReady ? <ActivityLogPanel entries={activityLog} /> : <HeavyPanelSkeleton />}
       </div>
 
       {/* === عبارات المواد + ملاحظة للمدرس/الموظف === */}
@@ -402,5 +416,14 @@ function OwnerDashboard() {
         )}
       </Panel>
     </AppShell>
+  );
+}
+
+/** بديل خفيف الوزن للوحات الثقيلة أثناء الـtick الأول من الرسم — انظر heavyPanelsReady فوق. */
+function HeavyPanelSkeleton() {
+  return (
+    <div className="card-crisp flex h-40 items-center justify-center p-5">
+      <p className="text-sm font-bold text-muted-foreground">جارٍ التحميل…</p>
+    </div>
   );
 }
