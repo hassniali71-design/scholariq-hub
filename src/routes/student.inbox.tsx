@@ -12,6 +12,7 @@ import {
   hasSeenLaunch,
   markLaunchSeen,
   useDataStore,
+  useIsHydrated,
 } from "@/lib/data-store";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { TeacherLaunch } from "@/types";
@@ -52,10 +53,11 @@ function launchStatus(l: TeacherLaunch, submitted: boolean): { label: string; to
 
 function InboxPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const me = useCurrentStudent();
   useEffect(() => {
-    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [me]);
+    if (isHydrated && !me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me, isHydrated]);
 
   const launches = useMemo(() => {
     if (!me) return [];
@@ -69,6 +71,7 @@ function InboxPage() {
     [state.homeworkTasks, me?.id],
   );
 
+  if (!isHydrated) return null;
   if (!me) return <Navigate to="/login" />;
 
   return (

@@ -7,7 +7,7 @@ import { Panel, StatCard } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { getEarnedBadges, useDataStore, type EarnedBadge } from "@/lib/data-store";
+import { getEarnedBadges, useDataStore, useIsHydrated, type EarnedBadge } from "@/lib/data-store";
 
 export const Route = createFileRoute("/student/leaderboard")({
   head: () => ({
@@ -31,10 +31,11 @@ const BADGE_ICON: Record<EarnedBadge["key"], typeof Trophy> = {
 
 function LeaderboardPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const student = useCurrentStudent();
   useEffect(() => {
-    if (!student) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [student]);
+    if (isHydrated && !student) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [student, isHydrated]);
 
   // الترتيب داخل سياق مجموعته الأساسية فقط — من معه في نفس المجموعة تحديداً،
   // مش كل طلاب السنتر مجمَّعين بلا تمييز.
@@ -51,6 +52,7 @@ function LeaderboardPage() {
     [state, student],
   );
 
+  if (!isHydrated) return null;
   if (!student) return <Navigate to="/login" />;
 
   const top = groupmates[0] ?? null;

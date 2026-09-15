@@ -8,7 +8,7 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore } from "@/lib/data-store";
+import { useDataStore, useIsHydrated } from "@/lib/data-store";
 import { buildStudentAttendanceByWeekday } from "@/lib/owner-metrics";
 
 export const Route = createFileRoute("/parent/")({
@@ -33,10 +33,12 @@ function ParentPortal() {
   const state = useDataStore();
   const { quizResults, homeworkTasks, teacherNotes, whatsappLogs, liveScores, attendanceRecords, students } =
     state;
+  const isHydrated = useIsHydrated();
   const child = useCurrentStudent();
   useEffect(() => {
-    if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [child]);
+    if (isHydrated && !child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [child, isHydrated]);
+  if (!isHydrated) return null;
   if (!child) return <Navigate to="/login" />;
   const childQuizzes = quizResults.filter((q) => q.student_id === child.id);
   const childHomework = homeworkTasks.filter((h) => h.student_id === child.id);

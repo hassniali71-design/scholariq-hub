@@ -13,6 +13,7 @@ import {
   getGroupsForStudent,
   pushNotification,
   useDataStore,
+  useIsHydrated,
 } from "@/lib/data-store";
 import { buildDmKind, getDmThread } from "@/lib/dm-messages";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -41,13 +42,15 @@ const RESOURCE_LABEL: Record<string, string> = {
 
 function TeachersPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const me = useCurrentStudent();
   useEffect(() => {
-    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [me]);
+    if (isHydrated && !me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me, isHydrated]);
   const myGroups = useMemo(() => (me ? getGroupsForStudent(state, me.id) : []), [state, me]);
   const [messageFor, setMessageFor] = useState<Group | null>(null);
 
+  if (!isHydrated) return null;
   if (!me) return <Navigate to="/login" />;
 
   return (

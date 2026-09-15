@@ -17,6 +17,7 @@ import {
   markLessonPlanState,
   updateLessonPlan,
   useDataStore,
+  useIsHydrated,
 } from "@/lib/data-store";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -39,11 +40,13 @@ const ALL_GROUPS = "all" as const;
 
 function CurriculumPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const teacher = useCurrentTeacher();
   const session = useSession();
   useEffect(() => {
-    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [teacher]);
+    if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [teacher, isHydrated]);
+  if (!isHydrated) return null;
   if (!teacher) return <Navigate to="/login" />;
   const teacherIdentifier = session?.identifier ?? teacher.user_id ?? teacher.id;
   const myGroups = getGroupsForTeacher(state, teacher.id);

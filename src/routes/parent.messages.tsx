@@ -7,7 +7,7 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { formatNumber } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore } from "@/lib/data-store";
+import { useDataStore, useIsHydrated } from "@/lib/data-store";
 import type { WhatsAppLog } from "@/types";
 
 export const Route = createFileRoute("/parent/messages")({
@@ -40,11 +40,13 @@ const templateLabel: Record<WhatsAppLog["template"], string> = {
 
 function MessagesPage() {
   const data = useDataStore();
+  const isHydrated = useIsHydrated();
   const child = useCurrentStudent();
   const [filter, setFilter] = useState<"all" | WhatsAppLog["template"]>("all");
   useEffect(() => {
-    if (!child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [child]);
+    if (isHydrated && !child) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [child, isHydrated]);
+  if (!isHydrated) return null;
   if (!child) return <Navigate to="/login" />;
   const whatsappLogs = data.whatsappLogs.filter((w) => w.student_id === child.id);
   const list = whatsappLogs.filter((w) => filter === "all" || w.template === filter);

@@ -7,7 +7,7 @@ import { StudentCalendarWeekAttendanceChart } from "@/components/dashboard/Chart
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { useCurrentStudent } from "@/hooks/use-current-student";
-import { useDataStore } from "@/lib/data-store";
+import { useDataStore, useIsHydrated } from "@/lib/data-store";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import {
   buildStudentAttendanceByCalendarWeek,
@@ -31,10 +31,11 @@ export const Route = createFileRoute("/student/attendance")({
 
 function AttendancePage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const me = useCurrentStudent();
   useEffect(() => {
-    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [me]);
+    if (isHydrated && !me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me, isHydrated]);
   const myRecords = useMemo(
     () =>
       state.attendanceRecords
@@ -42,6 +43,7 @@ function AttendancePage() {
         .sort((a, b) => (a.checked_in_at < b.checked_in_at ? 1 : -1)),
     [state.attendanceRecords, me?.id],
   );
+  if (!isHydrated) return null;
   if (!me) return <Navigate to="/login" />;
 
   const presentCount = myRecords.filter((r) => r.status === "present").length;

@@ -29,6 +29,7 @@ import {
   recordAssessmentScore,
   setStudentAvatar,
   useDataStore,
+  useIsHydrated,
   type DataState,
 } from "@/lib/data-store";
 import { buildStudentAttendanceByCalendarWeek, WEEKDAYS } from "@/lib/owner-metrics";
@@ -155,14 +156,16 @@ export const Route = createFileRoute("/student/")({
 
 function StudentPortal() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const me = useCurrentStudent();
   useEffect(() => {
-    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [me]);
+    if (isHydrated && !me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me, isHydrated]);
 
   const myGroups = getGroupsForStudent(state, me?.id ?? "");
   const overallPerformance = getOverallStudentPerformance(state, me?.id ?? "");
 
+  if (!isHydrated) return null;
   if (!me) return <Navigate to="/login" />;
 
   const myAttendanceRecords = state.attendanceRecords.filter((a) => a.student_id === me.id);

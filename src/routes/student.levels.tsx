@@ -11,6 +11,7 @@ import {
   getOverallStudentPerformance,
   getPerformanceLayers,
   useDataStore,
+  useIsHydrated,
 } from "@/lib/data-store";
 import { formatNumber } from "@/lib/format";
 
@@ -44,11 +45,13 @@ function TierCard({ label, pct, hasData }: { label: string; pct: number; hasData
 
 function LevelsPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const me = useCurrentStudent();
   useEffect(() => {
-    if (!me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [me]);
+    if (isHydrated && !me) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [me, isHydrated]);
 
+  if (!isHydrated) return null;
   if (!me) return <Navigate to="/login" />;
 
   const overall = getOverallStudentPerformance(state, me.id);

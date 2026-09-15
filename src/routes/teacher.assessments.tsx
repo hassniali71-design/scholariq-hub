@@ -22,6 +22,7 @@ import {
   getSessionRecordsForGroup,
   getStudentsForGroup,
   useDataStore,
+  useIsHydrated,
   type DataState,
 } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
@@ -46,10 +47,12 @@ const ALL = "all" as const;
 
 function AssessmentsPage() {
   const state = useDataStore();
+  const isHydrated = useIsHydrated();
   const teacher = useCurrentTeacher();
   useEffect(() => {
-    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [teacher]);
+    if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [teacher, isHydrated]);
+  if (!isHydrated) return null;
   if (!teacher) return <Navigate to="/login" />;
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const grades = useMemo(

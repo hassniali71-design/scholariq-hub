@@ -35,6 +35,7 @@ import {
   getTimerCompliance,
   setTeacherAvatar,
   useDataStore,
+  useIsHydrated,
 } from "@/lib/data-store";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { getSubjectTheme } from "@/lib/subject-themes";
@@ -61,10 +62,20 @@ export const Route = createFileRoute("/teacher/")({
 function TeacherHome() {
   const state = useDataStore();
   const { attendanceRecords, subjects } = state;
+  const isHydrated = useIsHydrated();
   const teacher = useCurrentTeacher();
+  /**
+   * جذر شكوى "المدرسين والطلاب لازم يسجلوا دخول تاني كل ريفريش": `useCurrentTeacher`
+   * بيدوّر على صف المدرس داخل `data.teachers` — اللي بيفضل مصفوفة فاضية للحظة
+   * قبل ما `bootstrapFromSupabase` يخلص أول ما الصفحة تتحمّل. من غير التحقق من
+   * `isHydrated`، الصفحة كانت بتتحس إن "مفيش مدرس" وترجّع لصفحة الدخول فوراً في
+   * كل مرة — رغم إن الجلسة سليمة تماماً وبس البيانات لسه بتوصل. صفحات المالك/
+   * الموظف ما فيهاش نفس المشكلة لأنها مش محتاجة تدوّر على صف مطابق للجلسة.
+   */
   useEffect(() => {
-    if (!teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
-  }, [teacher]);
+    if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
+  }, [teacher, isHydrated]);
+  if (!isHydrated) return null;
   if (!teacher) return <Navigate to="/login" />;
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const myStudents = getStudentsForTeacher(state, teacher.id);
