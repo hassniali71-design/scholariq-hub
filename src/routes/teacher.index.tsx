@@ -243,31 +243,44 @@ function TeacherHome() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="جدول مجموعاتي" description="المواعيد والقاعات">
           <div className="space-y-3">
-            {myGroups.map((g) => (
-              <div
-                key={g.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-4"
-              >
-                <div>
-                  <p className="font-black text-foreground">{g.name}</p>
-                  <p className="text-xs font-bold text-muted-foreground">
-                    {g.grade} · {g.room} · {formatNumber(g.enrolled)} طالب
-                  </p>
+            {myGroups.map((g) => {
+              // مجموعة ممكن يكون ليها أكتر من معاد حقيقي (قاعات/أيام مختلفة لنفس
+              // الطلاب بالظبط) — نعرضهم كلهم بدل ما نعتمد على g.weekday/g.time
+              // (حقل ملخّص قديم بيحمل آخر معاد اتسجّل بس، مش كل المواعيد).
+              const slots = state.scheduleSlots
+                .filter((sl) => sl.group_id === g.id)
+                .sort((a, b) => a.weekday.localeCompare(b.weekday, "ar"));
+              return (
+                <div key={g.id} className="rounded-xl border-2 border-border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-black text-foreground">{g.name}</p>
+                      <p className="text-xs font-bold text-muted-foreground">
+                        {g.grade} · {formatNumber(g.enrolled)} طالب
+                      </p>
+                    </div>
+                    <Link
+                      to="/teacher/session/$groupId"
+                      params={{ groupId: g.id }}
+                      className="rounded-xl border-2 border-navy px-3 py-2 text-xs font-black text-navy hover:bg-navy hover:text-navy-foreground"
+                    >
+                      ابدأ
+                    </Link>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {slots.length > 0 ? (
+                      slots.map((sl) => (
+                        <StatusBadge key={sl.id} tone="primary">
+                          {sl.weekday} {sl.time} {sl.room ? `· ${sl.room}` : ""}
+                        </StatusBadge>
+                      ))
+                    ) : (
+                      <StatusBadge tone="neutral">لم تُجدول بعد</StatusBadge>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge tone="primary">
-                    {g.weekday} {g.time}
-                  </StatusBadge>
-                  <Link
-                    to="/teacher/session/$groupId"
-                    params={{ groupId: g.id }}
-                    className="rounded-xl border-2 border-navy px-3 py-2 text-xs font-black text-navy hover:bg-navy hover:text-navy-foreground"
-                  >
-                    ابدأ
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {myGroups.length === 0 ? (
               <p className="py-6 text-center font-black text-muted-foreground">
                 لا توجد مجموعات مرتبطة بك بعد

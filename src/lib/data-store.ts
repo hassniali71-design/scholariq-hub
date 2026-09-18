@@ -4419,6 +4419,38 @@ export function createGroup(input: CreateGroupInput): { group: Group; warnings: 
 
   const now = new Date().toISOString();
   const newId = `grp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  /**
+   * طالب مشترك في أكتر من مادة (سيناريو شائع جداً) بيظهر "مؤهَّل" لأكتر من مجموعة
+   * في نفس الوقت (getEligibleStudentsForGroup بتفلتر بالمادة بس، مش بالمجموعة
+   * الحالية). قبل هذا الإصلاح، أي مجموعة جديدة كانت بتستحوذ على group_id
+   * الأساسي للطالب بلا شرط — فلو الطالب كان أصلاً مسجَّل أساسياً في مجموعة رياضيات
+   * وبعدين اتضاف لمجموعة عربي جديدة، كان بيختفي فوراً من مجموعة الرياضيات (تفضل
+   * "شبح" عند مدرّس الرياضيات) رغم إن عداد enrolled بتاعها ما كانش بينقص. الحل:
+   * لو مجموعته الأساسية الحالية لمادة مختلفة عن مادة المجموعة الجديدة، يتسجَّل
+   * هنا كمجموعة إضافية (نفس آلية enrollStudentInAdditionalGroup) بدل ما نلمس
+   * اشتراكه الأساسي. النقل الفعلي للمجموعة الأساسية بيفضل بس لما يكون نفس المادة
+   * (مثلاً نقل قسم لقسم تاني من نفس المادة).
+   */
+  const targetIds = new Set(input.studentIds);
+  const primaryIds = new Set<string>();
+  const secondaryIds: string[] = [];
+  // كل مجموعة قديمة (نفس المادة) لازم عدد الطلاب المنقولين منها لينقص عدادها بعدها.
+  const vacatedCounts = new Map<string, number>();
+  for (const s of state.students) {
+    if (!targetIds.has(s.id)) continue;
+    const currentGroup = s.group_id ? state.groups.find((g) => g.id === s.group_id) : undefined;
+    if (currentGroup && currentGroup.subject_id !== input.subjectId) {
+      secondaryIds.push(s.id);
+    } else {
+      if (currentGroup) {
+        warnings.push(`الطالب ${s.full_name} منقول من مجموعة سابقة لنفس المادة`);
+        vacatedCounts.set(currentGroup.id, (vacatedCounts.get(currentGroup.id) ?? 0) + 1);
+      }
+      primaryIds.add(s.id);
+    }
+  }
+
   const group: Group = {
     id: newId,
     center_id: state.center.id,
@@ -4433,21 +4465,16 @@ export function createGroup(input: CreateGroupInput): { group: Group; warnings: 
     weekday: "",
     time: "",
     room: "",
-    enrolled: input.studentIds.length,
+    enrolled: primaryIds.size,
     capacity: input.capacity,
     scheduling_status: "pending",
     created_at: now,
     notes: input.notes ?? null,
   };
 
-  const targetIds = new Set(input.studentIds);
-  const studentsAfter = state.students.map((s) => {
-    if (!targetIds.has(s.id)) return s;
-    if (s.group_id && s.group_id !== newId) {
-      warnings.push(`الطالب ${s.full_name} منقول من مجموعة سابقة`);
-    }
-    return { ...s, group_id: newId, group_name: group.name };
-  });
+  const studentsAfter = state.students.map((s) =>
+    primaryIds.has(s.id) ? { ...s, group_id: newId, group_name: group.name } : s,
+  );
 
   update((s) => ({
     ...s,
@@ -4455,8 +4482,26 @@ export function createGroup(input: CreateGroupInput): { group: Group; warnings: 
     students: studentsAfter,
   }));
   syncInsert("groups", group as unknown as object);
-  for (const sid of input.studentIds) {
+  for (const sid of primaryIds) {
     syncUpdate("students", sid, { group_id: newId, group_name: group.name });
+  }
+
+  // لو حد اتنقل من مجموعة قديمة لنفس المادة، لازم عدادها ينقص فوراً (نفس بالظبط
+  // بوكيبنج addStudentToGroup الموجودة أصلاً) وإلا كارت المجموعة القديمة يفضل
+  // يعرض عدد طلاب زيادة عن الحقيقة.
+  for (const [oldGroupId, movedAway] of vacatedCounts) {
+    const prevGroup = state.groups.find((g) => g.id === oldGroupId);
+    if (!prevGroup) continue;
+    const nextEnrolled = Math.max(0, prevGroup.enrolled - movedAway);
+    update((s) => ({
+      ...s,
+      groups: s.groups.map((g) => (g.id === oldGroupId ? { ...g, enrolled: nextEnrolled } : g)),
+    }));
+    syncUpdate("groups", oldGroupId, { enrolled: nextEnrolled });
+  }
+
+  for (const sid of secondaryIds) {
+    enrollStudentInAdditionalGroup(sid, newId);
   }
 
   return { group, warnings };

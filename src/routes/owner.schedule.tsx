@@ -1,10 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarPlus, CalendarRange, Download, LayoutList, Pencil, Trash2 } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarPlus,
+  CalendarRange,
+  Download,
+  LayoutList,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { AddScheduleSlotModal } from "@/components/owner/AddScheduleSlotModal";
 import { EditScheduleSlotModal } from "@/components/owner/EditScheduleSlotModal";
 import { GroupScheduleModal } from "@/components/owner/GroupScheduleModal";
 import { deleteScheduleSlot, useDataStore } from "@/lib/data-store";
@@ -19,7 +28,8 @@ export const Route = createFileRoute("/owner/schedule")({
       { title: "غرفة تحكم الجدولة — لوحة المالك" },
       {
         name: "description",
-        content: "جدول مواعيد كل مدرس بصيغة 12 ساعة، جدولة المجموعات المعلَّقة، تصدير PDF لكل مدرس.",
+        content:
+          "جدول مواعيد كل مدرس بصيغة 12 ساعة، جدولة المجموعات المعلَّقة، تصدير PDF لكل مدرس.",
       },
     ],
   }),
@@ -46,11 +56,7 @@ const TIMES_12 = [
 
 /** تحويل "04:00 PM" إلى "04:00 م" لعرض الفاتح. */
 function format12hArabic(t: string): string {
-  return t
-    .replace(" AM", " ص")
-    .replace(" PM", " م")
-    .replace("AM", "ص")
-    .replace("PM", "م");
+  return t.replace(" AM", " ص").replace(" PM", " م").replace("AM", "ص").replace("PM", "م");
 }
 
 function SchedulePage() {
@@ -58,6 +64,7 @@ function SchedulePage() {
   const { teachers, scheduleSlots, groups } = state;
   const [aggregate, setAggregate] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [addSlotOpen, setAddSlotOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<ScheduleSlot | null>(null);
 
   const pendingCount = useMemo(
@@ -181,6 +188,14 @@ function SchedulePage() {
           </button>
           <button
             type="button"
+            onClick={() => setAddSlotOpen(true)}
+            className="flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-2.5 text-base font-black text-foreground hover:border-primary"
+          >
+            <CalendarClock className="size-5" />
+            معاد إضافي لمجموعة موجودة
+          </button>
+          <button
+            type="button"
             onClick={() => setAggregate((v) => !v)}
             className="flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-2.5 text-base font-black text-foreground hover:border-primary"
           >
@@ -191,6 +206,7 @@ function SchedulePage() {
       }
     >
       <GroupScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />
+      <AddScheduleSlotModal open={addSlotOpen} onClose={() => setAddSlotOpen(false)} />
       <EditScheduleSlotModal slot={editingSlot} onClose={() => setEditingSlot(null)} />
 
       {pendingCount > 0 ? (
