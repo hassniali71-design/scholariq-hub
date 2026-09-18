@@ -1005,13 +1005,30 @@ export function getGroupsForTeacher(state: DataState, teacherId: string): Group[
   );
 }
 
-export function getStudentsForTeacher(state: DataState, teacherId: string): Student[] {
-  const groupIds = new Set(getGroupsForTeacher(state, teacherId).map((g) => g.id));
-  return state.students.filter((s) => s.group_id !== null && groupIds.has(s.group_id));
+/**
+ * كل طلاب مجموعة معيّنة: التسجيل الأساسي (student.group_id) + أي تسجيل إضافي عبر
+ * enrollStudentInAdditionalGroup (Migration 0030، تعدد المجموعات للطالب). نفس منطق
+ * getGroupsForStudent بالعكس — لازم يفضلوا متطابقين وإلا يرجع الطالب "شبح" في
+ * مجموعته الإضافية (مش ظاهر في عدّاد المجموعة ولا في "وضع الحصة").
+ */
+export function getStudentsForGroup(state: DataState, groupId: string): Student[] {
+  const extraStudentIds = new Set(
+    state.studentGroupEnrollments
+      .filter((e) => e.group_id === groupId)
+      .map((e) => e.student_id),
+  );
+  return state.students.filter((s) => s.group_id === groupId || extraStudentIds.has(s.id));
 }
 
-export function getStudentsForGroup(state: DataState, groupId: string): Student[] {
-  return state.students.filter((s) => s.group_id === groupId);
+export function getStudentsForTeacher(state: DataState, teacherId: string): Student[] {
+  const groupIds = getGroupsForTeacher(state, teacherId).map((g) => g.id);
+  const byId = new Map<string, Student>();
+  for (const groupId of groupIds) {
+    for (const student of getStudentsForGroup(state, groupId)) {
+      byId.set(student.id, student);
+    }
+  }
+  return Array.from(byId.values());
 }
 
 /** كل التقييمات المسجَّلة لكل طلاب مجموعة معيّنة (يُستخدم في GroupMetricsPanel). */
@@ -1019,9 +1036,7 @@ export function getAssessmentScoresForGroup(
   state: DataState,
   groupId: string,
 ): AssessmentScore[] {
-  const studentIds = new Set(
-    state.students.filter((s) => s.group_id === groupId).map((s) => s.id),
-  );
+  const studentIds = new Set(getStudentsForGroup(state, groupId).map((s) => s.id));
   return state.assessmentScores.filter((a) => studentIds.has(a.student_id));
 }
 
