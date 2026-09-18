@@ -3486,17 +3486,16 @@ export function deleteScheduleSlot(id: string) {
 }
 
 /**
- * حذف طالب نهائياً + كل متعلقاته المالية والحركية، حتى لا يظل أثره في التدفق المالي
- * أو في تقارير الحضور بعد خروجه من السنتر.
+ * حذف طالب نهائياً + كل متعلقاته الحركية (حضور/واجبات/درجات/رسائل)، حتى لا يظل
+ * أثره في تقارير الحضور بعد خروجه من السنتر. المدفوعات المالية **تُستثنى عمداً**
+ * وتفضل موجودة كأرشيف محاسبي — طلب صريح من صاحب المشروع (لا يُحذف السجل المالي
+ * لأي مدرس/موظف/طالب حتى بعد حذف صاحبه).
  */
 export function deleteStudentCompletely(studentId: string) {
   const before = getData();
   const student = before.students.find((s) => s.id === studentId);
   if (!student) return;
 
-  const paymentIds = before.payments
-    .filter((p) => p.student_code === student.code)
-    .map((p) => p.id);
   const attendanceIds = before.attendanceRecords
     .filter((a) => a.student_id === studentId)
     .map((a) => a.id);
@@ -3514,7 +3513,6 @@ export function deleteStudentCompletely(studentId: string) {
     return {
       ...state,
       students,
-      payments: state.payments.filter((p) => p.student_code !== student.code),
       attendanceRecords: state.attendanceRecords.filter((a) => a.student_id !== studentId),
       quizResults: state.quizResults.filter((q) => q.student_id !== studentId),
       homeworkTasks: state.homeworkTasks.filter((h) => h.student_id !== studentId),
@@ -3528,7 +3526,6 @@ export function deleteStudentCompletely(studentId: string) {
   });
 
   syncDeleteIds("students", [studentId]);
-  syncDeleteIds("payments", paymentIds);
   syncDeleteIds("attendance_records", attendanceIds);
   syncDeleteIds("quiz_results", quizIds);
   syncDeleteIds("homework_tasks", homeworkIds);
@@ -3669,22 +3666,31 @@ export interface CascadeDeleteResult {
   ok: boolean;
   deletedGroups: number;
   orphanedStudents: number;
-  deletedPayroll: number;
   deletedSessions: number;
   error?: string;
 }
 
 /**
  * حذف جذري لمستخدم (مدرس / موظف / زائر / طالب):
- *  - للمدرس: حذف كل المجموعات + جدول حصصه + رواتبه + تقييماته + تحويل طلابه لأيتام.
- *  - للموظف: حذف صلاحياته + رواتبه.
+ *  - للمدرس: حذف كل المجموعات + جدول حصصه + تقييماته + تحويل طلابه لأيتام.
+ *  - للموظف: حذف صلاحياته.
  *  - للطالب: استدعاء deleteStudentCompletely (موجود فعلاً).
  *  - للزائر: حذف من accounts فقط.
+ *  - السجلات المالية (رواتب المدرس/الموظف، مدفوعات الطالب) **لا تُحذف** — تفضل
+ *    موجودة كأرشيف محاسبي حتى بعد حذف صاحبها، طلب صريح من صاحب المشروع.
  *
- * يعتمد على `accountId` (id من جدول accounts).
+ * جذر باغ حقيقي كان موجود من قبل: الدالة كانت بتستقبل وتقارن بـ`accountId`
+ * (الـid الداخلي لجدول accounts، شكله acc-...) — لكن صفوف teachers/students
+ * وstaffPermissions بتخزّن *كود الدخول* (user_id/code/account_identifier،
+ * شكله TCH-.../STD-...)، وهي مساحة قيم مختلفة تماماً عن accounts.id، فالمقارنة
+ * ما كانتش بتتطابق أبداً — يعني حذف أي مدرس/موظف/طالب من صفحة الصلاحيات كان
+ * بيمسح حساب الدخول بس (accounts) ويسيب صف المدرس/الموظف/الطالب الحقيقي شبح
+ * فاضل في كل مكان (الجدولة، قوايم اختيار المدرس عند إنشاء مجموعة...). الحل:
+ * الدالة دلوقتي بتاخد `identifier` (accounts.identifier نفسه) وتقارن بيه.
  */
 export function deleteAccountCascade(
   accountId: string,
+  identifier: string,
   role: "teacher" | "staff" | "visitor" | "student",
 ): CascadeDeleteResult {
   const state = getData();
@@ -3692,12 +3698,11 @@ export function deleteAccountCascade(
     ok: true,
     deletedGroups: 0,
     orphanedStudents: 0,
-    deletedPayroll: 0,
     deletedSessions: 0,
   };
 
   if (role === "teacher") {
-    const teacher = state.teachers.find((t) => t.id === accountId || t.user_id === accountId);
+    const teacher = state.teachers.find((t) => t.user_id === identifier || t.id === identifier);
     if (teacher) {
       const teacherGroups = state.groups.filter((g) => g.teacher_id === teacher.id);
       const teacherGroupIds = new Set(teacherGroups.map((g) => g.id));
@@ -3714,11 +3719,7 @@ export function deleteAccountCascade(
       });
       result.orphanedStudents = orphanIds.length;
 
-      // رواتب المدرس
-      const payrollIds = state.payrollRecords
-        .filter((p) => p.person_id === teacher.id || p.person_name === teacher.full_name)
-        .map((p) => p.id);
-      result.deletedPayroll = payrollIds.length;
+      // رواتب المدرس — طلب صريح: تفضل كأرشيف محاسبي حتى بعد حذف صاحبها، لا تُحذف.
 
       // سجلات الحصص
       const sessionIds = state.sessionRecords
@@ -3732,7 +3733,6 @@ export function deleteAccountCascade(
         students: newStudents,
         groups: s.groups.filter((g) => !teacherGroupIds.has(g.id)),
         scheduleSlots: s.scheduleSlots.filter((slot) => slot.teacher_id !== teacher.id),
-        payrollRecords: s.payrollRecords.filter((p) => !payrollIds.includes(p.id)),
         sessionRecords: s.sessionRecords.filter((sr) => !sessionIds.includes(sr.id)),
         sessionEvents: s.sessionEvents.filter((ev) => !sessionIds.includes(ev.session_id)),
         assessmentScores: s.assessmentScores.filter((a) => a.recorded_by_teacher_id !== teacher.id),
@@ -3742,7 +3742,6 @@ export function deleteAccountCascade(
       // مزامنة Supabase
       syncDeleteIds("groups", [...teacherGroupIds]);
       syncDeleteIds("schedule_slots", state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).map((s) => s.id));
-      syncDeleteIds("payroll_records", payrollIds);
       syncDeleteIds("session_records", sessionIds);
       syncDeleteIds("session_events", state.sessionEvents.filter((ev) => sessionIds.includes(ev.session_id)).map((ev) => ev.id));
       syncDeleteIds("assessment_scores", state.assessmentScores.filter((a) => a.recorded_by_teacher_id === teacher.id).map((a) => a.id));
@@ -3752,25 +3751,19 @@ export function deleteAccountCascade(
       syncDeleteIds("teachers", [teacher.id]);
     }
   } else if (role === "staff") {
-    // للموظف: حذف صلاحياته + رواتبه
+    // للموظف: حذف صلاحياته بس — رواتبه تفضل كأرشيف محاسبي (نفس منطق المدرس فوق).
     const staffPerm = state.staffPermissions.find(
-      (p) => p.account_identifier === accountId || p.id === accountId,
+      (p) => p.account_identifier === identifier || p.id === identifier,
     );
-    const payrollIds = state.payrollRecords
-      .filter((p) => p.person_id === accountId)
-      .map((p) => p.id);
-    result.deletedPayroll = payrollIds.length;
 
     update((s) => ({
       ...s,
       staffPermissions: s.staffPermissions.filter((p) => p.id !== staffPerm?.id),
-      payrollRecords: s.payrollRecords.filter((p) => !payrollIds.includes(p.id)),
     }));
 
     if (staffPerm) syncDeleteIds("staff_permissions", [staffPerm.id]);
-    syncDeleteIds("payroll_records", payrollIds);
   } else if (role === "student") {
-    const student = state.students.find((s) => s.id === accountId);
+    const student = state.students.find((s) => s.code === identifier || s.id === identifier);
     if (student) {
       deleteStudentCompletely(student.id);
     }

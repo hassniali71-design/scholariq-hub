@@ -803,12 +803,11 @@ function AccountRow({ account }: { account: Account }) {
       toast.error(e instanceof Error ? e.message : "فشل حذف الحساب من accounts");
       return;
     }
-    const result = deleteAccountCascade(account.id, role);
+    const result = deleteAccountCascade(account.id, account.identifier, role);
     if (result.ok) {
       const details: string[] = [];
       if (result.deletedGroups) details.push(`${result.deletedGroups} مجموعة`);
       if (result.orphanedStudents) details.push(`${result.orphanedStudents} طالب أيتم`);
-      if (result.deletedPayroll) details.push(`${result.deletedPayroll} سجل راتب`);
       if (result.deletedSessions) details.push(`${result.deletedSessions} سجل حصة`);
       toast.success(
         details.length
