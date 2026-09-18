@@ -45,27 +45,25 @@ function isH3SwallowedErrorBody(body: string): boolean {
 }
 
 /**
- * نيترو المفروض يعكس bindings الـWorker (ERP_SUPABASE_URL وباقي الأسرار المسجَّلة
- * بـ`wrangler secret put`) تلقائياً على process.env، لكن ده مش بيحصل فعلياً على
- * هذه النسخة/الإعداد — process.env["ERP_SUPABASE_URL"] بيرجع فاضي رغم إن السر
- * مسجَّل فعلاً عند Cloudflare (تأكدنا بـ`wrangler secret list`)، فأي كود سيرفر
- * بيستخدم supabase-server.ts (تسجيل الدخول، إلخ) كان بيفشل بصمت.
- * الحل الأضمن: env هنا هو نفسه الـbindings الحقيقية اللي Cloudflare بيمررها لكل
- * طلب (موثّق في التوقيع نفسه) — ننسخها يدوياً على process.env قبل أي حاجة تانية،
- * فمفيش اعتماد على أي شيم داخلي في نيترو ممكن يكون مش شغال.
+ * تتبّعنا مصدر unenv (المكتبة اللي بتوفّر process.env جوه Cloudflare Workers):
+ * الـproxy بتاعها بتقرأ من globalThis.__env__ أولاً قبل أي حاجة تانية
+ * (node_modules/unenv/dist/runtime/node/internal/process/env.mjs). نيترو نفسه
+ * بيضبط globalThis.__env__ = env في المُعالِج الافتراضي بتاعه (cloudflare-module
+ * preset)، لكن بما إن tanstackStart.server.entry بيوجّه لملف src/server.ts ده
+ * بدل معالج نيترو الجاهز، السطر ده مبيتنفذش خالص — فـ process.env["ERP_SUPABASE_URL"]
+ * بيرجع فاضي دايماً رغم إن السر مسجَّل فعلاً عند Cloudflare (تأكدنا بـ
+ * `wrangler secret list`). الحل: نضبط globalThis.__env__ بنفسنا هنا بنفس
+ * الطريقة بالظبط اللي نيترو كان المفروض يعملها — env هنا هو نفسه bindings
+ * الـWorker الحقيقية اللي Cloudflare بيمررها لكل طلب (موثّق في التوقيع نفسه).
  */
-function syncCloudflareEnvToProcessEnv(env: unknown) {
+function syncCloudflareEnvGlobal(env: unknown) {
   if (!env || typeof env !== "object") return;
-  for (const [key, value] of Object.entries(env as Record<string, unknown>)) {
-    if (typeof value === "string") {
-      process.env[key] = value;
-    }
-  }
+  (globalThis as { __env__?: unknown }).__env__ = env;
 }
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    syncCloudflareEnvToProcessEnv(env);
+    syncCloudflareEnvGlobal(env);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
