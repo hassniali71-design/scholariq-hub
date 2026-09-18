@@ -44,8 +44,28 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+/**
+ * نيترو المفروض يعكس bindings الـWorker (ERP_SUPABASE_URL وباقي الأسرار المسجَّلة
+ * بـ`wrangler secret put`) تلقائياً على process.env، لكن ده مش بيحصل فعلياً على
+ * هذه النسخة/الإعداد — process.env["ERP_SUPABASE_URL"] بيرجع فاضي رغم إن السر
+ * مسجَّل فعلاً عند Cloudflare (تأكدنا بـ`wrangler secret list`)، فأي كود سيرفر
+ * بيستخدم supabase-server.ts (تسجيل الدخول، إلخ) كان بيفشل بصمت.
+ * الحل الأضمن: env هنا هو نفسه الـbindings الحقيقية اللي Cloudflare بيمررها لكل
+ * طلب (موثّق في التوقيع نفسه) — ننسخها يدوياً على process.env قبل أي حاجة تانية،
+ * فمفيش اعتماد على أي شيم داخلي في نيترو ممكن يكون مش شغال.
+ */
+function syncCloudflareEnvToProcessEnv(env: unknown) {
+  if (!env || typeof env !== "object") return;
+  for (const [key, value] of Object.entries(env as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      process.env[key] = value;
+    }
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    syncCloudflareEnvToProcessEnv(env);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
