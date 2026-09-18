@@ -45,25 +45,34 @@ function isH3SwallowedErrorBody(body: string): boolean {
 }
 
 /**
- * تتبّعنا مصدر unenv (المكتبة اللي بتوفّر process.env جوه Cloudflare Workers):
- * الـproxy بتاعها بتقرأ من globalThis.__env__ أولاً قبل أي حاجة تانية
- * (node_modules/unenv/dist/runtime/node/internal/process/env.mjs). نيترو نفسه
- * بيضبط globalThis.__env__ = env في المُعالِج الافتراضي بتاعه (cloudflare-module
- * preset)، لكن بما إن tanstackStart.server.entry بيوجّه لملف src/server.ts ده
- * بدل معالج نيترو الجاهز، السطر ده مبيتنفذش خالص — فـ process.env["ERP_SUPABASE_URL"]
- * بيرجع فاضي دايماً رغم إن السر مسجَّل فعلاً عند Cloudflare (تأكدنا بـ
- * `wrangler secret list`). الحل: نضبط globalThis.__env__ بنفسنا هنا بنفس
- * الطريقة بالظبط اللي نيترو كان المفروض يعملها — env هنا هو نفسه bindings
- * الـWorker الحقيقية اللي Cloudflare بيمررها لكل طلب (موثّق في التوقيع نفسه).
+ * تشخيص مؤقت أخير: الإصلاحات السابقة (نسخ process.env، ضبط globalThis.__env__)
+ * اتأكدت نظرياً من كود nitro/unenv نفسه لكن لسه مش شغالة عملياً — يبقى المشكلة
+ * قبل كل ده: نفس بارامتر env اللي بيوصل لـfetch هنا (أول نقطة ممكنة في الكود
+ * كله) هو نفسه فاضي أو مش زي المتوقع. بنسجّل أسماء مفاتيحه هنا مباشرة (بدون
+ * أي طبقة وسيطة) عشان نتأكد نهائياً هل Cloudflare بيمرر الأسرار فعلاً للدالة
+ * دي ولا لأ.
  */
-function syncCloudflareEnvGlobal(env: unknown) {
-  if (!env || typeof env !== "object") return;
-  (globalThis as { __env__?: unknown }).__env__ = env;
+function recordRawEnvDebug(env: unknown) {
+  const g = globalThis as { __RAW_ENV_DEBUG__?: string };
+  try {
+    if (env === null) {
+      g.__RAW_ENV_DEBUG__ = "env === null";
+    } else if (env === undefined) {
+      g.__RAW_ENV_DEBUG__ = "env === undefined";
+    } else if (typeof env !== "object") {
+      g.__RAW_ENV_DEBUG__ = `typeof env === ${typeof env}`;
+    } else {
+      const keys = Object.keys(env as Record<string, unknown>);
+      g.__RAW_ENV_DEBUG__ = `env keys (${keys.length}): ${keys.join(", ") || "(none)"}`;
+    }
+  } catch (e) {
+    g.__RAW_ENV_DEBUG__ = `تعذّر فحص env: ${e instanceof Error ? e.message : String(e)}`;
+  }
 }
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    syncCloudflareEnvGlobal(env);
+    recordRawEnvDebug(env);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

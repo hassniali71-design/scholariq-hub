@@ -51,8 +51,10 @@ export function getSupabaseAdmin(): AnySupabaseClient {
     } catch (e) {
       envKeysHint = `تعذّر قراءة process.env: ${e instanceof Error ? e.message : String(e)}`;
     }
+    const rawEnvDebug =
+      (globalThis as { __RAW_ENV_DEBUG__?: string }).__RAW_ENV_DEBUG__ ?? "لا يوجد تسجيل خام";
     throw new Error(
-      `ERP_SUPABASE_URL / ERP_SUPABASE_SERVICE_ROLE_KEY missing from the server environment. (${envKeysHint})`,
+      `ERP_SUPABASE_URL / ERP_SUPABASE_SERVICE_ROLE_KEY missing from the server environment. (${envKeysHint}) [خام: ${rawEnvDebug}]`,
     );
   }
 
