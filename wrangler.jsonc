@@ -1,0 +1,9 @@
+{
+  // نيترو (بلجن الـTanStack Start الخاص بـCloudflare) بيولّد wrangler.json تلقائي
+  // عند كل bun run build، وبيحط compatibility_date = تاريخ جهازك وقت البناء. لو
+  // ساعة/تاريخ الجهاز غلط أو قدّام الحقيقي، Cloudflare بيرفض النشر برسالة
+  // "Can't set compatibility date in the future". الملف ده بيثبّت تاريخ ماضي
+  // آمن ومعروف عند Cloudflare بدل ما يعتمد على ساعة الجهاز — نيترو بيدمجه مع
+  // الإعدادات المولّدة تلقائياً (اسم الووركر، الـassets، إلخ) من غير ما يمسحها.
+  "compatibility_date": "2024-09-23",
+}
