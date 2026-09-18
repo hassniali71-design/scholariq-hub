@@ -102,7 +102,19 @@ export const signIn = createServerFn({ method: "POST" })
 
     // Parent authenticates with the student ID of their child — same lookup as auth.ts.
     const lookupRole: UserRole = data.role === "parent" ? "student" : data.role;
-    const supabase = getSupabaseAdmin();
+
+    let supabase: ReturnType<typeof getSupabaseAdmin>;
+    try {
+      supabase = getSupabaseAdmin();
+    } catch (err) {
+      // إعدادات الاتصال بقاعدة البيانات (ERP_SUPABASE_URL/KEY) ناقصة أو فاضية على
+      // بيئة النشر — رسالة مختلفة صراحةً عن فشل الشبكة، وبتظهر نص الخطأ الحقيقي
+      // على الشاشة مباشرة (بدل ما نحتاج نقرا لوجات السيرفر) عشان تتحل بسرعة.
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error("[auth] signIn: getSupabaseAdmin فشلت:", err);
+      return { ok: false as const, error: `تعذّر الاتصال بالخادم — إعداد ناقص: ${detail}` };
+    }
+
     // §0 fix — .ilike بدون تهريب كان بيسمح بمطابقة أنماط (%, _) بدل تطابق دقيق.
     // نهرّب علامات الـ wildcard الخاصة بـ ILIKE مع الحفاظ على عدم حساسية حالة الأحرف.
     const escapedIdentifier = identifier.replace(/[\\%_]/g, (ch) => `\\${ch}`);
@@ -120,8 +132,13 @@ export const signIn = createServerFn({ method: "POST" })
       // تعثر شبكي/Supabase أثناء تسجيل الدخول كان بيرمي استثناء غير مُعالَج، فيعلّق
       // زر "دخول" للأبد بدون أي رسالة (setSubmitting(false) في LoginCard.tsx كان
       // بيفضل معلّق بعده) — وده كان بيتحس كإنه لازم يعيد المحاولة كذا مرة.
+      // نص الخطأ الفعلي بيتضاف هنا عشان نقدر نشخّص المشكلة من نفس رسالة الشاشة.
+      const detail = err instanceof Error ? err.message : String(err);
       console.error("[auth] signIn: تعذّر الاتصال بالخادم أثناء البحث عن الحساب:", err);
-      return { ok: false as const, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
+      return {
+        ok: false as const,
+        error: `تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني (${detail})`,
+      };
     }
 
     if (!account) return { ok: false as const, error: "الكود أو البريد غير صحيح" };
@@ -145,8 +162,12 @@ export const signIn = createServerFn({ method: "POST" })
         return { ok: false as const, error: "الاشتراك متوقف حالياً، تواصل مع الدعم" };
       }
     } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       console.error("[auth] signIn: تعذّر الاتصال بالخادم أثناء فحص حالة السنتر:", err);
-      return { ok: false as const, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
+      return {
+        ok: false as const,
+        error: `تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني (${detail})`,
+      };
     }
 
     // Best-effort — a failed timestamp write must never block a valid login.

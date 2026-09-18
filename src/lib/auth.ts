@@ -410,8 +410,10 @@ export async function signIn({ role, identifier, password }: LoginInput): Promis
     } catch (err) {
       // استثناء غير متوقع (شبكة قطعت قبل ما يوصل للسيرفر أصلاً) — كان بيسيب
       // LoginCard.tsx معلّق على "جارٍ الدخول..." للأبد من غير أي رسالة.
+      // نص الخطأ الفعلي مضاف هنا عشان تشخيص المشكلة يبقى من نفس رسالة الشاشة.
+      const detail = err instanceof Error ? err.message : String(err);
       console.error("[auth] signIn: استثناء غير متوقع:", err);
-      return { ok: false, error: "تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني" };
+      return { ok: false, error: `تعذّر الاتصال بالخادم، تأكد من الإنترنت وحاول تاني (${detail})` };
     }
   }
 
