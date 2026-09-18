@@ -42,6 +42,7 @@ import {
   getSubjectsForGrade,
   setStaffExpectedSalary,
   setStaffPermissions,
+  updateTeacherHonorificByIdentifier,
   useDataStore,
 } from "@/lib/data-store";
 import { formatCurrency } from "@/lib/format";
@@ -350,6 +351,7 @@ function TeacherProvisionForm() {
   const [phone, setPhone] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [stages, setStages] = useState<("primary" | "prep" | "secondary")[]>(["primary"]);
+  const [honorific, setHonorific] = useState<"mr" | "miss">("mr");
   const [salaryBasis, setSalaryBasis] = useState<PayrollBasis>("monthly");
   const [salaryValue, setSalaryValue] = useState("");
   const [created, setCreated] = useState<CreatedCredentials | null>(null);
@@ -388,6 +390,7 @@ function TeacherProvisionForm() {
             stages,
             expectedSalaryBasis: salaryBasis,
             expectedSalaryValue: Number(salaryValue || 0),
+            honorific,
           });
           if (!record) {
             toast.error("حدث خطأ أثناء إنشاء بيانات المدرس");
@@ -398,6 +401,7 @@ function TeacherProvisionForm() {
           setPhone("");
           setSubjectId("");
           setStages(["primary"]);
+          setHonorific("mr");
           setSalaryValue("");
           toast.success(`تم توليد الكود: ${credentials.identifier}`);
         } catch (err) {
@@ -433,6 +437,36 @@ function TeacherProvisionForm() {
         inputMode="tel"
         className={inputClass}
       />
+
+      <div>
+        <p className="mb-1.5 text-xs font-black text-muted-foreground">صيغة المخاطبة</p>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { key: "mr" as const, label: "مستر" },
+              { key: "miss" as const, label: "ميس" },
+            ]
+          ).map((opt) => (
+            <label
+              key={opt.key}
+              className={`flex cursor-pointer items-center justify-center rounded-xl border-2 px-3 py-2 text-sm font-black ${
+                honorific === opt.key
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
+              <input
+                type="radio"
+                name="honorific"
+                checked={honorific === opt.key}
+                onChange={() => setHonorific(opt.key)}
+                className="sr-only"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </div>
 
       <div>
         <p className="mb-1.5 text-xs font-black text-muted-foreground">المراحل (يمكن اختيار أكثر من مرحلة)</p>
@@ -740,6 +774,13 @@ function AccountRow({ account }: { account: Account }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const expectedSalary =
     account.role === "staff" ? getStaffExpectedSalary(state, account.identifier) : null;
+  const teacherRecord =
+    account.role === "teacher"
+      ? state.teachers.find((t) => t.user_id === account.identifier)
+      : null;
+  const [honorific, setHonorific] = useState<"mr" | "miss">(
+    teacherRecord?.honorific === "miss" || teacherRecord?.honorific === "mrs" ? "miss" : "mr",
+  );
 
   const inputCls =
     "w-full rounded-lg border-2 border-border bg-background px-3 py-2 text-base font-extrabold text-foreground outline-none focus:border-primary";
@@ -750,7 +791,27 @@ function AccountRow({ account }: { account: Account }) {
         <td className="px-5 py-3">
           <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </td>
-        <td className="px-5 py-3 text-muted-foreground">{ROLES[account.role].title}</td>
+        <td className="px-5 py-3 text-muted-foreground">
+          {ROLES[account.role].title}
+          {account.role === "teacher" ? (
+            <div className="mt-1.5 flex gap-1">
+              {(["mr", "miss"] as const).map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHonorific(h)}
+                  className={`rounded-md border-2 px-2 py-0.5 text-[11px] font-black ${
+                    honorific === h
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-foreground"
+                  }`}
+                >
+                  {h === "mr" ? "مستر" : "ميس"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </td>
         <td className="px-5 py-3">
           <input className={inputCls} value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
         </td>
@@ -768,6 +829,9 @@ function AccountRow({ account }: { account: Account }) {
                     identifier: identifier.trim(),
                     password: password.trim() || null,
                   });
+                  if (account.role === "teacher") {
+                    updateTeacherHonorificByIdentifier(account.identifier, honorific);
+                  }
                   setEditing(false);
                   toast.success("تم حفظ التعديل");
                 } catch (err) {
@@ -862,11 +926,11 @@ function AccountRow({ account }: { account: Account }) {
         title="حذف جذري — لا يمكن التراجع"
         description={
           account.role === "teacher"
-            ? "سيتم حذف كل مجموعات المدرس وجدوله ورواتبه وتقييماته، والطلاب يتحولون لأيتيام."
+            ? "سيتم حذف كل مجموعات المدرس وجدوله وتقييماته، والطلاب يتحولون لأيتيام. سجلات رواتبه تفضل محفوظة كأرشيف محاسبي."
             : account.role === "staff"
-              ? "سيتم حذف صلاحيات الموظف وسجلات رواتبه."
+              ? "سيتم حذف صلاحيات الموظف. سجلات رواتبه تفضل محفوظة كأرشيف محاسبي."
               : account.role === "student"
-                ? "سيتم حذف كل سجلات الطالب المالية والحضور والواجبات."
+                ? "سيتم حذف كل سجلات الطالب الحضور والواجبات والدرجات. سجلات مدفوعاته المالية تفضل محفوظة كأرشيف محاسبي."
                 : "سيتم حذف حساب الزائر فقط."
         }
         confirmLabel="حذف نهائي"

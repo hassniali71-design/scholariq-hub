@@ -7,8 +7,9 @@ import type { Teacher } from "@/types";
  */
 export function teacherHonorific(teacher: Pick<Teacher, "honorific" | "full_name">): string {
   const h = teacher.honorific ?? "mr";
-  if (h === "miss") return "آنسة";
-  if (h === "mrs") return "مس";
+  // طلب صريح: المدرّسة تُعرض "ميس" بالظبط (مش "آنسة" ولا "مس") — "mrs" قيمة
+  // قديمة محتفظ بيها للتوافق، بتتعامل زي "miss" في العرض.
+  if (h === "miss" || h === "mrs") return "ميس";
   return "مستر";
 }
 
@@ -20,7 +21,7 @@ export function teacherDisplayName(teacher: Pick<Teacher, "honorific" | "full_na
   // إذا كان الاسم أصلاً يبدأ بـ "Mr" أو "مستر" أو "م."، لا نضيف صيغة أخرى.
   const raw = teacher.full_name?.trim() ?? "";
   if (!raw) return `${teacherHonorific(teacher)} (بدون اسم)`;
-  if (/^(مستر|آنسة|مس|م\.|Mr|Miss|Mrs)\b/.test(raw)) return raw;
+  if (/^(مستر|ميس|آنسة|مس|م\.|Mr|Miss|Mrs)\b/.test(raw)) return raw;
   return `${teacherHonorific(teacher)} ${raw}`;
 }
 

@@ -722,6 +722,20 @@ export function setTeacherAvatar(teacherId: string, dataUrl: string, mime: strin
   syncUpdate("teachers", teacherId, { avatar_data: dataUrl, avatar_mime: mime });
 }
 
+/** تصحيح صيغة المخاطبة (مستر/ميس) لمدرس موجود بالفعل — بحث بكود الدخول (user_id). */
+export function updateTeacherHonorificByIdentifier(
+  identifier: string,
+  honorific: "mr" | "miss",
+): void {
+  const teacher = getData().teachers.find((t) => t.user_id === identifier);
+  if (!teacher) return;
+  update((state) => ({
+    ...state,
+    teachers: state.teachers.map((t) => (t.id === teacher.id ? { ...t, honorific } : t)),
+  }));
+  syncUpdate("teachers", teacher.id, { honorific });
+}
+
 /** العبارة المُطلَقة حالياً للمادة، أو `null` — تُستخدم بدل daily-quotes.ts عند وجودها. */
 export function getActiveSubjectQuote(state: DataState, subjectId: string | undefined | null): SubjectQuote | null {
   if (!subjectId) return null;
@@ -921,6 +935,8 @@ export interface CreateTeacherInput {
   /** §0.3 — الراتب المتوقع (المتفق عليه). لا يُخصم من الخزنة — الخصم الفعلي عند الدفع. */
   expectedSalaryBasis?: PayrollBasis;
   expectedSalaryValue?: number;
+  /** صيغة المخاطبة (مستر/ميس) — تتحكم في اسم المدرس المعروض في كل الصفحات. */
+  honorific?: "mr" | "miss";
 }
 
 /**
@@ -953,6 +969,7 @@ export function createTeacherRecord(input: CreateTeacherInput): Teacher | null {
     primary_stage: stages[0]!,
     expected_salary_basis: input.expectedSalaryBasis,
     expected_salary_value: input.expectedSalaryValue ?? 0,
+    honorific: input.honorific ?? "mr",
   };
 
   update((s) => ({ ...s, teachers: [...s.teachers, teacher] }));
