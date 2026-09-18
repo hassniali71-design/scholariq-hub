@@ -6,4 +6,8 @@
   // آمن ومعروف عند Cloudflare بدل ما يعتمد على ساعة الجهاز — نيترو بيدمجه مع
   // الإعدادات المولّدة تلقائياً (اسم الووركر، الـassets، إلخ) من غير ما يمسحها.
   "compatibility_date": "2024-09-23",
+  // مطلوب صراحة في DEPLOYMENT_SPEC.md §2 — supabase-js وبقية مكتبات Node
+  // محتاجة نسخة Node compat من Cloudflare عشان تشتغل جوه الـWorker، وهو نفسه
+  // اللي بيخلي process.env يشوف الأسرار (secrets) اللي بتتسجّل بـwrangler secret put.
+  "compatibility_flags": ["nodejs_compat"],
 }
