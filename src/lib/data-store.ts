@@ -4662,7 +4662,12 @@ export function enrollStudentInAdditionalGroup(
   let row: StudentGroupEnrollment | null = null;
   update((s) => {
     row = {
-      id: `sge-${Date.now()}`,
+      // Date.now() لوحده (بدون رقم عشوائي) كان بيسبب تصادم في المعرِّف لما
+      // createGroup بتنادي الدالة دي لعدة طلاب في نفس المللي ثانية (حلقة
+      // متتالية سريعة) — أول تسجيل بينجح والباقي بيترفض بصمت من قاعدة
+      // البيانات (تكرار مفتاح أساسي)، فيختفي طالب أو أكتر من المجموعة الجديدة
+      // من غير أي رسالة خطأ. نفس نمط باقي المعرِّفات في الملف ده (grp-, slot-).
+      id: `sge-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       center_id: student.center_id,
       student_id: studentId,
       group_id: groupId,
