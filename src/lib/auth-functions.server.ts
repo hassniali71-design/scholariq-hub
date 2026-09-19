@@ -112,7 +112,7 @@ export const signIn = createServerFn({ method: "POST" })
       // على الشاشة مباشرة (بدل ما نحتاج نقرا لوجات السيرفر) عشان تتحل بسرعة.
       const detail = err instanceof Error ? err.message : String(err);
       console.error("[auth] signIn: getSupabaseAdmin فشلت:", err);
-      return { ok: false as const, error: `تعذّر الاتصال بالخادم — إعداد ناقص: ${detail}` };
+      return { ok: false as const, error: detail };
     }
 
     // §0 fix — .ilike بدون تهريب كان بيسمح بمطابقة أنماط (%, _) بدل تطابق دقيق.

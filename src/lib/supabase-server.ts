@@ -41,21 +41,11 @@ export function getSupabaseAdmin(): AnySupabaseClient {
 
   const { url, serviceRoleKey } = readSupabaseEnv();
   if (!url || !serviceRoleKey) {
-    // تشخيص مؤقت: بنعرض أسماء المفاتيح الموجودة فعلاً في process.env (من غير
-    // قيمها إطلاقاً) عشان نعرف هل الشيم بتاع Cloudflare بيوصّل أي حاجة أصلاً،
-    // ولا process.env فاضي تماماً. يتشال بعد ما نحل المشكلة.
-    let envKeysHint = "process غير معرَّف";
-    try {
-      const keys = Object.keys(process.env ?? {});
-      envKeysHint = `عدد المفاتيح: ${keys.length}${keys.length ? ` — أمثلة: ${keys.slice(0, 8).join(", ")}` : ""}`;
-    } catch (e) {
-      envKeysHint = `تعذّر قراءة process.env: ${e instanceof Error ? e.message : String(e)}`;
-    }
-    const rawEnvDebug =
-      (globalThis as { __RAW_ENV_DEBUG__?: string }).__RAW_ENV_DEBUG__ ?? "لا يوجد تسجيل خام";
-    throw new Error(
-      `ERP_SUPABASE_URL / ERP_SUPABASE_SERVICE_ROLE_KEY missing from the server environment. (${envKeysHint}) [خام: ${rawEnvDebug}]`,
-    );
+    // تشخيص مؤقت — رسالة قصيرة عمداً عشان متتقطعش بصرياً في التوست: بيانات
+    // env الخام (Object.keys) بس، مسجَّلة في src/server.ts (أول نقطة ممكنة
+    // في الكود). يتشال بعد ما نحل المشكلة.
+    const rawEnvDebug = (globalThis as { __RAW_ENV_DEBUG__?: string }).__RAW_ENV_DEBUG__ ?? "NONE";
+    throw new Error(`SUPABASE ENV MISSING — RAW: ${rawEnvDebug}`);
   }
 
   client = createClient(url, serviceRoleKey, {
