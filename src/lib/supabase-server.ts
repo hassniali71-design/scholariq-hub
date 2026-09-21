@@ -26,12 +26,27 @@ let client: AnySupabaseClient | null = null;
  * project's own (external) Supabase credentials are stored as `ERP_SUPABASE_*`. The bare
  * `SUPABASE_*` names stay supported as a fallback for local `.env` files and the CLI scripts
  * under scripts/, which still read them.
+ *
+ * On Cloudflare Workers, nitro's "cloudflare-module" preset stashes the real secrets on
+ * `globalThis.__env__` before routing the request into the rest of the app (see
+ * node_modules/nitro/dist/presets/cloudflare/runtime/_module-handler.mjs, confirmed against
+ * the actual built .output/server/index.mjs). unenv's process.env compat layer is supposed to
+ * mirror that same value but empirically doesn't inside this app's custom server entry, so we
+ * read the confirmed-correct source directly first.
  */
 export function readSupabaseEnv() {
+  const cfEnv = (globalThis as { __env__?: Record<string, string | undefined> }).__env__;
   return {
-    url: process.env["ERP_SUPABASE_URL"] ?? process.env["SUPABASE_URL"],
+    url:
+      cfEnv?.ERP_SUPABASE_URL ??
+      cfEnv?.SUPABASE_URL ??
+      process.env["ERP_SUPABASE_URL"] ??
+      process.env["SUPABASE_URL"],
     serviceRoleKey:
-      process.env["ERP_SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_SERVICE_ROLE_KEY"],
+      cfEnv?.ERP_SUPABASE_SERVICE_ROLE_KEY ??
+      cfEnv?.SUPABASE_SERVICE_ROLE_KEY ??
+      process.env["ERP_SUPABASE_SERVICE_ROLE_KEY"] ??
+      process.env["SUPABASE_SERVICE_ROLE_KEY"],
   };
 }
 
@@ -41,11 +56,17 @@ export function getSupabaseAdmin(): AnySupabaseClient {
 
   const { url, serviceRoleKey } = readSupabaseEnv();
   if (!url || !serviceRoleKey) {
-    // تشخيص مؤقت — رسالة قصيرة عمداً عشان متتقطعش بصرياً في التوست: بيانات
-    // env الخام (Object.keys) بس، مسجَّلة في src/server.ts (أول نقطة ممكنة
-    // في الكود). يتشال بعد ما نحل المشكلة.
+    // تشخيص مؤقت — رسالة قصيرة عمداً عشان متتقطعش بصرياً في التوست: نطبع كمان
+    // مفاتيح globalThis.__env__ نفسها (المصدر اللي المفروض دلوقتي بنقرأ منه)
+    // عشان لو المشكلة لسه موجودة نعرف فوراً هل هو فاضي كمان ولا القيم جواه
+    // باسم مختلف عن المتوقع.
+    const cfEnvKeys = Object.keys(
+      (globalThis as { __env__?: Record<string, unknown> }).__env__ ?? {},
+    );
     const rawEnvDebug = (globalThis as { __RAW_ENV_DEBUG__?: string }).__RAW_ENV_DEBUG__ ?? "NONE";
-    throw new Error(`SUPABASE ENV MISSING — RAW: ${rawEnvDebug}`);
+    throw new Error(
+      `SUPABASE ENV MISSING — RAW: ${rawEnvDebug} — __env__ keys (${cfEnvKeys.length}): ${cfEnvKeys.join(", ") || "none"}`,
+    );
   }
 
   client = createClient(url, serviceRoleKey, {
