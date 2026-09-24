@@ -471,6 +471,20 @@ let hydratedForIdentifier: string | null = null;
 let hydrating = false;
 
 /**
+ * آخر مرة اتعمل فيها تعديل محلي (`update()`). كل كتابة على Supabase
+ * (`syncInsert`/`syncUpdate`/...) هي fire-and-forget بدون انتظار — لو
+ * `silentRefresh` (كل 30 ثانية + عند رجوع التبويب للتركيز) جاب لقطة كاملة من
+ * السيرفر **قبل** ما الكتابة دي توصل وتتقرأ تاني، بيستبدل كل الـcache المحلي
+ * باللقطة القديمة، فيمسح التعديل اللي المستخدم عمله لتوّه من الشاشة تماماً —
+ * ده بالظبط البج المُبلَّغ: "أضيف مهمة عاجلة، تختفي فوراً، وترجع تظهر لوحدها
+ * بعد كام ثانية" (لما دورة التحديث الجاية أخيراً تلاقي الكتابة وصلت فعلاً).
+ * الحل: `silentRefresh` بيتخطى الدورة دي كلها لو فيه تعديل محلي حديث جداً
+ * (خلال آخر QUIET_MS)، عشان نديله وقت يوصل قبل ما نكتب فوقه.
+ */
+let lastLocalMutationAt = 0;
+const SILENT_REFRESH_QUIET_MS = 5_000;
+
+/**
  * §0 fix — Drop the in-memory cache to the seed placeholder so `useSyncExternalStore`
  * can't paint the previous tenant's rows for the RTT between the identifier change and
  * the Supabase response. We also force `hydratedForIdentifier = null` (so the next
@@ -550,6 +564,7 @@ function silentRefresh() {
   // readState() في أي render عادي) تتكفل بالجلب الأول — الدالة دي للتحديث الدوري
   // بعد الهيدريشن الأول بس.
   if (!identifier || hydrating || hydratedForIdentifier !== identifier) return;
+  if (Date.now() - lastLocalMutationAt < SILENT_REFRESH_QUIET_MS) return;
   fetchCenterData({ data: { identifier } })
     .then((result) => {
       // المستخدم ممكن يكون سجّل خروج أو غيّر الهوية أثناء انتظار الرد.
@@ -618,6 +633,7 @@ function writeState(next: DataState) {
 }
 
 function update(mutator: (state: DataState) => DataState) {
+  lastLocalMutationAt = Date.now();
   writeState(mutator(readState()));
 }
 
@@ -749,7 +765,7 @@ export function addSubjectQuote(subjectId: string, text: string): void {
   let entry: SubjectQuote | null = null;
   update((state) => {
     entry = {
-      id: `sq-${Date.now()}`,
+      id: `sq-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       center_id: state.center.id,
       subject_id: subjectId,
       text: trimmed,

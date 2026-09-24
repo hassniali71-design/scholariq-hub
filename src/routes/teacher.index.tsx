@@ -79,7 +79,15 @@ function TeacherHome() {
   if (!teacher) return <Navigate to="/login" />;
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const myStudents = getStudentsForTeacher(state, teacher.id);
-  const subject = subjects.find((s) => s.id === teacher.subject_id);
+  /**
+   * مدرس متعدد المواد (Migration 0021) عنده `teacher.subject_id === null` —
+   * كان بيرجّع "غرفة المادة" فاضية من أي عبارة أطلقها المالك (`getActiveSubjectQuote`
+   * بترجع null فوراً لو subjectId فاضي) رغم إن العبارة مُطلَقة فعلاً، لأن المادة
+   * نفسها ما كانتش بتتحدد أصلاً لغير المدرسين أحاديي المادة. نرجع لمادة أول مجموعة
+   * فعلية للمدرس كـfallback بدل ما نسيب المادة (والعبارة والثيم) بلا تحديد.
+   */
+  const resolvedSubjectId = teacher.subject_id ?? myGroups[0]?.subject_id ?? null;
+  const subject = subjects.find((s) => s.id === resolvedSubjectId);
   const subjectName = subject?.name ?? teacher.subject;
   const theme = getSubjectTheme(subject?.theme_key);
   const timerCompliance = getTimerCompliance(state, teacher.id);
@@ -114,7 +122,7 @@ function TeacherHome() {
         theme={theme}
         groupsCount={myGroups.length}
         studentsCount={myStudents.length}
-        ownerQuote={getActiveSubjectQuote(state, teacher.subject_id)?.text}
+        ownerQuote={getActiveSubjectQuote(state, resolvedSubjectId)?.text}
       />
 
       <div className="flex items-center gap-3">

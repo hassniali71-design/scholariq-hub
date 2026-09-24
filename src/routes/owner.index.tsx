@@ -11,7 +11,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CenterActivityPanels } from "@/components/dashboard/CenterActivityPanels";
@@ -113,24 +113,32 @@ function OwnerDashboard() {
 
   /**
    * توليد إشعار "تأخر تفعيل حصة" لمرة واحدة يومياً لكل مجموعة متأخرة.
+   *
+   * الدليل على "already" لازم يكون **مستقل عن محتوى `notifications` نفسه** —
+   * كان بيتحقق سابقاً بالبحث في `notifications.some(...)`، فلو المالك حذف
+   * الإشعار ده بنفسه (والحصة لسه متأخرة فعلاً)، `notifications` بيتغيّر →
+   * الـeffect بيعيد التشغيل فوراً (هو أصلاً dependency) → "already" بترجع
+   * false تاني لأن الإشعار اتمسح → بيتولّد نفس الإشعار من جديد على طول. ده
+   * بالظبط البج المُبلَّغ: "بعد ما تحذف الإشعار يرجع تاني". الحل: تتبّع
+   * "تم التنبيه عليه اليوم" في `useRef` منفصل تماماً عن قائمة الإشعارات —
+   * الحذف بقى حذف فعلي، مش بيتراجع لحد ما نفس الحصة تتأخر تاني بكرة.
    */
+  const alertedTodayRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const day = new Date().toDateString();
     for (const row of activeNow) {
       if (!row.started || row.activated || row.lateMinutes < 10) continue;
-      const title = `تأخير في تفعيل حصة ${row.group.name}`;
-      const already = notifications.some(
-        (n) => n.title === title && new Date(n.created_at).toDateString() === day,
-      );
-      if (already) continue;
+      const alertKey = `${row.slotId}-${day}`;
+      if (alertedTodayRef.current.has(alertKey)) continue;
+      alertedTodayRef.current.add(alertKey);
       pushNotification(
         "session_late",
         "critical",
-        title,
+        `تأخير في تفعيل حصة ${row.group.name}`,
         `${row.group.teacher_name} · ${row.time} · مرّ ${row.lateMinutes} دقيقة بدون رفع واجب أو تسجيل حضور`,
       );
     }
-  }, [activeNow, notifications]);
+  }, [activeNow]);
 
   return (
     <AppShell
