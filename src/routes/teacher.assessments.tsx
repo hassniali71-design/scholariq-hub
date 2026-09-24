@@ -16,16 +16,14 @@ import {
   classifyStudent,
   classificationReason,
   getAssessmentScore,
-  getAttendanceForSession,
   getGroupsForTeacher,
-  getSessionRecordsForGroup,
   getStudentsForGroup,
   useDataStore,
   useIsHydrated,
   type DataState,
 } from "@/lib/data-store";
 import { cn } from "@/lib/utils";
-import type { AttendanceStatus, Group } from "@/types";
+import type { AttendanceStatus, Group, Student } from "@/types";
 
 export const Route = createFileRoute("/teacher/assessments")({
   validateSearch: (search: Record<string, unknown>): { studentId?: string } =>
@@ -164,8 +162,11 @@ function AssessmentsPage() {
         />
       </Panel>
 
-      <Panel title="سجل الحضور" description="آخر الحصص المسجَّلة لكل مجموعة — قراءة فقط">
-        <AttendanceGrid state={state} groups={visibleGroups} />
+      <Panel
+        title="سجل الحضور"
+        description="جدول موحّد لكل الطلاب ضمن فلتر المرحلة/المجموعة أعلاه — قراءة فقط"
+      >
+        <AttendanceGrid state={state} students={visibleStudents} />
       </Panel>
 
       <Panel title="عرض عام للطلاب" description="نظرة شاملة على كل مؤشرات كل طالب">
@@ -320,83 +321,93 @@ const ATTENDANCE_TONE: Record<AttendanceStatus, "success" | "warning" | "destruc
   absent: "destructive",
 };
 
-const MAX_SESSIONS_SHOWN = 8;
-
 /**
- * §13-هـ: pure report now — retroactive correction happens by reopening the
- * lesson in session mode's review panel, not by clicking cells here (that
- * separate editable grid was retired per the spec's final decision).
+ * §13-هـ / §20-21: جدول واحد موحَّد لكل الطلاب (بدل جدول منفصل لكل مجموعة) —
+ * صف واحد لكل طالب يلخّص حاضر/متأخر/غائب من `attendanceRecords` الحقيقية،
+ * ومفلتر تلقائياً بنفس فلتر المرحلة/المجموعة أعلى الصفحة (فلا داعي لفلتر ثانٍ هنا).
+ * قراءة فقط — التصحيح بأثر رجعي من داخل وضع الحصة نفسه.
  */
-function AttendanceGrid({ state, groups }: { state: DataState; groups: Group[] }) {
-  if (groups.length === 0) {
+function AttendanceGrid({ state, students }: { state: DataState; students: Student[] }) {
+  if (students.length === 0) {
     return (
       <p className="py-8 text-center font-black text-muted-foreground">
-        لا توجد مجموعات ضمن هذا الفلتر
+        لا يوجد طلاب ضمن هذا الفلتر
       </p>
     );
   }
 
+  const rows = students.map((st) => {
+    const records = state.attendanceRecords
+      .filter((r) => r.student_id === st.id)
+      .sort((a, b) => (a.checked_in_at < b.checked_in_at ? 1 : -1));
+    const present = records.filter((r) => r.status === "present").length;
+    const late = records.filter((r) => r.status === "late").length;
+    const absent = records.filter((r) => r.status === "absent").length;
+    const last = records[0] ?? null;
+    return { student: st, records, present, late, absent, last };
+  });
+
   return (
-    <div className="space-y-6">
-      {groups.map((g) => {
-        const sessions = getSessionRecordsForGroup(state, g.id).slice(0, MAX_SESSIONS_SHOWN);
-        const groupStudents = getStudentsForGroup(state, g.id);
-        return (
-          <div key={g.id}>
-            <p className="mb-3 font-black text-foreground">{g.name}</p>
-            {sessions.length === 0 || groupStudents.length === 0 ? (
-              <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
-                لا توجد حصص مسجّلة بعد لهذه المجموعة — تظهر هنا أول ما تُنهي حصة من وضع الحصة
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] text-right text-sm">
-                  <thead>
-                    <tr className="border-b-2 border-border text-muted-foreground">
-                      <th className="pb-2">الطالب</th>
-                      {sessions.map((s) => (
-                        <th key={s.id} className="px-1 pb-2 text-center text-xs">
-                          {s.date}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupStudents.map((st) => (
-                      <tr key={st.id} className="border-b border-border last:border-0">
-                        <td className="py-2 font-black text-foreground">{st.full_name}</td>
-                        {sessions.map((s) => {
-                          const record = getAttendanceForSession(state, st.id, s.id);
-                          const Icon = record ? attendanceIcon[record.status] : null;
-                          return (
-                            <td key={s.id} className="py-2 text-center">
-                              <span
-                                title={record ? ATTENDANCE_TEXT[record.status] : "لم يُسجَّل"}
-                                className={cn(
-                                  "mx-auto flex size-9 items-center justify-center rounded-lg border-2",
-                                  record
-                                    ? ATTENDANCE_TONE[record.status] === "success"
-                                      ? "border-success bg-success/10 text-success"
-                                      : ATTENDANCE_TONE[record.status] === "warning"
-                                        ? "border-warning bg-warning/10 text-warning"
-                                        : "border-destructive bg-destructive/10 text-destructive"
-                                    : "border-dashed border-border text-muted-foreground",
-                                )}
-                              >
-                                {Icon ? <Icon className="size-4" /> : "—"}
-                              </span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-right text-sm">
+        <thead>
+          <tr className="border-b-2 border-border text-muted-foreground">
+            <th className="pb-2">الطالب</th>
+            <th className="pb-2">الصف</th>
+            <th className="pb-2">المجموعة</th>
+            <th className="pb-2 text-center">نسبة الحضور</th>
+            <th className="pb-2 text-center">حاضر</th>
+            <th className="pb-2 text-center">متأخر</th>
+            <th className="pb-2 text-center">غائب</th>
+            <th className="pb-2 text-center">آخر حصة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ student: st, present, late, absent, last }) => (
+            <tr key={st.id} className="border-b border-border last:border-0">
+              <td className="py-2 font-black text-foreground">{st.full_name}</td>
+              <td className="py-2 font-bold text-muted-foreground">{st.grade}</td>
+              <td className="py-2 font-bold text-muted-foreground">
+                {last?.group_name ?? "—"}
+              </td>
+              <td className="min-w-[120px] py-2">
+                <BarChart value={st.attendance_rate} />
+              </td>
+              <td className="py-2 text-center font-black text-success">
+                {formatNumber(present)}
+              </td>
+              <td className="py-2 text-center font-black text-warning">{formatNumber(late)}</td>
+              <td className="py-2 text-center font-black text-destructive">
+                {formatNumber(absent)}
+              </td>
+              <td className="py-2 text-center">
+                {last ? (
+                  (() => {
+                    const Icon = attendanceIcon[last.status];
+                    return (
+                      <span
+                        title={`${last.checked_in_at} — ${ATTENDANCE_TEXT[last.status]}`}
+                        className={cn(
+                          "mx-auto flex w-fit items-center gap-1 rounded-lg border-2 px-2 py-1 text-xs font-black",
+                          ATTENDANCE_TONE[last.status] === "success"
+                            ? "border-success bg-success/10 text-success"
+                            : ATTENDANCE_TONE[last.status] === "warning"
+                              ? "border-warning bg-warning/10 text-warning"
+                              : "border-destructive bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        <Icon className="size-3.5" /> {ATTENDANCE_TEXT[last.status]}
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <span className="text-xs font-bold text-muted-foreground">لم يُسجَّل بعد</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
