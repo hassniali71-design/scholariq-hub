@@ -3,7 +3,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import { pushNotification, startGroupSession, useDataStore } from "@/lib/data-store";
+import {
+  getEnrolledCount,
+  pushNotification,
+  startGroupSession,
+  useDataStore,
+} from "@/lib/data-store";
 import { formatNumber } from "@/lib/format";
 import type { Group } from "@/types";
 
@@ -11,8 +16,15 @@ import type { Group } from "@/types";
  * بطاقة "المجموعات النشطة الآن" + عداد تأخير حي.
  *
  * المنطق:
- *  - يقرأ جدول اليوم من `state.groups` ويختار المجموعات المسجّلة ليوم `today`.
- *  - يحدد لكل مجموعة: هل حان وقت بدئها (started)؟ هل فعّلها **الموظف** (activated)؟
+ *  - يقرأ **مواعيد اليوم من `state.scheduleSlots`** (مش من `group.weekday/time` القديمة).
+ *    مجموعة متجدولة بأكتر من يوم/معاد (`GroupScheduleModal`/`AddScheduleSlotModal`) بتتسجّل
+ *    كصف مستقل لكل يوم في `scheduleSlots`، لكن `group.weekday/time` القديمة بتفضل بتحمل
+ *    **أول يوم مُختار بس** (`GroupScheduleModal.handleSave`) — فلو الكارت ده فضل بيقرا من
+ *    الحقل القديم، أي معاد تاني غير الأول كان بيختفي تماماً من "المجموعات النشطة" (البج
+ *    المُبلَّغ من السنتر الحقيقي: "بيجيب حصتين بس ويعطل" رغم وجود حصص تانية شغالة فعلاً).
+ *    مجموعات قديمة اتجدولت قبل نظام المواعيد المتعددة ومعندهاش أي صف في scheduleSlots
+ *    لسه بترجع للحقول القديمة كـfallback وحيد، عشان محدش يختفي من غير داعي.
+ *  - يحدد لكل معاد: هل حان وقت بدئه (started)؟ هل فعّله **الموظف** (activated)؟
  *  - `activated` معتمد حصراً على `groupActivations` (Migration 0029) — يُكتب فقط
  *    من `startGroupSession`/`markAttendanceForGroup` (فعل الموظف). أي حركة من
  *    المدرس في وضع الحصة (تسجيل حضور من الروستر، رفع واجب، إنهاء الحصة) لا تُحسب
@@ -32,6 +44,10 @@ const WEEKDAYS_AR = [
 
 interface LiveGroup {
   group: Group;
+  slotId: string;
+  time: string;
+  room: string;
+  enrolled: number;
   started: boolean;
   activated: boolean;
   scheduledMs: number; // epoch ms
@@ -54,14 +70,32 @@ function parseTimeToMs(time: string, now: Date): number | null {
 function computeLive(state: ReturnType<typeof useDataStore>, now: Date): LiveGroup[] {
   const today = WEEKDAYS_AR[now.getDay()];
   const nowMs = now.getTime();
-  return state.groups
-    .filter((g) => g.weekday === today)
-    .map((g) => {
-      const scheduledMs = parseTimeToMs(g.time, now) ?? 0;
+
+  const todaysSlots: { group: Group; slotId: string; time: string; room: string }[] = [];
+  const groupIdsWithAnySlot = new Set(
+    state.scheduleSlots.filter((sl) => sl.group_id).map((sl) => sl.group_id!),
+  );
+  for (const sl of state.scheduleSlots) {
+    if (sl.weekday !== today || !sl.group_id) continue;
+    const group = state.groups.find((g) => g.id === sl.group_id);
+    if (!group) continue;
+    todaysSlots.push({ group, slotId: sl.id, time: sl.time || group.time, room: sl.room || group.room });
+  }
+  // مجموعات قديمة اتجدولت قبل نظام المواعيد المتعددة ومعندهاش أي صف في
+  // scheduleSlots أصلاً — fallback وحيد على حقولها القديمة عشان محدش يختفي.
+  for (const g of state.groups) {
+    if (g.scheduling_status !== "scheduled" || g.weekday !== today) continue;
+    if (groupIdsWithAnySlot.has(g.id)) continue;
+    todaysSlots.push({ group: g, slotId: `legacy-${g.id}`, time: g.time, room: g.room });
+  }
+
+  return todaysSlots
+    .map(({ group, slotId, time, room }) => {
+      const scheduledMs = parseTimeToMs(time, now) ?? 0;
       const started = scheduledMs > 0 && nowMs >= scheduledMs;
       // نفس اليوم فقط — تفعيل من أمس ما يفضلش شغال النهاردة.
       const todaysActivations = state.groupActivations.filter((a) => {
-        if (a.group_id !== g.id) return false;
+        if (a.group_id !== group.id) return false;
         const t = new Date(a.activated_at);
         return (
           t.getFullYear() === now.getFullYear() &&
@@ -75,7 +109,11 @@ function computeLive(state: ReturnType<typeof useDataStore>, now: Date): LiveGro
       const firstActionMs = firstActivation ?? Number.POSITIVE_INFINITY;
       const activated = Number.isFinite(firstActionMs);
       return {
-        group: g,
+        group,
+        slotId,
+        time,
+        room,
+        enrolled: getEnrolledCount(state, group.id),
         started,
         activated,
         scheduledMs,
@@ -137,7 +175,7 @@ export function LiveActiveGroupsCard({
       </p>
       <div className="mt-4 space-y-3">
         {live.map((row) => (
-          <LiveRow key={row.group.id} row={row} canControl={canControl} />
+          <LiveRow key={row.slotId} row={row} canControl={canControl} />
         ))}
       </div>
     </div>
@@ -145,7 +183,7 @@ export function LiveActiveGroupsCard({
 }
 
 function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
-  const { group, started, activated, scheduledMs, firstActionMs, nowMs } = row;
+  const { group, time, room, enrolled, started, activated, scheduledMs, firstActionMs, nowMs } = row;
   const lateMs = !activated && started ? nowMs - scheduledMs : 0;
   let display: string;
   let tone: "success" | "warning" | "destructive" | "primary" | "neutral";
@@ -185,12 +223,12 @@ function LiveRow({ row, canControl }: { row: LiveGroup; canControl: boolean }) {
       <div className="min-w-0">
         <p className="text-base font-black text-foreground">{group.name}</p>
         <p className="text-sm font-bold text-muted-foreground">
-          {group.teacher_name} · {group.grade} · قاعة {group.room} · {group.subject}
+          {group.teacher_name} · {group.grade} · قاعة {room} · {group.subject}
         </p>
         <p className="mt-1 flex items-center gap-2 text-xs font-bold text-muted-foreground">
           <Users className="size-3" />
-          {formatNumber(group.enrolled)} / {formatNumber(group.capacity)} طالب · الموعد{" "}
-          {group.time}
+          {formatNumber(enrolled)} / {formatNumber(group.capacity)} طالب · الموعد{" "}
+          {time}
         </p>
       </div>
       <div className="flex items-center gap-2">

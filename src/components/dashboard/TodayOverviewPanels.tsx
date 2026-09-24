@@ -2,8 +2,9 @@ import { CalendarDays, GraduationCap, UserCheck, Users } from "lucide-react";
 import { useMemo } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import { useDataStore } from "@/lib/data-store";
+import { getEnrolledCount, useDataStore } from "@/lib/data-store";
 import { formatNumber, formatPercent } from "@/lib/format";
+import type { Group } from "@/types";
 
 /**
  * كروت "نظرة اليوم" — كل رقم يُحسب من البيانات الحقيقية:
@@ -45,10 +46,39 @@ export function TodayOverviewPanels() {
   const today = WEEKDAYS_AR[new Date().getDay()]!;
   const todayKeyStr = todayKey();
 
-  const todayGroups = useMemo(
-    () => state.groups.filter((g) => g.weekday === today),
-    [state.groups, today],
-  );
+  /**
+   * مصدر مواعيد اليوم: `state.scheduleSlots`، مش `group.weekday` القديم —
+   * مجموعة متجدولة بأكتر من يوم بتتسجّل كصف مستقل لكل يوم في scheduleSlots،
+   * لكن `group.weekday` القديمة بتحمل أول يوم مُختار بس. البج الحقيقي المُبلَّغ
+   * ("الحصص 3 حاطط 2") كان سببه بالظبط الاعتماد على الحقل القديم ده. مجموعات
+   * قديمة متجدولة ومعندهاش أي صف في scheduleSlots بترجع لحقلها القديم كـfallback.
+   */
+  const todaySlotTimeByGroupId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const sl of state.scheduleSlots) {
+      if (sl.weekday === today && sl.group_id) map.set(sl.group_id, sl.time);
+    }
+    return map;
+  }, [state.scheduleSlots, today]);
+
+  const todayGroups = useMemo(() => {
+    const groupIdsWithAnySlot = new Set(
+      state.scheduleSlots.filter((sl) => sl.group_id).map((sl) => sl.group_id!),
+    );
+    const byId = new Map<string, Group>();
+    for (const g of state.groups) {
+      if (todaySlotTimeByGroupId.has(g.id)) {
+        byId.set(g.id, g);
+      } else if (
+        !groupIdsWithAnySlot.has(g.id) &&
+        g.scheduling_status === "scheduled" &&
+        g.weekday === today
+      ) {
+        byId.set(g.id, g);
+      }
+    }
+    return [...byId.values()];
+  }, [state.groups, state.scheduleSlots, today, todaySlotTimeByGroupId]);
 
   // المدرسون على رأس العمل اليوم = من لديه Action حقيقي اليوم
   const teachersWorkingToday = useMemo(() => {
@@ -102,7 +132,7 @@ export function TodayOverviewPanels() {
   void newStudentsToday;
 
   const expectedStudentsToday = todayGroups.reduce(
-    (s, g) => s + g.enrolled,
+    (s, g) => s + getEnrolledCount(state, g.id),
     0,
   );
 
@@ -125,7 +155,7 @@ export function TodayOverviewPanels() {
             {todayGroups.length > 0
               ? todayGroups
                   .slice(0, 3)
-                  .map((g) => `${g.name} (${g.time})`)
+                  .map((g) => `${g.name} (${todaySlotTimeByGroupId.get(g.id) ?? g.time})`)
                   .join(" · ")
               : "لا توجد حصص مجدولة اليوم"}
           </p>
@@ -167,7 +197,7 @@ export function TodayOverviewPanels() {
           )}
         </div>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border-2 border-border p-4">
           <p className="text-sm font-bold text-muted-foreground">الطلاب المتوقع حضورهم</p>
           <p className="kpi-number text-3xl">{formatNumber(expectedStudentsToday)}</p>
@@ -175,15 +205,12 @@ export function TodayOverviewPanels() {
             من مجموع المجموعات المجدولة اليوم
           </p>
         </div>
-        <div className="rounded-xl border-2 border-border p-4">
-          <p className="text-sm font-bold text-muted-foreground">المدرسون المجدولون</p>
-          <p className="kpi-number text-3xl">
-            {formatNumber(new Set(todayGroups.map((g) => g.teacher_id)).size)}
-          </p>
-          <p className="mt-1 text-sm font-bold text-muted-foreground">
-            مدرس لهم حصص اليوم في الجدول
-          </p>
-        </div>
+        {/*
+          كارت "المدرسون المجدولون" (عدد لمن *لهم* حصة اليوم في الجدول) اتشال
+          عمداً — طلب صريح: كان بيكرر نفس فكرة "المدرسون على رأس العمل" فوق
+          (اللي هو الرقم الحقيقي الوحيد المطلوب: مين *فعلاً* شغال دلوقتي، مش
+          مين مجدول بس)، وبيلخبط لأنه رقم مختلف لنفس الموضوع.
+        */}
         <div className="rounded-xl border-2 border-border p-4">
           <p className="text-sm font-bold text-muted-foreground">المواد المجدولة</p>
           <p className="kpi-number text-3xl">

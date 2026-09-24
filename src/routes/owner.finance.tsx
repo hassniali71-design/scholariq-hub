@@ -83,7 +83,15 @@ function FinancePage() {
           expected,
         };
       })
-      .sort((a, b) => b.collected - a.collected || b.expected - a.expected);
+      /**
+       * الترتيب بالإيراد المتوقع من الاشتراكات الفعلية (`expected`) أولاً، مش
+       * بالمُحصَّل فعلياً (`collected`) — لو أغلب طلاب السنتر لسه ما دفعوش
+       * (سيناريو حقيقي شائع أول الشهر)، `collected` بتبقى صفر لكل المواد
+       * فيرجع أول عنصر في المصفوفة بالصدفة (كان "عربي" في السنتر الحقيقي، مش
+       * لأنها فعلاً الأعلى) — بالظبط البج المُبلَّغ. المطلوب صراحة: احسب من
+       * عدد الاشتراكات وأسعارها الحقيقية بغض النظر عن حالة السداد.
+       */
+      .sort((a, b) => b.expected - a.expected || b.collected - a.collected);
   }, [subjects, students, payments, state.subjectPrices]);
 
   const topSubject = subjectRevenue[0];
@@ -197,7 +205,11 @@ function FinancePage() {
             label="المادة الأعلى إيراداً"
             value={topSubject ? topSubject.name : "—"}
             icon={Crown}
-            hint={topSubject ? formatCurrency(topSubject.collected) : undefined}
+            hint={
+              topSubject
+                ? `متوقع ${formatCurrency(topSubject.expected)} · محصَّل ${formatCurrency(topSubject.collected)} · ${formatNumber(topSubject.students)} طالب`
+                : undefined
+            }
           />
           <Mini
             label="المستحقات المتأخرة"

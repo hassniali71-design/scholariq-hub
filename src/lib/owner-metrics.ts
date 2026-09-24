@@ -1,3 +1,4 @@
+import { getEnrolledCount, getStudentsForTeacher } from "@/lib/data-store";
 import type { DataState } from "@/lib/data-store";
 import type { Group } from "@/types";
 
@@ -91,9 +92,16 @@ export function buildTeacherPerformance(state: DataState): TeacherPerformanceRow
   return state.teachers.map((t) => {
     const groups = state.groups.filter((g) => g.teacher_id === t.id);
     const groupNames = new Set(groups.map((g) => g.name));
-    const students = t.subject_id
-      ? state.students.filter((s) => s.subject_ids.includes(t.subject_id!))
-      : [];
+    /**
+     * لازم يكون "طلاب المدرس الحقيقيون" (مسجَّلين فعلياً في مجموعاته)، مش "أي طالب
+     * مشترك في نفس المادة اسمياً" — الشرط القديم `s.subject_ids.includes(t.subject_id)`
+     * كان بيرجع صفر تلقائياً لأي مدرس متعدد المواد (`t.subject_id === null`،
+     * مسموح بيه صراحة من Migration 0021)، وده بالظبط البج المُبلَّغ من السنتر
+     * ("عدد الطلاب 0 لكل مدرس رغم وجود طلاب فعليين") — وحتى لمدرس بمادة واحدة،
+     * كان بيحسب أي طالب مشترك في نفس اسم المادة عموماً حتى لو مسجَّل فعلياً عند
+     * مدرس تاني لنفس المادة، مش طلاب هذا المدرس بالذات.
+     */
+    const students = getStudentsForTeacher(state, t.id);
 
     const attendanceForTeacher = state.attendanceRecords.filter((a) =>
       groupNames.has(a.group_name),
@@ -291,6 +299,10 @@ export function buildStudentAttendanceByCalendarWeek(
 
 export interface ActiveGroupRow {
   group: Group;
+  slotId: string;
+  time: string;
+  room: string;
+  enrolled: number;
   started: boolean;
   activated: boolean;
   lateMinutes: number;
@@ -317,6 +329,14 @@ function parseSlotMinutes(time: string): number | null {
  * `groupActivations` (Migration 0029)، اللي بيتكتب حصراً من `startGroupSession`
  * و`markAttendanceForGroup` (مسارات الموظف فقط). بيانات الحضور/الحصص الحقيقية
  * تفضل تتسجّل زي ما هي لالتزام المدرسين والتقارير — بس مالهاش تأثير على "نشطة الآن".
+ *
+ * **مصدر مواعيد اليوم**: `state.scheduleSlots`، مش `group.weekday/time` القديمة.
+ * مجموعة متجدولة بأكتر من يوم (`GroupScheduleModal`) بتتسجّل كصف مستقل لكل يوم في
+ * scheduleSlots، لكن `group.weekday/time` القديمة بتفضل بتحمل أول يوم مُختار بس —
+ * فأي معاد تاني غير الأول كان بيختفي تماماً من هنا (البج الحقيقي المُبلَّغ من
+ * السنتر: "بيجيب حصتين بس ويعطل" رغم وجود حصص تانية شغالة فعلاً). مجموعات قديمة
+ * متجدولة ومعندهاش أي صف في scheduleSlots (بيانات قبل نظام المواعيد المتعددة)
+ * بترجع لحقولها القديمة كـfallback وحيد.
  */
 export function buildActiveGroupsNow(state: DataState, now = new Date()): ActiveGroupRow[] {
   const today = WEEKDAYS[now.getDay()]!;
@@ -332,18 +352,42 @@ export function buildActiveGroupsNow(state: DataState, now = new Date()): Active
     );
   };
 
-  return state.groups
-    .filter((g) => g.weekday === today)
-    .map((g) => {
-      const start = parseSlotMinutes(g.time);
+  const todaysSlots: { group: Group; slotId: string; time: string; room: string }[] = [];
+  const groupIdsWithAnySlot = new Set(
+    state.scheduleSlots.filter((sl) => sl.group_id).map((sl) => sl.group_id!),
+  );
+  for (const sl of state.scheduleSlots) {
+    if (sl.weekday !== today || !sl.group_id) continue;
+    const group = state.groups.find((g) => g.id === sl.group_id);
+    if (!group) continue;
+    todaysSlots.push({ group, slotId: sl.id, time: sl.time || group.time, room: sl.room || group.room });
+  }
+  for (const g of state.groups) {
+    if (g.scheduling_status !== "scheduled" || g.weekday !== today) continue;
+    if (groupIdsWithAnySlot.has(g.id)) continue;
+    todaysSlots.push({ group: g, slotId: `legacy-${g.id}`, time: g.time, room: g.room });
+  }
+
+  return todaysSlots
+    .map(({ group, slotId, time, room }) => {
+      const start = parseSlotMinutes(time);
       const started = start !== null && nowMinutes >= start;
       const activated = state.groupActivations.some(
-        (a) => a.group_id === g.id && isToday(a.activated_at),
+        (a) => a.group_id === group.id && isToday(a.activated_at),
       );
       const lateMinutes = started && !activated && start !== null ? nowMinutes - start : 0;
-      return { group: g, started, activated, lateMinutes };
+      return {
+        group,
+        slotId,
+        time,
+        room,
+        enrolled: getEnrolledCount(state, group.id),
+        started,
+        activated,
+        lateMinutes,
+      };
     })
-    .sort((a, b) => (a.group.time < b.group.time ? -1 : 1));
+    .sort((a, b) => (a.time < b.time ? -1 : 1));
 }
 
 /* ---------------- محرك التنبيهات الواقعي ---------------- */
@@ -358,11 +402,13 @@ export interface DecisionAlert {
 export function buildDecisionAlerts(state: DataState, now = new Date()): DecisionAlert[] {
   const alerts: DecisionAlert[] = [];
 
-  // 1) طلاب متأخرون عن سداد الاشتراك.
+  // 1) طلاب متأخرون عن سداد الاشتراك. القايمة كاملة بلا حد أقصى (كانت مقصوصة
+  // على أول 8 بس — لو السنتر عنده 45 طالب متأخر، لازم يشوفهم الـ45 كلهم؛ العرض
+  // نفسه (owner.index.tsx) أصلاً جوه صندوق قابل للتمرير مُعَد لعدد كبير).
   const overdueStudents = state.students.filter(
     (s) => s.balance_due > 0 && s.payment_status !== "paid",
   );
-  for (const s of overdueStudents.slice(0, 8)) {
+  for (const s of overdueStudents) {
     alerts.push({
       id: `due-${s.id}`,
       severity: s.payment_status === "overdue" ? "critical" : "warning",
@@ -375,22 +421,26 @@ export function buildDecisionAlerts(state: DataState, now = new Date()): Decisio
   for (const row of buildActiveGroupsNow(state, now)) {
     if (row.started && !row.activated) {
       alerts.push({
-        id: `late-${row.group.id}`,
+        id: `late-${row.slotId}`,
         severity: row.lateMinutes > 15 ? "critical" : "warning",
         title: `لم تُفعَّل حصة ${row.group.name}`,
-        body: `${row.group.teacher_name} · ${row.group.time} · تأخير ${row.lateMinutes} دقيقة بدون حضور أو واجب`,
+        body: `${row.group.teacher_name} · ${row.time} · تأخير ${row.lateMinutes} دقيقة بدون حضور أو واجب`,
       });
     }
   }
 
-  // 3) مجموعات وصلت للحد الأقصى.
-  for (const g of state.groups.filter((g) => g.capacity > 0 && g.enrolled >= g.capacity)) {
-    alerts.push({
-      id: `cap-${g.id}`,
-      severity: "warning",
-      title: `مجموعة ${g.name} وصلت للسعة القصوى`,
-      body: `${g.enrolled} / ${g.capacity} · ${g.teacher_name}`,
-    });
+  // 3) مجموعات وصلت للحد الأقصى — بالعدد الحقيقي (getEnrolledCount)، مش
+  // g.enrolled المخزَّن اللي ممكن ينحرف عن الواقع (راجع تعليق getEnrolledCount).
+  for (const g of state.groups) {
+    const enrolled = getEnrolledCount(state, g.id);
+    if (g.capacity > 0 && enrolled >= g.capacity) {
+      alerts.push({
+        id: `cap-${g.id}`,
+        severity: "warning",
+        title: `مجموعة ${g.name} وصلت للسعة القصوى`,
+        body: `${enrolled} / ${g.capacity} · ${g.teacher_name}`,
+      });
+    }
   }
 
   // 4) نقص المخزون — لم نعد نُنبّه على "بنك الأسئلة" (خارج النطاق بعد التشخيص).
@@ -422,9 +472,9 @@ export interface TeacherFinanceRow {
 export function buildTeacherFinance(state: DataState): TeacherFinanceRow[] {
   return state.teachers
     .map((t) => {
-      const students = t.subject_id
-        ? state.students.filter((s) => s.subject_ids.includes(t.subject_id!))
-        : [];
+      // نفس تصحيح buildTeacherPerformance: طلاب المدرس الحقيقيون (مجموعاته الفعلية)،
+      // مش أي طالب مشترك بنفس اسم المادة (وكان بيرجع صفر تماماً للمدرسين متعددي المواد).
+      const students = getStudentsForTeacher(state, t.id);
       const codes = new Set(students.map((s) => s.code));
       const revenue = state.payments
         .filter((p) => codes.has(p.student_code))

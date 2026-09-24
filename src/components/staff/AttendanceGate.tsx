@@ -42,7 +42,7 @@ function statusLabel(s: "present" | "late" | "absent") {
 
 export function StaffGate() {
   const state = useDataStore();
-  const { students, attendanceRecords, groups } = state;
+  const { students, attendanceRecords } = state;
   const now = new Date();
   const today = now.toDateString();
   const todayRecords = attendanceRecords.filter((r) => sameDay(r.checked_in_at, now));
@@ -59,11 +59,16 @@ export function StaffGate() {
       lates.reduce((s, r) => s + (r.late_minutes ?? 0), 0) / lates.length,
     );
   })();
-  const todayGroupNames = new Set(groups.filter((g) => g.weekday === weekdayAr(now)).map((g) => g.name));
+
+  const active = useMemo(() => buildActiveGroupsNow(state, now), [state, today]);
+  // مشتق من `active` (نفس مصدر scheduleSlots الصحيح)، مش من `groups.filter(g =>
+  // g.weekday === today)` القديمة — تلك كانت بترجع فقط أول يوم مجدول لكل مجموعة
+  // فبتفوّت أي مجموعة معادها التاني اليوم، فيظهر "مجموعات مكتملة التسجيل" أقل
+  // من الحقيقة.
+  const todayGroupNames = new Set(active.map((row) => row.group.name));
   const completedGroups = new Set(todayRecords.map((r) => r.group_name));
   const completedTodayGroups = [...todayGroupNames].filter((n) => completedGroups.has(n)).length;
 
-  const active = useMemo(() => buildActiveGroupsNow(state, now), [state, today]);
   const [openGroup, setOpenGroup] = useState<Group | null>(null);
 
   return (
@@ -114,7 +119,7 @@ export function StaffGate() {
                 : `قادمة بعد ${formatNumber(-row.lateMinutes)} د`;
               return (
                 <button
-                  key={row.group.id}
+                  key={row.slotId}
                   onClick={() => setOpenGroup(row.group)}
                   className={cn(
                     "rounded-2xl border-2 p-4 text-right transition-opacity hover:opacity-90",
@@ -131,10 +136,10 @@ export function StaffGate() {
                     <div>
                       <p className="text-base font-black text-foreground">{row.group.name}</p>
                       <p className="text-xs font-bold text-muted-foreground">
-                        {row.group.teacher_name} · {row.group.subject} · قاعة {row.group.room}
+                        {row.group.teacher_name} · {row.group.subject} · قاعة {row.room}
                       </p>
                       <p className="mt-1 text-xs font-bold text-muted-foreground">
-                        الموعد {row.group.time} · {formatNumber(row.group.enrolled)} /{" "}
+                        الموعد {row.time} · {formatNumber(row.enrolled)} /{" "}
                         {formatNumber(row.group.capacity)} طالب
                       </p>
                     </div>

@@ -28,6 +28,7 @@ import { DailyTasksCard } from "@/components/tasks/DailyTasksCard";
 import { downloadCenterExcel } from "@/lib/export-excel";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import {
+  getEnrolledCount,
   getFinanceSettings,
   pushNotification,
   useDataStore,
@@ -126,7 +127,7 @@ function OwnerDashboard() {
         "session_late",
         "critical",
         title,
-        `${row.group.teacher_name} · ${row.group.time} · مرّ ${row.lateMinutes} دقيقة بدون رفع واجب أو تسجيل حضور`,
+        `${row.group.teacher_name} · ${row.time} · مرّ ${row.lateMinutes} دقيقة بدون رفع واجب أو تسجيل حضور`,
       );
     }
   }, [activeNow, notifications]);
@@ -398,7 +399,10 @@ function OwnerDashboard() {
         ) : (
           <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
             {groups.map((g) => {
-              const pct = g.capacity ? Math.round((g.enrolled / g.capacity) * 100) : 0;
+              // العدد الحقيقي (الروستر الفعلي)، مش g.enrolled المخزَّن اللي ممكن
+              // ينحرف عن الواقع لو أي مزامنة فشلت بصمت (راجع getEnrolledCount).
+              const enrolled = getEnrolledCount(state, g.id);
+              const pct = g.capacity ? Math.round((enrolled / g.capacity) * 100) : 0;
               return (
                 <div key={g.id} className="rounded-xl border-2 border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -406,7 +410,7 @@ function OwnerDashboard() {
                     <StatusBadge
                       tone={pct >= 100 ? "destructive" : pct >= 85 ? "warning" : "success"}
                     >
-                      {formatNumber(g.enrolled)} / {formatNumber(g.capacity)}
+                      {formatNumber(enrolled)} / {formatNumber(g.capacity)}
                     </StatusBadge>
                   </div>
                   <p className="mt-1 text-xs font-bold text-muted-foreground">

@@ -1020,6 +1020,22 @@ export function getStudentsForGroup(state: DataState, groupId: string): Student[
   return state.students.filter((s) => s.group_id === groupId || extraStudentIds.has(s.id));
 }
 
+/**
+ * The real, always-correct enrollment count for a group — the actual roster
+ * (`getStudentsForGroup`), never `group.enrolled` on its own. `enrolled` is a
+ * separately-maintained counter touched by half a dozen mutation functions
+ * (createGroup, addStudentToGroup, removeStudentFromGroup, ...); a single
+ * missed update (e.g. a Supabase write that silently failed) leaves it
+ * permanently out of sync with who is actually in the group, which is
+ * exactly the "المجموعة مكتوبة 20 لكن الحصة فيها 10" bug reported from the
+ * live center. Every display (owner dashboard cards, group lists, capacity
+ * checks) should call this instead of reading `group.enrolled` directly, so
+ * the number shown always matches reality regardless of any past sync gap.
+ */
+export function getEnrolledCount(state: DataState, groupId: string): number {
+  return getStudentsForGroup(state, groupId).length;
+}
+
 export function getStudentsForTeacher(state: DataState, teacherId: string): Student[] {
   const groupIds = getGroupsForTeacher(state, teacherId).map((g) => g.id);
   const byId = new Map<string, Student>();
@@ -4481,10 +4497,45 @@ export function createGroup(input: CreateGroupInput): { group: Group; warnings: 
     groups: [...s.groups, group],
     students: studentsAfter,
   }));
-  syncInsert("groups", group as unknown as object);
-  for (const sid of primaryIds) {
-    syncUpdate("students", sid, { group_id: newId, group_name: group.name });
-  }
+  /**
+   * Sequenced on purpose (root cause of a real bug from the live center):
+   * `students.group_id` is a foreign key into `groups(id)`
+   * (0002_reference_and_people.sql). The old code fired `syncInsert("groups", ...)`
+   * and every student's `syncUpdate("students", sid, {group_id: newId, ...})`
+   * as separate fire-and-forget requests with no ordering — a student's UPDATE
+   * could reach Postgres before the group's own INSERT committed, which
+   * silently failed the FK check. The student stayed enrolled only in the
+   * local optimistic UI, not in the real database: the group's `enrolled`
+   * count (written correctly, since it's part of the group's own row) no
+   * longer matched who was actually in it. Reopening the page later refetched
+   * the real (unlinked) students, and re-adding them by hand through
+   * `addStudentToGroup` bumped `enrolled` a second time on top of the
+   * already-correct original count — exactly the "group says 20 but the
+   * session only has 10" bug reported. Awaiting the group insert first
+   * guarantees the parent row exists before any child row can reference it.
+   */
+  void (async () => {
+    const identifier = currentIdentifier();
+    if (!USE_SUPABASE || !identifier) return;
+    try {
+      await insertRow({
+        data: { identifier, table: "groups", row: group as unknown as PlainRow },
+      });
+    } catch (err) {
+      reportSyncFailure("groups", err);
+      return;
+    }
+    for (const sid of primaryIds) {
+      void updateRow({
+        data: {
+          identifier,
+          table: "students",
+          id: sid,
+          patch: { group_id: newId, group_name: group.name },
+        },
+      }).catch((err) => reportSyncFailure("students", err));
+    }
+  })();
 
   // لو حد اتنقل من مجموعة قديمة لنفس المادة، لازم عدادها ينقص فوراً (نفس بالظبط
   // بوكيبنج addStudentToGroup الموجودة أصلاً) وإلا كارت المجموعة القديمة يفضل
