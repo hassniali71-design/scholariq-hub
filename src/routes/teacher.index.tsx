@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { CorrectionPanel } from "@/components/teacher/CorrectionPanel";
 import { PlatformTeacherNoteCard } from "@/components/teacher/PlatformTeacherNoteCard";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
 import { StudentMessagesCard } from "@/components/teacher/StudentMessagesCard";
@@ -91,9 +92,7 @@ function TeacherHome() {
   const timerCompliance = getTimerCompliance(state, teacher.id);
 
   const myGroupNames = new Set(myGroups.map((g) => g.name));
-  const sessionsThisWeek = state.scheduleSlots.filter(
-    (s) => s.teacher_id === teacher.id,
-  ).length;
+  const sessionsThisWeek = state.scheduleSlots.filter((s) => s.teacher_id === teacher.id).length;
   const absentLastSession = attendanceRecords.filter(
     (a) => myGroupNames.has(a.group_name) && a.status === "absent",
   ).length;
@@ -163,10 +162,7 @@ function TeacherHome() {
         Migration 0023 / خطة C (C12): أحداث اليوم — المواعيد + المحاولات المعلّقة +
         الإطلاقات الجديدة + تقييمات السلوك. كل ما يخص المدرس فقط.
       */}
-      <Panel
-        title="أحداث اليوم"
-        description="مواعيدك + محاولات تنتظر تصحيح + ما أطلقته اليوم"
-      >
+      <Panel title="أحداث اليوم" description="مواعيدك + محاولات تنتظر تصحيح + ما أطلقته اليوم">
         {todayEvents.length === 0 ? (
           <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
             لا توجد أحداث اليوم — ابدأ حصة لتظهر هنا.
@@ -227,6 +223,14 @@ function TeacherHome() {
         )}
       </Panel>
 
+      {/*
+        "أحداث اليوم" فوق كانت بتعرض "محاولات تنتظر تصحيح" كسطر إشعار بحت
+        بدون أي إمكانية فعل — الكارت الحقيقي اللي بيصحّح فعلاً (CorrectionPanel)
+        كان مبني بالكامل (Migration 0023 / خطة B2) لكن غير مربوط بأي صفحة،
+        يعني المدرس مالوش أي طريقة يصحّح بيها واجب إلكتروني اتسلّم. اتربط هنا.
+      */}
+      <CorrectionPanel variant="dashboard" />
+
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="جدول مجموعاتي" description="المواعيد والقاعات">
           <div className="space-y-3">
@@ -282,7 +286,11 @@ function TeacherHome() {
               .slice()
               .sort((a, b) => b.avg_score - a.avg_score)
               .map((s) => (
-                <StudentClassificationCard key={s.id} student={s} classification={classifyStudent(s)} />
+                <StudentClassificationCard
+                  key={s.id}
+                  student={s}
+                  classification={classifyStudent(s)}
+                />
               ))}
             {myStudents.length === 0 ? (
               <p className="py-6 text-center font-black text-muted-foreground">
