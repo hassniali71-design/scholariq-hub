@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 import type { AttendanceStatus, Group } from "@/types";
 
 export const Route = createFileRoute("/teacher/assessments")({
+  validateSearch: (search: Record<string, unknown>): { studentId?: string } =>
+    typeof search["studentId"] === "string" ? { studentId: search["studentId"] } : {},
   head: () => ({
     meta: [
       { title: "التقييمات والغياب — المدرس" },
@@ -49,6 +51,7 @@ function AssessmentsPage() {
   const state = useDataStore();
   const isHydrated = useIsHydrated();
   const teacher = useCurrentTeacher();
+  const { studentId: alertStudentId } = Route.useSearch();
   useEffect(() => {
     if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
   }, [teacher, isHydrated]);
@@ -155,7 +158,11 @@ function AssessmentsPage() {
         title="الأوسمة والتنبيهات"
         description="للمتفوقين: وسام تشجيعي · للضعاف: تنبيه لولي الأمر / حديث فردي / ملاحظة"
       >
-        <AwardsAndAlertsPanel teacherId={teacher.id} students={visibleStudents} />
+        <AwardsAndAlertsPanel
+          teacherId={teacher.id}
+          students={visibleStudents}
+          openStudentId={alertStudentId}
+        />
       </Panel>
 
       {/*

@@ -1,5 +1,7 @@
+import { Link } from "@tanstack/react-router";
+import { Megaphone } from "lucide-react";
+
 import { StatusBadge } from "@/components/dashboard/StatCard";
-import { TeacherNoteInput } from "@/components/teacher/TeacherNoteInput";
 import { formatNumber, formatPercent } from "@/lib/format";
 import type { StudentClassification } from "@/lib/data-store";
 import type { Student } from "@/types";
@@ -18,15 +20,19 @@ interface StudentClassificationCardProps {
   classification: StudentClassification;
   /** Shown only when provided — used by the "طلاب يحتاجون متابعة" panel. */
   reason?: string;
-  /** Shown only when provided — persists a quick note via `addTeacherNote`. */
-  onAddNote?: (note: string) => void;
+  /**
+   * يظهر زرار "إرسال تنبيه" لهذا الطالب لو true — بيوديك لنفس فورم
+   * الأوسمة/التنبيهات الموجود بالفعل في صفحة "التقييمات والغياب"
+   * (AwardsAndAlertsPanel)، بدل نص حر منفصل بيضيع في مكان تاني.
+   */
+  showAlertLink?: boolean;
 }
 
 export function StudentClassificationCard({
   student,
   classification,
   reason,
-  onAddNote,
+  showAlertLink,
 }: StudentClassificationCardProps) {
   const meta = classificationMeta[classification];
 
@@ -41,7 +47,15 @@ export function StudentClassificationCard({
         <span>· متوسط {formatNumber(student.avg_score)}</span>
       </div>
       {reason ? <p className="mt-2 text-xs font-extrabold text-destructive">{reason}</p> : null}
-      {onAddNote ? <TeacherNoteInput onSubmit={onAddNote} /> : null}
+      {showAlertLink ? (
+        <Link
+          to="/teacher/assessments"
+          search={{ studentId: student.id }}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-warning/40 px-3 py-1.5 text-xs font-black text-warning hover:bg-warning/10"
+        >
+          <Megaphone className="size-3.5" /> إرسال تنبيه
+        </Link>
+      ) : null}
     </div>
   );
 }

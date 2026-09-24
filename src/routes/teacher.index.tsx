@@ -24,7 +24,6 @@ import { StudentMessagesCard } from "@/components/teacher/StudentMessagesCard";
 import { SubjectRoomHeader } from "@/components/teacher/SubjectRoomHeader";
 import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import {
-  addTeacherNote,
   classifyStudent,
   classificationReason,
   getActiveSubjectQuote,
@@ -101,11 +100,6 @@ function TeacherHome() {
   const excellent = myStudents.filter((s) => classifyStudent(s) === "excellent").length;
   const needsAttention = myStudents.filter((s) => classifyStudent(s) === "needs_attention");
   const todayEvents = getEventsForTeacherToday(state, teacher.id);
-
-  const handleAddNote = (studentId: string, note: string) => {
-    addTeacherNote(studentId, teacher.id, note);
-    toast.success("تم حفظ الملاحظة");
-  };
 
   return (
     <AppShell role="teacher" title="لوحة المدرس" description={subjectName}>
@@ -309,7 +303,7 @@ function TeacherHome() {
               student={s}
               classification="needs_attention"
               reason={classificationReason(s)}
-              onAddNote={(note) => handleAddNote(s.id, note)}
+              showAlertLink
             />
           ))}
           {needsAttention.length === 0 ? (

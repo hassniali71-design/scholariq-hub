@@ -1,5 +1,5 @@
 import { Award, Megaphone, Send, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -76,12 +76,25 @@ const ALERTS: { key: string; label: string; emoji: string; defaultText: (name: s
 export function AwardsAndAlertsPanel({
   teacherId,
   students,
+  /**
+   * زرار "إرسال تنبيه" في كارت الطالب (StudentClassificationCard) بيوجّه
+   * المدرس هنا مباشرة بمعرِّف الطالب — بدل ما يعمل فورم منفصل، الفورم الموجود
+   * بالفعل هنا بيتفتح تلقائياً لنفس الطالب بمجرد وصوله.
+   */
+  openStudentId,
 }: {
   teacherId: string;
   students: Student[];
+  openStudentId?: string | undefined;
 }) {
   const state = useDataStore();
   const [openStudent, setOpenStudent] = useState<Student | null>(null);
+
+  useEffect(() => {
+    if (!openStudentId) return;
+    const target = students.find((s) => s.id === openStudentId);
+    if (target) setOpenStudent(target);
+  }, [openStudentId, students]);
 
   if (students.length === 0) return null;
 
