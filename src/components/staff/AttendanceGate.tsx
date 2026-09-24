@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Panel, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
+import { DailyStaffEvents } from "@/components/staff/DailyStaffEvents";
 import { markAttendanceForGroup, useDataStore } from "@/lib/data-store";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import { buildActiveGroupsNow } from "@/lib/owner-metrics";
@@ -55,9 +56,7 @@ export function StaffGate() {
   const lateMinutesAvg = (() => {
     const lates = todayRecords.filter((r) => r.status === "late");
     if (lates.length === 0) return 0;
-    return Math.round(
-      lates.reduce((s, r) => s + (r.late_minutes ?? 0), 0) / lates.length,
-    );
+    return Math.round(lates.reduce((s, r) => s + (r.late_minutes ?? 0), 0) / lates.length);
   })();
 
   const active = useMemo(() => buildActiveGroupsNow(state, now), [state, today]);
@@ -78,7 +77,12 @@ export function StaffGate() {
       description="سجّل حضور المجموعات النشطة بضغطة واحدة واحترم نافذة الـ 50 دقيقة"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="نسبة الحضور اليوم" value={formatPercent(rate)} icon={CheckCircle2} tone="success" />
+        <Stat
+          label="نسبة الحضور اليوم"
+          value={formatPercent(rate)}
+          icon={CheckCircle2}
+          tone="success"
+        />
         <Stat label="حالات تأخير اليوم" value={formatNumber(late)} icon={Clock} tone="warning" />
         <Stat
           label="مجموعات مكتملة التسجيل"
@@ -217,11 +221,15 @@ export function StaffGate() {
         </div>
       </Panel>
 
+      {/*
+        DailyStaffEvents كان مكوّناً كاملاً وحقيقياً (مدفوعات/مبيعات ملازم/
+        تأخير-غياب/مهام اليوم) لكن غير مربوط بأي صفحة إطلاقاً — الموظف كان
+        شايف بوابة الحضور بس بدون أي نظرة عامة على نشاط السنتر اليوم.
+      */}
+      <DailyStaffEvents />
+
       {openGroup ? (
-        <GroupAttendanceModal
-          group={openGroup}
-          onClose={() => setOpenGroup(null)}
-        />
+        <GroupAttendanceModal group={openGroup} onClose={() => setOpenGroup(null)} />
       ) : null}
     </AppShell>
   );
@@ -437,13 +445,17 @@ function GroupAttendanceModal({ group, onClose }: { group: Group; onClose: () =>
   function mark(student: Student, intent: "present" | "absent") {
     const r = markAttendanceForGroup(group.id, student.id, intent);
     if (r === "WINDOW_CLOSED") toast.error("نافذة التسجيل مغلقة — لا يمكن التعديل");
-    else if (r === "STUDENT_NOT_FOUND" || r === "GROUP_NOT_FOUND") toast.error("تعذّر العثور على الطالب");
+    else if (r === "STUDENT_NOT_FOUND" || r === "GROUP_NOT_FOUND")
+      toast.error("تعذّر العثور على الطالب");
     else if (intent === "absent") toast.success(`تم تسجيل غياب ${student.full_name}`);
     else toast.success(`تم تسجيل حضور ${student.full_name}`);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
       <div className="card-crisp w-full max-w-2xl p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-2">
           <div>
