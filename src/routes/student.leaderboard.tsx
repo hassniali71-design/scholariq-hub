@@ -1,11 +1,11 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Award, Crown, Flame, Sparkles, Trophy } from "lucide-react";
+import { Award, Crown, Flame, Medal, Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 import { Panel, StatCard } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { useCurrentStudent } from "@/hooks/use-current-student";
 import { getEarnedBadges, useDataStore, useIsHydrated, type EarnedBadge } from "@/lib/data-store";
 
@@ -50,6 +50,20 @@ function LeaderboardPage() {
   const badges = useMemo(
     () => (student ? getEarnedBadges(state, student.id) : []),
     [state, student],
+  );
+
+  // أوسمة أرسلها مدرس فعلياً (sendTeacherMessage، template "award") — منفصلة
+  // عن الشارات الأربعة المحسوبة تلقائياً فوق، لكن بتظهر في نفس اللوحة زي ما
+  // طُلب: أي وسام يبعته المدرس لازم يظهر عند الطالب فعلاً، مع اسم المدرس
+  // وتاريخ الإصدار.
+  const teacherAwards = useMemo(
+    () =>
+      student
+        ? state.whatsappLogs
+            .filter((w) => w.student_id === student.id && w.template === "award")
+            .sort((a, b) => (a.sent_at < b.sent_at ? 1 : -1))
+        : [],
+    [state.whatsappLogs, student],
   );
 
   if (!isHydrated) return null;
@@ -155,6 +169,31 @@ function LeaderboardPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="أوسمة من مدرّسيني" description="أوسمة تشجيعية أرسلها مدرّسوك فعلياً">
+        {teacherAwards.length === 0 ? (
+          <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+            لسه محدش من مدرّسيك بعتلك وسام — استمر في التميّز.
+          </p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {teacherAwards.map((w) => (
+              <div key={w.id} className="rounded-xl border-2 border-warning/30 bg-warning/5 p-4 text-center">
+                <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+                  <Medal className="size-6" />
+                </span>
+                <p className="mt-3 text-sm font-bold text-foreground">{w.message}</p>
+                <p className="mt-2 text-xs font-black text-muted-foreground">
+                  {w.teacher_name ? `من: ${w.teacher_name}` : null}
+                </p>
+                <p className="text-[11px] font-bold text-muted-foreground">
+                  {formatDateTime(w.sent_at)}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </Panel>

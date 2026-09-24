@@ -112,6 +112,11 @@ function MessagesPage() {
                 </StatusBadge>
               </div>
               <p className="mt-3 text-sm font-extrabold text-foreground">{w.message}</p>
+              {w.teacher_name ? (
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
+                  من: {w.teacher_name}
+                </p>
+              ) : null}
             </div>
           ))}
           {list.length === 0 ? (

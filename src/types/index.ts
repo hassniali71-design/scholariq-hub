@@ -587,6 +587,9 @@ export interface WhatsAppLog {
     | "alert";
   message: string;
   delivered: boolean;
+  /** Migration 0036 — من صادر الوسام/التنبيه؛ فاضي للأنواع المولَّدة آلياً. */
+  teacher_id?: string | null;
+  teacher_name?: string | null;
 }
 
 export interface TeacherNote {

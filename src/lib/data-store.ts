@@ -2677,6 +2677,8 @@ export function sendTeacherMessage(
       template: kind,
       message: body.trim(),
       delivered: true,
+      teacher_id: teacher.id,
+      teacher_name: teacher.full_name,
     };
     return { ...state, whatsappLogs: [log, ...state.whatsappLogs] };
   });
