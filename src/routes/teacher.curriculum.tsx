@@ -1,5 +1,15 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { BookOpen, Check, ClipboardList, Clock, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ClipboardList,
+  Clock,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -46,11 +56,12 @@ function CurriculumPage() {
   useEffect(() => {
     if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
   }, [teacher, isHydrated]);
-  if (!isHydrated) return null;
-  if (!teacher) return <Navigate to="/login" />;
-  const teacherIdentifier = session?.identifier ?? teacher.user_id ?? teacher.id;
-  const myGroups = getGroupsForTeacher(state, teacher.id);
-  const myPlans = getLessonPlansForTeacher(state, teacher.id);
+
+  // كل الـ hooks لازم تُستدعى بنفس الترتيب في كل render — قبل أي early return
+  // (isHydrated/teacher بيتغيّروا بمرور الوقت، فلو الـ hooks كانت بعد الـ return
+  // كان عددها هيختلف بين render وتاني وده بيكسر React Hooks rules فعلياً).
+  const myGroups = teacher ? getGroupsForTeacher(state, teacher.id) : [];
+  const myPlans = teacher ? getLessonPlansForTeacher(state, teacher.id) : [];
 
   /**
    * الفلتر الأساسي بقى الصف الدراسي، مش المجموعة مباشرة — طلب صريح: مدرس
@@ -95,6 +106,10 @@ function CurriculumPage() {
     return map;
   }, [myPlans]);
 
+  if (!isHydrated) return null;
+  if (!teacher) return <Navigate to="/login" />;
+  const teacherIdentifier = session?.identifier ?? teacher.user_id ?? teacher.id;
+
   const totalPrepared = filteredPlans.filter((p) => p.prepared_done).length;
   const totalTaught = filteredPlans.filter((p) => p.taught_done).length;
   const totalPending = filteredPlans.length - totalTaught;
@@ -120,9 +135,23 @@ function CurriculumPage() {
       description="خطط الدروس التي تعدّها أنت لكل مجموعة — منفصلة عن مهام الإدارة"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="إجمالي الخطط" value={formatNumber(filteredPlans.length)} icon={ClipboardList} />
-        <StatCard label="تم الإعداد" value={formatNumber(totalPrepared)} icon={Check} tone="primary" />
-        <StatCard label="تم التدريس" value={formatNumber(totalTaught)} icon={BookOpen} tone="success" />
+        <StatCard
+          label="إجمالي الخطط"
+          value={formatNumber(filteredPlans.length)}
+          icon={ClipboardList}
+        />
+        <StatCard
+          label="تم الإعداد"
+          value={formatNumber(totalPrepared)}
+          icon={Check}
+          tone="primary"
+        />
+        <StatCard
+          label="تم التدريس"
+          value={formatNumber(totalTaught)}
+          icon={BookOpen}
+          tone="success"
+        />
         <StatCard
           label="معلّق (لم يُدرَّس)"
           value={formatNumber(totalPending)}
@@ -154,7 +183,8 @@ function CurriculumPage() {
           <span className="font-black text-foreground">{formatPercent(aheadRate)}</span>
         </div>
         <p className="mt-2 text-xs font-bold text-muted-foreground">
-          {formatNumber(preparedAhead)} من {formatNumber(filteredPlans.length)} خطة تم إعدادها قبل الموعد المخطط.
+          {formatNumber(preparedAhead)} من {formatNumber(filteredPlans.length)} خطة تم إعدادها قبل
+          الموعد المخطط.
         </p>
         {prepRate < 50 && filteredPlans.length > 0 ? (
           <p className="mt-3 rounded-xl border-2 border-warning/40 bg-warning/10 p-3 text-xs font-black text-warning">
@@ -491,9 +521,7 @@ function AddPlanModal({
             placeholder="مثال: المعادلات من الدرجة الثانية"
             className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary"
           />
-          <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-            {lessonName.length}/60
-          </p>
+          <p className="mt-1 text-[11px] font-bold text-muted-foreground">{lessonName.length}/60</p>
         </Field>
         <Field label="الوحدة">
           <input
@@ -568,7 +596,11 @@ function EditPlanModal({
           />
         </Field>
         <Field label="الوحدة">
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary" />
+          <input
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground outline-none focus:border-primary"
+          />
         </Field>
         <Field label="ملاحظات">
           <textarea

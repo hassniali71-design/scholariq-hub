@@ -52,9 +52,11 @@ function AssessmentsPage() {
   useEffect(() => {
     if (isHydrated && !teacher) toast.error("الجلسة منتهية — سجّل الدخول من جديد");
   }, [teacher, isHydrated]);
-  if (!isHydrated) return null;
-  if (!teacher) return <Navigate to="/login" />;
-  const myGroups = getGroupsForTeacher(state, teacher.id);
+
+  // كل الـ hooks لازم تُستدعى بنفس الترتيب في كل render — قبل أي early return
+  // (isHydrated/teacher بيتغيّروا بمرور الوقت، فلو الـ hooks كانت بعد الـ return
+  // كان عددها هيختلف بين render وتاني وده بيكسر React Hooks rules فعلياً).
+  const myGroups = teacher ? getGroupsForTeacher(state, teacher.id) : [];
   const grades = useMemo(
     () =>
       Array.from(
@@ -79,9 +81,11 @@ function AssessmentsPage() {
     [visibleGroups, state.students],
   );
 
+  if (!isHydrated) return null;
+  if (!teacher) return <Navigate to="/login" />;
+
   // المجموعة المختارة فعلياً (عند الفلتر بمجموعة واحدة) — للـ 8 كروت.
-  const selectedGroup: Group | null =
-    groupFilter === ALL ? null : visibleGroups[0] ?? null;
+  const selectedGroup: Group | null = groupFilter === ALL ? null : (visibleGroups[0] ?? null);
 
   const scoreOf = (studentId: string, category: "homework" | "activity" | "behavior") =>
     getAssessmentScore(state, studentId, category);
@@ -98,14 +102,23 @@ function AssessmentsPage() {
       <Panel title="فلترة التقرير" description="حسب المرحلة والمجموعة">
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <FilterPill active={gradeFilter === ALL} onClick={() => { setGradeFilter(ALL); setGroupFilter(ALL); }}>
+            <FilterPill
+              active={gradeFilter === ALL}
+              onClick={() => {
+                setGradeFilter(ALL);
+                setGroupFilter(ALL);
+              }}
+            >
               كل المراحل
             </FilterPill>
             {grades.map((grade) => (
               <FilterPill
                 key={grade}
                 active={gradeFilter === grade}
-                onClick={() => { setGradeFilter(grade); setGroupFilter(ALL); }}
+                onClick={() => {
+                  setGradeFilter(grade);
+                  setGroupFilter(ALL);
+                }}
               >
                 {grade}
               </FilterPill>
@@ -116,7 +129,11 @@ function AssessmentsPage() {
               كل المجموعات
             </FilterPill>
             {gradeGroups.map((g) => (
-              <FilterPill key={g.id} active={groupFilter === g.id} onClick={() => setGroupFilter(g.id)}>
+              <FilterPill
+                key={g.id}
+                active={groupFilter === g.id}
+                onClick={() => setGroupFilter(g.id)}
+              >
                 {g.name}
               </FilterPill>
             ))}
@@ -125,7 +142,11 @@ function AssessmentsPage() {
       </Panel>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="عدد الطلاب" value={formatNumber(visibleStudents.length)} icon={CheckCircle2} />
+        <StatCard
+          label="عدد الطلاب"
+          value={formatNumber(visibleStudents.length)}
+          icon={CheckCircle2}
+        />
         <StatCard
           label="الطلاب المتفوقون"
           value={formatNumber(excellent.length)}
@@ -206,10 +227,14 @@ function AssessmentsPage() {
                         <BarChart value={s.avg_score} />
                       </td>
                       <td className="py-3 font-bold text-muted-foreground">
-                        {homework ? `${formatNumber(homework.value)}/${formatNumber(homework.max_value)}` : "—"}
+                        {homework
+                          ? `${formatNumber(homework.value)}/${formatNumber(homework.max_value)}`
+                          : "—"}
                       </td>
                       <td className="py-3 font-bold text-muted-foreground">
-                        {activity ? `${formatNumber(activity.value)}/${formatNumber(activity.max_value)}` : "—"}
+                        {activity
+                          ? `${formatNumber(activity.value)}/${formatNumber(activity.max_value)}`
+                          : "—"}
                       </td>
                       <td className="py-3 font-bold text-muted-foreground">
                         {behavior
@@ -367,15 +392,11 @@ function AttendanceGrid({ state, students }: { state: DataState; students: Stude
             <tr key={st.id} className="border-b border-border last:border-0">
               <td className="py-2 font-black text-foreground">{st.full_name}</td>
               <td className="py-2 font-bold text-muted-foreground">{st.grade}</td>
-              <td className="py-2 font-bold text-muted-foreground">
-                {last?.group_name ?? "—"}
-              </td>
+              <td className="py-2 font-bold text-muted-foreground">{last?.group_name ?? "—"}</td>
               <td className="min-w-[120px] py-2">
                 <BarChart value={st.attendance_rate} />
               </td>
-              <td className="py-2 text-center font-black text-success">
-                {formatNumber(present)}
-              </td>
+              <td className="py-2 text-center font-black text-success">{formatNumber(present)}</td>
               <td className="py-2 text-center font-black text-warning">{formatNumber(late)}</td>
               <td className="py-2 text-center font-black text-destructive">
                 {formatNumber(absent)}
