@@ -74,11 +74,19 @@ function TeachersPage() {
             progress.lessonCount > 0
               ? Math.round((progress.doneCount / progress.lessonCount) * 100)
               : 0;
+          // مجموعة ممكن يكون ليها أكتر من معاد حقيقي (`scheduleSlots`) — عرض
+          // g.weekday/g.time القديمة بس كان بيخفي أي معاد تاني غير أول واحد
+          // اتسجّل. مع fallback للمجموعات القديمة اللي معندهاش صف في scheduleSlots.
+          const slots = state.scheduleSlots.filter((sl) => sl.group_id === g.id);
+          const scheduleText =
+            slots.length > 0
+              ? slots.map((sl) => `${sl.weekday} ${sl.time}`).join(" · ")
+              : `${g.weekday} ${g.time}`;
           return (
             <Panel
               key={g.id}
               title={g.subject}
-              description={`${g.teacher_name} · ${g.weekday} ${g.time} · قاعة ${g.room}`}
+              description={`${g.teacher_name} · ${scheduleText} · قاعة ${g.room}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border bg-muted/40 p-3">
                 <div className="flex items-center gap-3">
@@ -120,7 +128,9 @@ function TeachersPage() {
                       الدرس القادم: {progress.nextLesson.title}
                     </p>
                   ) : (
-                    <p className="mt-2 text-[11px] font-bold text-success">أكملتوا كل دروس المنهج!</p>
+                    <p className="mt-2 text-[11px] font-bold text-success">
+                      أكملتوا كل دروس المنهج!
+                    </p>
                   )}
                 </div>
               ) : null}

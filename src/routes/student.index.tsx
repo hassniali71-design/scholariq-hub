@@ -188,7 +188,54 @@ function StudentPortal() {
   }));
 
   const today = WEEKDAYS[new Date().getDay()];
-  const todaysGroups = myGroups.filter((g) => g.weekday === today);
+
+  /**
+   * مصدر مواعيد الطالب: `state.scheduleSlots`، مش `group.weekday`/`group.time`
+   * القديمة — مجموعة متجدولة بأكتر من يوم (مثلاً الأحد والأربعاء) بتتسجّل كصف
+   * مستقل لكل يوم في scheduleSlots، لكن الحقل القديم بيحمل أول يوم اتسجّل بس.
+   * الاعتماد عليه كان معناه "حصة اليوم" ممكن تفضل فاضية ليوم الطالب بيحضر فيه
+   * فعلاً، أو "جدول الأسبوع" يورّي يوم واحد بس لمجموعة بتقابله مرتين. نفس
+   * إصلاح TodayOverviewPanels.tsx (نمط معتمد بالفعل) — مع fallback للمجموعات
+   * القديمة اللي معندهاش أي صف في scheduleSlots.
+   */
+  const myGroupIds = new Set(myGroups.map((g) => g.id));
+  const myGroupById = new Map(myGroups.map((g) => [g.id, g]));
+  const groupIdsWithAnySlot = new Set(
+    state.scheduleSlots
+      .filter((sl) => sl.group_id && myGroupIds.has(sl.group_id))
+      .map((sl) => sl.group_id!),
+  );
+  interface WeeklyRow {
+    key: string;
+    group: (typeof myGroups)[number];
+    weekday: string;
+    time: string;
+    room: string;
+  }
+  const weeklyRows: WeeklyRow[] = [
+    ...state.scheduleSlots
+      .filter((sl) => sl.group_id && myGroupIds.has(sl.group_id))
+      .map((sl) => {
+        const g = myGroupById.get(sl.group_id!)!;
+        return {
+          key: sl.id,
+          group: g,
+          weekday: sl.weekday,
+          time: sl.time,
+          room: sl.room || g.room,
+        };
+      }),
+    ...myGroups
+      .filter((g) => !groupIdsWithAnySlot.has(g.id))
+      .map((g) => ({
+        key: `legacy-${g.id}`,
+        group: g,
+        weekday: g.weekday,
+        time: g.time,
+        room: g.room,
+      })),
+  ];
+  const todaysGroups = weeklyRows.filter((r) => r.weekday === today);
   const attendanceByCalendarWeek = buildStudentAttendanceByCalendarWeek(state, me.id);
 
   return (
@@ -209,9 +256,19 @@ function StudentPortal() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="نسبة الحضور" value={formatPercent(attendanceRate)} icon={CalendarCheck} tone="success" />
+        <StatCard
+          label="نسبة الحضور"
+          value={formatPercent(attendanceRate)}
+          icon={CalendarCheck}
+          tone="success"
+        />
         <StatCard label="متوسط الدرجات" value={formatNumber(me.avg_score)} icon={Target} />
-        <StatCard label="نقاط التحفيز" value={formatNumber(me.points)} icon={Award} tone="warning" />
+        <StatCard
+          label="نقاط التحفيز"
+          value={formatNumber(me.points)}
+          icon={Award}
+          tone="warning"
+        />
         <StatCard
           label="درجة السلوك"
           value={behaviorScore === null ? "—" : `${Math.round(behaviorScore * 10)}/10`}
@@ -230,22 +287,18 @@ function StudentPortal() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <Panel
-          title="حصة اليوم"
-          description={today ?? ""}
-          className="xl:col-span-1"
-        >
+        <Panel title="حصة اليوم" description={today ?? ""} className="xl:col-span-1">
           {todaysGroups.length === 0 ? (
             <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
               لا يوجد حصص مجدولة اليوم.
             </p>
           ) : (
             <div className="space-y-2">
-              {todaysGroups.map((g) => (
-                <div key={g.id} className="rounded-xl border-2 border-primary/40 bg-primary/5 p-3">
-                  <p className="font-black text-foreground">{g.subject}</p>
+              {todaysGroups.map((r) => (
+                <div key={r.key} className="rounded-xl border-2 border-primary/40 bg-primary/5 p-3">
+                  <p className="font-black text-foreground">{r.group.subject}</p>
                   <p className="text-xs font-bold text-muted-foreground">
-                    {g.teacher_name} · {g.time} · قاعة {g.room}
+                    {r.group.teacher_name} · {r.time} · قاعة {r.room}
                   </p>
                 </div>
               ))}
@@ -254,29 +307,33 @@ function StudentPortal() {
         </Panel>
 
         <Panel title="جدول الأسبوع" description="كل حصصك في مكان واحد" className="xl:col-span-2">
-          {myGroups.length === 0 ? (
+          {weeklyRows.length === 0 ? (
             <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
               لسه مش مسجَّل في أي مجموعة.
             </p>
           ) : (
             <div className="space-y-2">
-              {[...myGroups]
-                .sort((a, b) => WEEKDAYS.indexOf(a.weekday as (typeof WEEKDAYS)[number]) - WEEKDAYS.indexOf(b.weekday as (typeof WEEKDAYS)[number]))
-                .map((g) => (
+              {[...weeklyRows]
+                .sort(
+                  (a, b) =>
+                    WEEKDAYS.indexOf(a.weekday as (typeof WEEKDAYS)[number]) -
+                    WEEKDAYS.indexOf(b.weekday as (typeof WEEKDAYS)[number]),
+                )
+                .map((r) => (
                   <div
-                    key={g.id}
+                    key={r.key}
                     className={
-                      g.weekday === today
+                      r.weekday === today
                         ? "flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-primary bg-primary/5 p-3"
                         : "flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-border p-3"
                     }
                   >
                     <div className="flex items-center gap-2">
                       <CalendarDays className="size-4 text-muted-foreground" />
-                      <p className="font-black text-foreground">{g.subject}</p>
+                      <p className="font-black text-foreground">{r.group.subject}</p>
                     </div>
                     <p className="text-xs font-bold text-muted-foreground">
-                      {g.weekday} · {g.time} · {g.teacher_name}
+                      {r.weekday} · {r.time} · {r.group.teacher_name}
                     </p>
                   </div>
                 ))}
