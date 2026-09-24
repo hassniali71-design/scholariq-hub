@@ -38,16 +38,9 @@ export function CorrectionPanel({
     [state, teacher],
   );
 
-  if (!teacher) {
-    return (
-      <Panel title="تصحيح الواجبات" description="يلزم تسجيل الدخول كمدرس">
-        <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
-          لا يوجد مدرس مسجّل دخوله.
-        </p>
-      </Panel>
-    );
-  }
-
+  // كل الـ hooks لازم تُستدعى قبل أي return شرطي — `teacher` بيتغيّر بمرور
+  // الوقت (تحميل الجلسة)، فلو الـ hook ده بعد الـ return هيختلف عدد الـ hooks
+  // المُستدعاة بين render وتاني وده بيكسر React Hooks rules فعلياً.
   const grouped = useMemo(() => {
     const map = new Map<string, PendingCorrection[]>();
     for (const p of pending) {
@@ -57,6 +50,16 @@ export function CorrectionPanel({
     }
     return Array.from(map.entries());
   }, [pending]);
+
+  if (!teacher) {
+    return (
+      <Panel title="تصحيح الواجبات" description="يلزم تسجيل الدخول كمدرس">
+        <p className="rounded-xl border-2 border-dashed border-border p-6 text-center text-sm font-bold text-muted-foreground">
+          لا يوجد مدرس مسجّل دخوله.
+        </p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel

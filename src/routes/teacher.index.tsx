@@ -27,6 +27,7 @@ import {
   classifyStudent,
   classificationReason,
   getActiveSubjectQuote,
+  getEnrolledCount,
   getEventsForTeacherToday,
   getGroupsForTeacher,
   getStudentsForTeacher,
@@ -242,7 +243,7 @@ function TeacherHome() {
                     <div>
                       <p className="font-black text-foreground">{g.name}</p>
                       <p className="text-xs font-bold text-muted-foreground">
-                        {g.grade} · {formatNumber(g.enrolled)} طالب
+                        {g.grade} · {formatNumber(getEnrolledCount(state, g.id))} طالب
                       </p>
                     </div>
                     <Link

@@ -46,6 +46,7 @@ import {
   getCurriculumLessonsForUnit,
   getCurriculumUnitsForSubjectGrade,
   getData,
+  getEnrolledCount,
   getNextPlannedLesson,
   getQuestionsForLesson,
   getSessionRecordForLesson,
@@ -453,7 +454,7 @@ function SessionMode() {
               <p className="text-xs font-black text-white/70">وضع الحصة — المركز الكامل للمجموعة</p>
               <h1 className="text-2xl font-black md:text-3xl">{group.name}</h1>
               <p className="text-xs font-bold text-white/70">
-                {group.teacher_name} · {group.room} · {formatNumber(group.enrolled)} طالب
+                {group.teacher_name} · {group.room} · {formatNumber(getEnrolledCount(state, group.id))} طالب
               </p>
             </div>
           </div>
