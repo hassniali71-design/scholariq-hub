@@ -2,7 +2,12 @@ import { CalendarClock, Loader2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { getGroupsForGrade, upsertScheduleSlot, useDataStore } from "@/lib/data-store";
+import {
+  getEnrolledCount,
+  getGroupsForGrade,
+  upsertScheduleSlot,
+  useDataStore,
+} from "@/lib/data-store";
 import { WEEKDAYS } from "@/lib/owner-metrics";
 import { cn } from "@/lib/utils";
 
@@ -236,7 +241,7 @@ export function AddScheduleSlotModal({ open, onClose }: AddScheduleSlotModalProp
               <p className="font-black">{selectedGroup.name}</p>
               <p className="mt-0.5 text-xs font-bold text-muted-foreground">
                 {selectedGroup.teacher_name} · {selectedGroup.subject} · {selectedGroup.grade} ·{" "}
-                {selectedGroup.enrolled} طالب
+                {getEnrolledCount(state, selectedGroup.id)} طالب
               </p>
             </div>
           ) : null}

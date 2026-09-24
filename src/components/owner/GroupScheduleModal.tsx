@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  getEnrolledCount,
   getGroupsForGrade,
   setGroupSchedulingStatus,
   upsertScheduleSlot,
@@ -198,7 +199,7 @@ export function GroupScheduleModal({ open, onClose }: GroupScheduleModalProps) {
               </option>
               {pendingGroups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.name} · {g.subject} · {g.enrolled}/{g.capacity}
+                  {g.name} · {g.subject} · {getEnrolledCount(state, g.id)}/{g.capacity}
                 </option>
               ))}
             </select>
