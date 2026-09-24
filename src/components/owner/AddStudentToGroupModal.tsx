@@ -6,6 +6,7 @@ import {
   addStudentToGroup,
   enrollStudentInAdditionalGroup,
   getEligibleStudentsForGroup,
+  getEnrolledCount,
   useDataStore,
 } from "@/lib/data-store";
 import type { Group } from "@/types";
@@ -42,6 +43,8 @@ export function AddStudentToGroupModal({
 
   if (!group) return null;
 
+  const enrolled = getEnrolledCount(state, group.id);
+
   function handleAdd(studentId: string, studentName: string, hasOtherPrimaryGroup: boolean) {
     const result = hasOtherPrimaryGroup
       ? enrollStudentInAdditionalGroup(studentId, group!.id)
@@ -70,7 +73,7 @@ export function AddStudentToGroupModal({
           <div>
             <h3 className="text-lg font-black text-foreground">إضافة طالب لمجموعة "{group.name}"</h3>
             <p className="text-xs font-bold text-muted-foreground">
-              {group.enrolled}/{group.capacity} طالب حالياً — {group.subject} · {group.grade}
+              {enrolled}/{group.capacity} طالب حالياً — {group.subject} · {group.grade}
             </p>
           </div>
           <button
@@ -83,7 +86,7 @@ export function AddStudentToGroupModal({
           </button>
         </div>
 
-        {group.enrolled >= group.capacity ? (
+        {enrolled >= group.capacity ? (
           <p className="rounded-xl border-2 border-warning/40 bg-warning/10 p-3 text-sm font-bold text-warning">
             المجموعة وصلت للسعة القصوى — زوّد السعة أولاً من تعديل المجموعة قبل إضافة طالب جديد.
           </p>
@@ -117,7 +120,7 @@ export function AddStudentToGroupModal({
                   </div>
                   <button
                     type="button"
-                    disabled={group.enrolled >= group.capacity}
+                    disabled={enrolled >= group.capacity}
                     onClick={() => handleAdd(s.id, s.full_name, hasOtherPrimaryGroup)}
                     className="shrink-0 rounded-lg bg-navy px-3 py-1.5 text-xs font-black text-navy-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                   >

@@ -3555,6 +3555,16 @@ export function deleteScheduleSlot(id: string) {
  * وتفضل موجودة كأرشيف محاسبي — طلب صريح من صاحب المشروع (لا يُحذف السجل المالي
  * لأي مدرس/موظف/طالب حتى بعد حذف صاحبه).
  */
+/**
+ * حذف طالب نهائياً من كل مكان في النظام — إلا سجله المالي (طلب صريح من صاحب
+ * المشروع: `payments`/`booklet_sales` تفضل موجودة كأرشيف محاسبي حتى بعد حذف
+ * صاحبها). قبل هذا الإصلاح كانت الدالة بتمسح 5 جداول بس (حضور/امتحانات/واجبات/
+ * واتساب/ملاحظات) وتسيب أثر الطالب في: تسجيلاته الإضافية في مجموعات تانية
+ * (student_group_enrollments)، درجات تقييمه في الحصص (assessment_scores)،
+ * سحبه العشوائي (random_pick_logs)، أحداث الحصة اللحظية (session_events)،
+ * محاولاته على واجبات المدرس (homework_attempts)، وتعليمه "اطلعت عليه"
+ * (launch_views) — يعني "الحذف النهائي" مكنش نهائي فعلاً.
+ */
 export function deleteStudentCompletely(studentId: string) {
   const before = getData();
   const student = before.students.find((s) => s.id === studentId);
@@ -3571,6 +3581,24 @@ export function deleteStudentCompletely(studentId: string) {
     .filter((w) => w.student_id === studentId)
     .map((w) => w.id);
   const noteIds = before.teacherNotes.filter((n) => n.student_id === studentId).map((n) => n.id);
+  const enrollmentIds = before.studentGroupEnrollments
+    .filter((e) => e.student_id === studentId)
+    .map((e) => e.id);
+  const assessmentIds = before.assessmentScores
+    .filter((a) => a.student_id === studentId)
+    .map((a) => a.id);
+  const randomPickIds = before.randomPickLogs
+    .filter((r) => r.student_id === studentId)
+    .map((r) => r.id);
+  const sessionEventIds = before.sessionEvents
+    .filter((ev) => ev.student_id === studentId)
+    .map((ev) => ev.id);
+  const homeworkAttemptIds = before.homeworkAttempts
+    .filter((a) => a.student_id === studentId)
+    .map((a) => a.id);
+  const launchViewIds = before.launchViews
+    .filter((v) => v.student_id === studentId)
+    .map((v) => v.id);
 
   update((state) => {
     const students = state.students.filter((s) => s.id !== studentId);
@@ -3582,6 +3610,15 @@ export function deleteStudentCompletely(studentId: string) {
       homeworkTasks: state.homeworkTasks.filter((h) => h.student_id !== studentId),
       whatsappLogs: state.whatsappLogs.filter((w) => w.student_id !== studentId),
       teacherNotes: state.teacherNotes.filter((n) => n.student_id !== studentId),
+      studentGroupEnrollments: state.studentGroupEnrollments.filter(
+        (e) => e.student_id !== studentId,
+      ),
+      assessmentScores: state.assessmentScores.filter((a) => a.student_id !== studentId),
+      randomPickLogs: state.randomPickLogs.filter((r) => r.student_id !== studentId),
+      sessionEvents: state.sessionEvents.filter((ev) => ev.student_id !== studentId),
+      homeworkAttempts: state.homeworkAttempts.filter((a) => a.student_id !== studentId),
+      launchViews: state.launchViews.filter((v) => v.student_id !== studentId),
+      liveScores: state.liveScores.filter((s) => s.student_id !== studentId),
       groups: state.groups.map((g) =>
         g.id === student.group_id ? { ...g, enrolled: Math.max(0, g.enrolled - 1) } : g,
       ),
@@ -3595,6 +3632,12 @@ export function deleteStudentCompletely(studentId: string) {
   syncDeleteIds("homework_tasks", homeworkIds);
   syncDeleteIds("whatsapp_logs", whatsappIds);
   syncDeleteIds("teacher_notes", noteIds);
+  syncDeleteIds("student_group_enrollments", enrollmentIds);
+  syncDeleteIds("assessment_scores", assessmentIds);
+  syncDeleteIds("random_pick_logs", randomPickIds);
+  syncDeleteIds("session_events", sessionEventIds);
+  syncDeleteIds("homework_attempts", homeworkAttemptIds);
+  syncDeleteIds("launch_views", launchViewIds);
   if (student.group_id) {
     const group = before.groups.find((g) => g.id === student.group_id);
     if (group) syncUpdate("groups", group.id, { enrolled: Math.max(0, group.enrolled - 1) });
@@ -4639,7 +4682,9 @@ export function addStudentToGroup(
   if (!student.subject_ids.includes(group.subject_id)) {
     return { ok: false, reason: "الطالب غير مسجَّل في هذه المادة" };
   }
-  if (group.enrolled >= group.capacity) {
+  // بوابة السعة على العدد الحقيقي، مش g.enrolled المخزَّن اللي ممكن يكون منحرف
+  // عن الواقع (نفس مصدر البج المُبلَّغ في إنشاء المجموعة).
+  if (getEnrolledCount(state, groupId) >= group.capacity) {
     return { ok: false, reason: "السعة مكتملة" };
   }
   // لو الطالب كان مسجَّل في مجموعة تانية قبل كده، لازم ننقّص عدد المسجَّلين فيها
@@ -4725,7 +4770,9 @@ export function enrollStudentInAdditionalGroup(
     (e) => e.student_id === studentId && e.group_id === groupId,
   );
   if (already) return { ok: false, reason: "الطالب مسجَّل بالفعل في هذه المجموعة" };
-  if (group.enrolled >= group.capacity) return { ok: false, reason: "السعة مكتملة" };
+  if (getEnrolledCount(state, groupId) >= group.capacity) {
+    return { ok: false, reason: "السعة مكتملة" };
+  }
   let row: StudentGroupEnrollment | null = null;
   update((s) => {
     row = {

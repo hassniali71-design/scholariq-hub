@@ -26,6 +26,7 @@ import {
   addTeacherNote,
   classifyStudent,
   deleteGroup,
+  getEnrolledCount,
   useDataStore,
 } from "@/lib/data-store";
 import { formatCurrency, formatDateTime, formatNumber, formatPercent } from "@/lib/format";
@@ -93,6 +94,7 @@ function StudentsPage() {
   const {
     students,
     groups,
+    subjects,
     payments,
     attendanceRecords,
     homeworkTasks,
@@ -140,6 +142,13 @@ function StudentsPage() {
   const studentNotes = selected
     ? teacherNotes.filter((n) => n.student_id === selected.id)
     : [];
+  const studentSubjectNames = selected
+    ? selected.subject_ids
+        .map((id) => subjects.find((s) => s.id === id)?.name)
+        .filter((n): n is string => Boolean(n))
+    : [];
+  const pendingHomeworkCount = studentHomework.filter((h) => h.status === "pending").length;
+  const selectedStatus = selected ? studentVisualStatus(selected, students) : null;
 
   return (
     <AppShell
@@ -197,7 +206,9 @@ function StudentsPage() {
           </p>
         ) : (
           <ul className="space-y-2">
-            {groups.map((g) => (
+            {groups.map((g) => {
+              const enrolled = getEnrolledCount(state, g.id);
+              return (
               <li
                 key={g.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-border p-3"
@@ -205,11 +216,11 @@ function StudentsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-black text-foreground">{g.name}</p>
                   <p className="mt-0.5 text-xs font-bold text-muted-foreground">
-                    {g.subject} · {g.grade} · مدرس: {g.teacher_name} · {g.enrolled}/{g.capacity}
+                    {g.subject} · {g.grade} · مدرس: {g.teacher_name} · {enrolled}/{g.capacity}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {g.enrolled === 0 ? (
+                  {enrolled === 0 ? (
                     <StatusBadge tone="destructive">
                       <AlertCircle className="size-3.5" /> لا يوجد طلاب — لن تظهر لأي طالب
                     </StatusBadge>
@@ -247,7 +258,8 @@ function StudentsPage() {
                   </button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </Panel>
@@ -377,11 +389,11 @@ function StudentsPage() {
         </div>
       </Panel>
 
-      {/* تفاصيل الطالب المختار */}
+      {/* كارت الطالب الشامل — اختر من السجل فوق (بحث بالاسم/الكود) ليظهر هنا */}
       {selected ? (
         <Panel
-          title={`تفاصيل: ${selected.full_name}`}
-          description={`الكود: ${selected.code} · ${selected.grade} · ${selected.group_name}`}
+          title="كارت الطالب"
+          description="كل تفاصيل الطالب في مكان واحد — من السجل والبحث بالأعلى"
           actions={
             <button
               type="button"
@@ -392,7 +404,55 @@ function StudentsPage() {
             </button>
           }
         >
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border-2 border-border bg-canvas/30 p-4">
+            {selected.avatar_data ? (
+              <img
+                src={selected.avatar_data}
+                alt={selected.full_name}
+                className="size-16 shrink-0 rounded-2xl border-2 border-border object-cover"
+              />
+            ) : (
+              <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl border-2 border-border bg-muted text-2xl font-black text-muted-foreground">
+                {selected.full_name.trim().charAt(0) || "؟"}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-black text-foreground">{selected.full_name}</p>
+              <p className="mt-0.5 text-sm font-bold text-muted-foreground">
+                الكود: {selected.code} · {selected.grade} · {selected.group_name}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <StatusBadge tone={paymentLabel[selected.payment_status].tone}>
+                  {paymentLabel[selected.payment_status].text}
+                </StatusBadge>
+                {selectedStatus ? (
+                  <StatusBadge
+                    tone={
+                      selectedStatus === "top"
+                        ? "success"
+                        : selectedStatus === "attention"
+                          ? "warning"
+                          : "neutral"
+                    }
+                  >
+                    {visualStatusMeta[selectedStatus].label}
+                  </StatusBadge>
+                ) : null}
+                {pendingHomeworkCount > 0 ? (
+                  <StatusBadge tone="warning">
+                    {formatNumber(pendingHomeworkCount)} واجب متبقٍ
+                  </StatusBadge>
+                ) : null}
+                {studentSubjectNames.map((name) => (
+                  <StatusBadge key={name} tone="primary">
+                    {name}
+                  </StatusBadge>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <DetailStat label="نقاط لوحة الشرف" value={formatNumber(selected.points)} />
             <DetailStat label="نسبة الحضور" value={formatPercent(selected.attendance_rate)} />
             <DetailStat label="متوسط الدرجات" value={formatNumber(selected.avg_score)} />
