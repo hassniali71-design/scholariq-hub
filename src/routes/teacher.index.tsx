@@ -18,7 +18,6 @@ import { toast } from "sonner";
 
 import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
-import { AvatarUpload } from "@/components/shared/AvatarUpload";
 import { PlatformTeacherNoteCard } from "@/components/teacher/PlatformTeacherNoteCard";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
 import { StudentMessagesCard } from "@/components/teacher/StudentMessagesCard";
@@ -39,7 +38,6 @@ import {
 } from "@/lib/data-store";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { getSubjectTheme } from "@/lib/subject-themes";
-import { teacherDisplayName } from "@/lib/teacher-identity";
 
 export const Route = createFileRoute("/teacher/")({
   head: () => ({
@@ -110,11 +108,7 @@ function TeacherHome() {
   };
 
   return (
-    <AppShell
-      role="teacher"
-      title={teacherDisplayName(teacher)}
-      description={subjectName}
-    >
+    <AppShell role="teacher" title="لوحة المدرس" description={subjectName}>
       <SubjectRoomHeader
         teacher={teacher}
         subjectName={subjectName}
@@ -123,18 +117,8 @@ function TeacherHome() {
         groupsCount={myGroups.length}
         studentsCount={myStudents.length}
         ownerQuote={getActiveSubjectQuote(state, resolvedSubjectId)?.text}
+        onAvatarUpload={(dataUrl, mime) => setTeacherAvatar(teacher.id, dataUrl, mime)}
       />
-
-      <div className="flex items-center gap-3">
-        <AvatarUpload
-          imageData={teacher.avatar_data}
-          alt={teacherDisplayName(teacher)}
-          onUpload={(dataUrl, mime) => setTeacherAvatar(teacher.id, dataUrl, mime)}
-        />
-        <p className="text-sm font-bold text-muted-foreground">
-          اضغط على أيقونة الكاميرا لتحديث صورتك — تظهر للطلاب في صفحة "مدرّسيني".
-        </p>
-      </div>
 
       <PlatformTeacherNoteCard subjectId={teacher.subject_id} />
 

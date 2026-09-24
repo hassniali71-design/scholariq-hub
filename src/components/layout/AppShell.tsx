@@ -9,7 +9,9 @@ import { AvatarCircle } from "@/components/shared/AvatarUpload";
 import { StudentChatWidget } from "@/components/student/ChatWidget";
 import { ROLES } from "@/config/roles";
 import { useCurrentStudent } from "@/hooks/use-current-student";
+import { useCurrentTeacher } from "@/hooks/use-current-teacher";
 import { retryHydration, useDataStore, useIsHydrated } from "@/lib/data-store";
+import { teacherDisplayName } from "@/lib/teacher-identity";
 import { DEFAULT_TENANT_ACCENT, getTenantPaletteVars } from "@/lib/tenant-colors";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -51,6 +53,7 @@ export function AppShell({ role, title, description, actions, children }: AppShe
   const { center } = useDataStore();
   const isHydrated = useIsHydrated();
   const currentStudent = useCurrentStudent();
+  const currentTeacher = useCurrentTeacher();
   const [welcomePhrase] = useState(
     () => WELCOME_PHRASES[Math.floor(Math.random() * WELCOME_PHRASES.length)]!,
   );
@@ -192,6 +195,22 @@ export function AppShell({ role, title, description, actions, children }: AppShe
             <div className="min-w-0">
               <p className="text-xs font-bold text-white/70">{welcomePhrase}</p>
               <p className="truncate text-lg font-black text-white">{currentStudent.full_name}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {role === "teacher" && currentTeacher ? (
+          <div className="flex flex-col items-center gap-3 border-b border-white/15 px-6 py-6 text-center">
+            <AvatarCircle
+              src={currentTeacher.avatar_data}
+              alt={teacherDisplayName(currentTeacher)}
+              sizeClass="size-20"
+              fallback={<span className="text-4xl">👤</span>}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black text-white">
+                {teacherDisplayName(currentTeacher)}
+              </p>
             </div>
           </div>
         ) : null}

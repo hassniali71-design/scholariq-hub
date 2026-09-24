@@ -27,7 +27,7 @@ export function BarChart({
   };
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="h-2 flex-1 overflow-hidden rounded-full border border-border bg-muted">
+      <div className="h-4 flex-1 overflow-hidden rounded-full border border-border bg-muted sm:h-5">
         <div
           className={cn("h-full transition-all", colors[finalTone])}
           style={{ width: `${clamped}%` }}
@@ -36,7 +36,7 @@ export function BarChart({
       {showLabel ? (
         <span
           className={cn(
-            "min-w-[3ch] text-end text-xs font-black tabular-nums",
+            "min-w-[4ch] text-end text-sm font-black tabular-nums",
             finalTone === "success"
               ? "text-success"
               : finalTone === "warning"

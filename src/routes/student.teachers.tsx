@@ -85,7 +85,7 @@ function TeachersPage() {
                   <AvatarCircle
                     src={teacher?.avatar_data}
                     alt={g.teacher_name}
-                    sizeClass="size-11"
+                    sizeClass="size-16"
                   />
                   <div>
                     <p className="text-sm font-black text-foreground">{g.teacher_name}</p>

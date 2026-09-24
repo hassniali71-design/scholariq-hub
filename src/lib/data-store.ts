@@ -4228,10 +4228,6 @@ export function getEventsForTeacherToday(
   now: Date = new Date(),
 ): TeacherTodayEvent[] {
   const events: TeacherTodayEvent[] = [];
-  const teacherGroups = state.groups.filter(
-    (g) => g.teacher_id === teacherId || g.teacher_user_id === teacherId,
-  );
-  const teacherGroupIds = new Set(teacherGroups.map((g) => g.id));
   const todayWd = now.getDay();
 
   for (const slot of state.scheduleSlots) {
@@ -4275,24 +4271,6 @@ export function getEventsForTeacherToday(
     });
   }
 
-  for (const s of state.assessmentScores) {
-    if (s.recorded_by_teacher_id !== teacherId) continue;
-    if (teacherGroupIds.size > 0) {
-      const student = state.students.find((st) => st.id === s.student_id);
-      if (student && !teacherGroupIds.has(student.group_id ?? "")) continue;
-    }
-    const at = new Date(s.recorded_at);
-    if (at.getTime() < todayStart.getTime()) continue;
-    events.push({
-      kind: "today_assessment",
-      title: `تقييم ${categoryLabelAr(s.category)}`,
-      detail: `${s.value}/${s.max_value}`,
-      at: s.recorded_at,
-      ref_id: s.id,
-      group_id: null,
-    });
-  }
-
   events.sort((a, b) => {
     if (!a.at) return 1;
     if (!b.at) return -1;
@@ -4311,17 +4289,6 @@ const TYPE_LABEL_AR: Record<TeacherLaunch["launch_type"], string> = {
   reading_assignment: "مراجعة / قراءة",
   oral_recitation: "تسميع",
 };
-
-function categoryLabelAr(c: AssessmentScore["category"]): string {
-  switch (c) {
-    case "homework": return "واجب";
-    case "activity": return "نشاط";
-    case "behavior": return "سلوك";
-    case "question": return "سؤال";
-    case "e_homework": return "واجب إلكتروني";
-    default: return c;
-  }
-}
 
 function dayNumberToName(n: number): string {
   return ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][n] ?? "";
