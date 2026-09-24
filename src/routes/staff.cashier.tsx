@@ -558,11 +558,11 @@ function UpcomingGroupsPanel() {
                   </StatusBadge>
                   <p className="text-sm font-black text-foreground">{u.group.name}</p>
                   <p className="text-xs font-bold text-muted-foreground">
-                    {u.group.grade} · قاعة {u.group.room}
+                    {u.group.grade} · قاعة {u.slotRoom}
                   </p>
                 </div>
                 <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-                  المدرس: {u.teacher?.full_name ?? u.group.teacher_name} · {u.group.weekday} {u.group.time}
+                  المدرس: {u.teacher?.full_name ?? u.group.teacher_name} · {u.slotWeekday} {u.slotTime}
                   {u.attendanceMarkedToday > 0
                     ? ` · ${formatNumber(u.attendanceMarkedToday)} حضور`
                     : ""}

@@ -1655,6 +1655,15 @@ export interface UpcomingGroup {
   minutesUntil: number;
   /** عدد الطلاب اللي تم تسجيل حضورهم اليوم بالفعل. */
   attendanceMarkedToday: number;
+  /**
+   * المعاد الحقيقي (اليوم/الوقت/القاعة) اللي طلع بيه الصف ده فعلاً — مجموعة
+   * ممكن يكون ليها أكتر من معاد حقيقي (`scheduleSlots`)، فـ`group.weekday`/
+   * `group.time`/`group.room` (حقول ملخّص قديمة بتحمل آخر معاد اتسجّل بس) ممكن
+   * تعرض يوم/وقت مختلف عن المعاد اللي فعلاً خلّى الصف يظهر هنا النهارده.
+   */
+  slotWeekday: string;
+  slotTime: string;
+  slotRoom: string;
 }
 
 export function getUpcomingGroupsForToday(
@@ -1684,7 +1693,16 @@ export function getUpcomingGroupsForToday(
       const stu = state.students.find((s) => s.id === r.student_id);
       return stu?.group_id === group.id && r.checked_in_at && r.checked_in_at !== "—";
     }).length;
-    result.push({ group, teacher, status, minutesUntil: delta, attendanceMarkedToday });
+    result.push({
+      group,
+      teacher,
+      status,
+      minutesUntil: delta,
+      attendanceMarkedToday,
+      slotWeekday: slot.weekday,
+      slotTime: slot.time,
+      slotRoom: slot.room || group.room,
+    });
   }
   // ترتيب: الحصة اللي وقتها دلوقتي أولاً، ثم الأقرب
   result.sort((a, b) => {
