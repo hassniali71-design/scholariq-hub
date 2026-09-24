@@ -52,13 +52,38 @@ function CurriculumPage() {
   const myGroups = getGroupsForTeacher(state, teacher.id);
   const myPlans = getLessonPlansForTeacher(state, teacher.id);
 
+  /**
+   * الفلتر الأساسي بقى الصف الدراسي، مش المجموعة مباشرة — طلب صريح: مدرس
+   * بيدرّس نفس الصف في مجموعتين (مثلاً الأحد والأربعاء) لازم يشوف صفه كوحدة
+   * واحدة أولاً، مع إمكانية المقارنة بين المجموعتين لو احتاج. `LessonPlan`
+   * نفسها مرتبطة بمجموعة محددة (كل مجموعة ممكن يكون معاها خطة مختلفة فعلياً)،
+   * فمفيش دمج قسري لمحتوى الخطط — بس العرض والتجميع بقى بالصف أولاً.
+   */
+  const grades = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          myGroups
+            .map((g) => g.grade)
+            .filter((x): x is string => typeof x === "string" && x.trim().length > 0),
+        ),
+      ),
+    [myGroups],
+  );
+  const [gradeFilter, setGradeFilter] = useState<string | typeof ALL_GROUPS>(ALL_GROUPS);
   const [groupFilter, setGroupFilter] = useState<string | typeof ALL_GROUPS>(ALL_GROUPS);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddFor, setShowAddFor] = useState<string | null>(null);
 
+  const gradeGroups =
+    gradeFilter === ALL_GROUPS ? myGroups : myGroups.filter((g) => g.grade === gradeFilter);
   const filteredGroups =
-    groupFilter === ALL_GROUPS ? myGroups : myGroups.filter((g) => g.id === groupFilter);
+    groupFilter === ALL_GROUPS ? gradeGroups : gradeGroups.filter((g) => g.id === groupFilter);
+  const filteredPlans = useMemo(() => {
+    const groupIds = new Set(filteredGroups.map((g) => g.id));
+    return myPlans.filter((p) => groupIds.has(p.group_id));
+  }, [myPlans, filteredGroups]);
 
   const plansByGroup = useMemo(() => {
     const map = new Map<string, LessonPlan[]>();
@@ -70,19 +95,23 @@ function CurriculumPage() {
     return map;
   }, [myPlans]);
 
-  const totalPrepared = myPlans.filter((p) => p.prepared_done).length;
-  const totalTaught = myPlans.filter((p) => p.taught_done).length;
-  const totalPending = myPlans.length - totalTaught;
-  const prepRate = myPlans.length ? Math.round((totalPrepared / myPlans.length) * 100) : 0;
+  const totalPrepared = filteredPlans.filter((p) => p.prepared_done).length;
+  const totalTaught = filteredPlans.filter((p) => p.taught_done).length;
+  const totalPending = filteredPlans.length - totalTaught;
+  const prepRate = filteredPlans.length
+    ? Math.round((totalPrepared / filteredPlans.length) * 100)
+    : 0;
 
   // مقياس "التحضير المسبق": خطط أُعدّت قبل 24 ساعة من الآن (proxy بسيط)
-  const preparedAhead = myPlans.filter((p) => {
+  const preparedAhead = filteredPlans.filter((p) => {
     if (!p.prepared_at || !p.created_at) return false;
     const prep = Date.parse(p.prepared_at);
     const created = Date.parse(p.created_at);
     return prep - created >= 0;
   }).length;
-  const aheadRate = myPlans.length ? Math.round((preparedAhead / myPlans.length) * 100) : 0;
+  const aheadRate = filteredPlans.length
+    ? Math.round((preparedAhead / filteredPlans.length) * 100)
+    : 0;
 
   return (
     <AppShell
@@ -91,7 +120,7 @@ function CurriculumPage() {
       description="خطط الدروس التي تعدّها أنت لكل مجموعة — منفصلة عن مهام الإدارة"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="إجمالي الخطط" value={formatNumber(myPlans.length)} icon={ClipboardList} />
+        <StatCard label="إجمالي الخطط" value={formatNumber(filteredPlans.length)} icon={ClipboardList} />
         <StatCard label="تم الإعداد" value={formatNumber(totalPrepared)} icon={Check} tone="primary" />
         <StatCard label="تم التدريس" value={formatNumber(totalTaught)} icon={BookOpen} tone="success" />
         <StatCard
@@ -125,9 +154,9 @@ function CurriculumPage() {
           <span className="font-black text-foreground">{formatPercent(aheadRate)}</span>
         </div>
         <p className="mt-2 text-xs font-bold text-muted-foreground">
-          {formatNumber(preparedAhead)} من {formatNumber(myPlans.length)} خطة تم إعدادها قبل الموعد المخطط.
+          {formatNumber(preparedAhead)} من {formatNumber(filteredPlans.length)} خطة تم إعدادها قبل الموعد المخطط.
         </p>
-        {prepRate < 50 && myPlans.length > 0 ? (
+        {prepRate < 50 && filteredPlans.length > 0 ? (
           <p className="mt-3 rounded-xl border-2 border-warning/40 bg-warning/10 p-3 text-xs font-black text-warning">
             ⚠️ تحضيرك المسبق أقل من 50٪ — حاول تجهّز الخطة قبل 24 ساعة من الحصة.
           </p>
@@ -136,9 +165,32 @@ function CurriculumPage() {
 
       <Panel
         title="الفلتر والبحث"
-        description="اختر مجموعة، أو ابحث بكلمة داخل محتوى الخطة"
+        description="اختر الصف الدراسي أولاً (تجميع كل مجموعاته)، ثم مجموعة مُحدَّدة للمقارنة إن احتجت"
       >
         <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <FilterPill
+              active={gradeFilter === ALL_GROUPS}
+              onClick={() => {
+                setGradeFilter(ALL_GROUPS);
+                setGroupFilter(ALL_GROUPS);
+              }}
+            >
+              كل الصفوف
+            </FilterPill>
+            {grades.map((grade) => (
+              <FilterPill
+                key={grade}
+                active={gradeFilter === grade}
+                onClick={() => {
+                  setGradeFilter(grade);
+                  setGroupFilter(ALL_GROUPS);
+                }}
+              >
+                {grade}
+              </FilterPill>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2">
             <FilterPill
               active={groupFilter === ALL_GROUPS}
@@ -146,7 +198,7 @@ function CurriculumPage() {
             >
               كل المجموعات
             </FilterPill>
-            {myGroups.map((g) => (
+            {gradeGroups.map((g) => (
               <FilterPill
                 key={g.id}
                 active={groupFilter === g.id}

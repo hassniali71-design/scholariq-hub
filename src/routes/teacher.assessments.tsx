@@ -7,7 +7,6 @@ import { Panel, StatCard, StatusBadge } from "@/components/dashboard/StatCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { BEHAVIOR_LEVELS } from "@/components/session/SessionSteps";
 import { AwardsAndAlertsPanel } from "@/components/teacher/AwardsAndAlertsPanel";
-import { BehaviorScoreColumn } from "@/components/teacher/BehaviorScoreColumn";
 import { GroupMetricsPanel } from "@/components/teacher/GroupMetricsPanel";
 import { StudentClassificationCard } from "@/components/teacher/StudentClassificationCard";
 import { BarChart } from "@/components/ui/BarChart";
@@ -164,21 +163,6 @@ function AssessmentsPage() {
           openStudentId={alertStudentId}
         />
       </Panel>
-
-      {/*
-        Migration 0023 / خطة B (B7): عمود السلوك التفاعلي — المدرس يضغط على خانة
-        الطالب لتظهر لوحة المفاتيح الرقمية 0..10.
-      */}
-      {visibleStudents.length > 0 ? (
-        <Panel
-          title="درجة السلوك (قابلة للتعديل)"
-          description="اضغط على خانة الطالب لتظهر لوحة المفاتيح الرقمية 0..10"
-        >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <BehaviorScoreColumn students={visibleStudents} />
-          </div>
-        </Panel>
-      ) : null}
 
       <Panel title="سجل الحضور" description="آخر الحصص المسجَّلة لكل مجموعة — قراءة فقط">
         <AttendanceGrid state={state} groups={visibleGroups} />
