@@ -453,6 +453,30 @@ export function buildDecisionAlerts(state: DataState, now = new Date()): Decisio
     });
   }
 
+  // 5) طلاب ببيانات تسجيل ناقصة — لا نتجاهل الحالة، لازم تظهر للمالك صراحة
+  // بدل ما تختفي بصمت. حالتان: طالب مكتوب عليه اسم مجموعة لكن `group_id` فاضي
+  // (لا يوجد صف Group فعلي مرتبط — فجوة بيانات معروفة، راجع تعليق النوع في
+  // types/index.ts)، أو طالب بدون أي مادة مسجَّلة (`subject_ids` فاضية) فمش
+  // هيظهر في أي منهج/تقرير مادة.
+  for (const s of state.students) {
+    if (!s.group_id) {
+      alerts.push({
+        id: `nogrp-${s.id}`,
+        severity: "critical",
+        title: `طالب بدون مجموعة فعلية: ${s.full_name}`,
+        body: `${s.grade} · مكتوب عليه "${s.group_name || "—"}" لكن لا توجد مجموعة حقيقية مرتبطة به — راجع بياناته`,
+      });
+    }
+    if (!s.subject_ids || s.subject_ids.length === 0) {
+      alerts.push({
+        id: `nosub-${s.id}`,
+        severity: "warning",
+        title: `طالب بدون مادة مسجَّلة: ${s.full_name}`,
+        body: `${s.grade} · ${s.group_name || "—"} · لن يظهر في تقارير/مناهج أي مادة حتى تُسجَّل له مادة`,
+      });
+    }
+  }
+
   const order = { critical: 0, warning: 1, info: 2 } as const;
   return alerts.sort((a, b) => order[a.severity] - order[b.severity]);
 }
