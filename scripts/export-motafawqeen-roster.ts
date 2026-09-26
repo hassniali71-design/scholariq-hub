@@ -9,6 +9,8 @@
  *   bun run scripts/export-motafawqeen-roster.ts
  */
 import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.ERP_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -130,11 +132,15 @@ async function main() {
   }
   const csv = "﻿" + csvLines.join("\n");
 
-  writeFileSync("/tmp/motafawqeen-roster.md", markdown, "utf8");
-  writeFileSync("/tmp/motafawqeen-roster.csv", csv, "utf8");
+  // os.tmpdir() بدل مسار "/tmp/..." ثابت — على Windows ده بيرجع مجلد temp الحقيقي
+  // (AppData\Local\Temp)، مش مجلد "/tmp" غير موجود على الدرايف الحالي.
+  const mdPath = join(tmpdir(), "motafawqeen-roster.md");
+  const csvPath = join(tmpdir(), "motafawqeen-roster.csv");
+  writeFileSync(mdPath, markdown, "utf8");
+  writeFileSync(csvPath, csv, "utf8");
 
   console.log(markdown);
-  console.log("\n✓ الملفات محفوظة في: /tmp/motafawqeen-roster.md و /tmp/motafawqeen-roster.csv");
+  console.log(`\n✓ الملفات محفوظة في: ${mdPath} و ${csvPath}`);
   console.log("⚠️ تذكير: لا ترفع الملفين دول لـ git ولا تشاركهم إلا مع مالك السنتر.");
 }
 
